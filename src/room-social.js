@@ -47,10 +47,17 @@ export class RoomSocial {
     });
     const viewport = window.visualViewport;
     const keyboard = () => {
-      this.root.style.setProperty('--chat-keyboard-offset', `${viewport ? Math.max(0, innerHeight - viewport.height - viewport.offsetTop) : 0}px`);
+      const height = viewport?.height ?? innerHeight;
+      const offset = viewport ? Math.max(0, innerHeight - height - viewport.offsetTop) : 0;
+      this.root.style.setProperty('--chat-keyboard-offset', `${offset}px`);
+      this.root.style.setProperty('--chat-viewport-height', `${height}px`);
+      // A keyboard can shrink only the visual viewport, or the whole layout.
+      this.root.dataset.chatViewport = offset > 80 || height < 240 ? 'compact' : 'default';
       this.onLayout();
     };
     viewport?.addEventListener('resize', keyboard); viewport?.addEventListener('scroll', keyboard);
+    window.addEventListener('resize', keyboard);
+    keyboard();
     document.addEventListener('visibilitychange', () => {
       this.notices.hydrated = false; this.notices.items = [];
       if (!document.hidden && !this.root.hidden) this.notices.update(this.messages || [], this.me, this.connected);

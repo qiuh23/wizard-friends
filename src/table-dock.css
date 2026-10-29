@@ -11,6 +11,24 @@ body[data-screen="game"] #room-chat {
   width:min(360px,calc(100vw - 375px));height:222px;max-height:45dvh;
 }
 
+/* Keep the composer inside the keyboard's remaining visual viewport. */
+#room-social[data-chat-viewport="compact"] #room-chat.social-panel {
+  position:fixed;top:auto;left:max(10px,env(safe-area-inset-left));right:auto;
+  bottom:calc(var(--chat-keyboard-offset,0px) + 8px);
+  width:min(420px,calc(100vw - 20px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+  height:min(260px,calc(var(--chat-viewport-height,100dvh) - 16px));
+  max-height:calc(var(--chat-viewport-height,100dvh) - 16px);padding:8px 10px;
+}
+#room-social[data-chat-viewport="compact"] #room-chat .social-heading { position:absolute;top:auto;right:4px;bottom:8px; }
+#room-social[data-chat-viewport="compact"] #room-chat .social-heading b,
+#room-social[data-chat-viewport="compact"] #room-chat .chat-context { display:none; }
+#room-social[data-chat-viewport="compact"] #chat-messages { min-height:0;margin:0 0 4px; }
+#room-social[data-chat-viewport="compact"] #chat-form { margin-top:0;padding-right:52px; }
+@media(hover:none) and (pointer:coarse) {
+  #room-chat #chat-input { font-size:16px; }
+  #room-chat #chat-input, #room-chat #chat-form > button { min-height:44px; }
+}
+
 /* Keep prediction and tricks in view; the ledger holds cumulative statistics. */
 body[data-screen="game"] .player .player-total,
 body[data-screen="game"] .player .player-tricks,
