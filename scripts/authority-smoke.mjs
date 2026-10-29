@@ -1,5 +1,6 @@
 import { chromium, expect } from '@playwright/test';
 import fs from 'node:fs';
+import { winnerReason } from '../src/table-summary.js';
 
 // Deliberately small: one real three-client round, recovery and room controls.
 // Longer layout/variant matrices remain local/manual.
@@ -32,6 +33,24 @@ async function chooseRules(page) {
 async function closeScores(page) {
   const close = page.locator('.close-scores');
   if (await close.isVisible()) await close.click();
+}
+async function chatControlsInViewport(page) {
+  // Check before clicking: Playwright scrolling cannot repair a panel whose
+  // parent trigger moved to the header while its popup still opens upwards.
+  const layout = await page.locator('#room-chat').evaluate(panel => {
+    const rect = node => { const r=node.getBoundingClientRect(); return {left:r.left,right:r.right,top:r.top,bottom:r.bottom}; };
+    return { panel:rect(panel), width:innerWidth, height:innerHeight, scrollY,
+      controls:['#close-chat','#chat-input','#chat-form button'].map(selector=>{
+        const node=panel.querySelector(selector), r=node.getBoundingClientRect();
+        return {...rect(node),hit:node.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2))};
+      }) };
+  });
+  expect(layout.scrollY).toBe(0);
+  for(const r of [layout.panel,...layout.controls]) {
+    expect(r.left).toBeGreaterThanOrEqual(0);expect(r.right).toBeLessThanOrEqual(layout.width);
+    expect(r.top).toBeGreaterThanOrEqual(0);expect(r.bottom).toBeLessThanOrEqual(layout.height);
+  }
+  expect(layout.controls.every(control=>control.hit)).toBe(true);
 }
 async function actOnce(page) {
   if (await page.locator('[data-trump]').count()) {
@@ -112,12 +131,14 @@ try {
   await host.waitForTimeout(1100);
   expect(await Promise.all(pages.map(position))).toEqual(beforePause);
   await guest.locator('#chat-toggle').click();
+  await chatControlsInViewport(guest);
   await guest.locator('#chat-input').fill('暂停期间仍可聊天');
   await guest.locator('#chat-form button').click();
   await expect(host.locator('#chat-messages span').last()).toHaveText('暂停期间仍可聊天');
   await expect(host.locator('.chat-notice')).toContainText('暂停期间仍可聊天');
   await host.locator('.chat-notice').click();
   await expect(host.locator('#room-chat')).toBeVisible();
+  await chatControlsInViewport(host);
   await expect(host.locator('.chat-notice')).toHaveCount(0);
   await host.locator('#close-chat').click();
   await guest.locator('#close-chat').click();
@@ -167,12 +188,21 @@ try {
     await host.waitForTimeout(80);
   }
   await expect.poll(async () => (await state(host)).phase).toBe('trickEnd');
-  await expect(host.locator('.win-reason')).not.toBeEmpty();
-  await expect(host.locator('.lead-callout')).toBeVisible();
-  await expect(host.locator('.lead-callout')).toContainText('下墩先手');
+  const review = await state(host), winnerName = review.players[review.lastWinner].name;
+  await expect(host.locator('.settlement-summary h3')).toHaveText(`${winnerName} 赢得本墩`);
+  await expect(host.locator('.settlement-summary .action-title small')).toHaveText(`下一墩 ${winnerName} 首攻`);
+  const details = host.locator('.settlement-details');
+  expect(await details.getAttribute('open')).toBeNull();
+  await details.locator('summary').click();
+  const reason = details.locator('.settlement-details-body > p').first();
+  await expect(reason).toBeVisible();
+  await expect(reason).toHaveText(winnerReason(review.trick,review.trump,review.options.deckMode));
+  await details.locator('summary').click();
+  await expect(host.locator('#trick-review-timer')).toBeVisible();
   await host.waitForTimeout(2000);
   expect((await state(host)).phase).toBe('trickEnd');
   await expect.poll(async () => (await state(host)).phase, {timeout:7000}).toBe('play');
+  expect((await state(host)).turn).toBe(review.lastWinner);
   await host.locator('#table-menu').click();
   await host.locator('#room-dissolve').click();
   for (const page of pages) await page.locator('#create').waitFor();

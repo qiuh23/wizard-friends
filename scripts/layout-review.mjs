@@ -8,6 +8,7 @@ import { DEFAULT_OPTIONS } from '../src/rules-options.js';
 // test clocks, seeded games or arbitrary-state endpoints in the Worker.
 const base = process.env.GAME_URL || 'http://127.0.0.1:5173/';
 const out = 'output/playwright'; fs.mkdirSync(out, { recursive: true });
+const wantedViewport=([width,height])=>!process.env.LAYOUT_VIEWPORT||process.env.LAYOUT_VIEWPORT===`${width}x${height}`;
 function fixture(count, round) {
   const game = createGame(); game.randomState = createRandomStream(Array(11).fill(4));
   for (let i = 0; i < count; i++) addPlayer(game, `p${i}`, ['青岚', '云舒', '风行', '清月', '星河', '林语'][i]);
@@ -35,6 +36,28 @@ async function handControl(page, id) {
   if (!await page.locator(id).isVisible()) await page.locator('#table-menu').click();
   await page.locator(id).click();
   if (await page.locator('#table-menu-panel').isVisible()) await page.locator('#table-menu').click();
+}
+async function selectHandCard(page, card, touch = false) {
+  const id=await card.getAttribute('data-card');
+  await card.scrollIntoViewIfNeeded();
+  const point=await card.evaluate(node=>{
+    const r=node.getBoundingClientRect();
+    for(const y of [20,35,10,r.height/2,r.height-8]) for(const x of [15,8,4,r.width/2,r.width-8]) {
+      const px=r.left+x,py=r.top+y;
+      if(px<0||px>=innerWidth||py<0||py>=innerHeight)continue;
+      if(node.contains(document.elementFromPoint(px,py)))return {x:px,y:py,localX:x,localY:y};
+    }
+    return null;
+  });
+  expect(point,`${id}: the card must expose a real selectable surface`).not.toBeNull();
+  if(touch)await page.touchscreen.tap(point.x,point.y);
+  else await card.click({position:{x:point.localX,y:point.localY}});
+  try { await expect(page.locator(`.hand [data-card="${id}"]`)).toHaveClass(/selected/); }
+  catch(error) {
+    const selected=await page.locator('.hand .selected').getAttribute('data-card').catch(()=>null);
+    console.error(JSON.stringify({selectHandCard:id,point,selected,viewport:page.viewportSize()}));
+    await page.screenshot({path:`${out}/hand-selection-failure-${page.viewportSize().width}.png`});throw error;
+  }
 }
 async function screenshotStable(page, options) {
   // The retained low-power WebGL renderer draws at 20fps; let the canvas catch
@@ -77,7 +100,7 @@ async function bounds(page) {
 }
 try {
   if (process.env.LAYOUT_CASE !== 'full-trick') {
-  for (const [width, height] of [[1440, 900], [360, 800], [390, 844], [844, 390]]) {
+  for (const [width, height] of [[1440, 900], [360, 800], [390, 844], [844, 390]].filter(wantedViewport)) {
     const { context, page } = await openFixture(3, 20, width, height);
     await expect(page.locator('.hand .card')).toHaveCount(20);
     const layout = await bounds(page); expect(layout.overflow).toBe(false);
@@ -113,12 +136,13 @@ try {
     }
     // Return to the first visible card, then select without submitting.
     await page.locator('.hand').evaluate(el => { el.scrollLeft = 0; });
-    await page.locator('.hand .playable').first().click({ position: { x: 15, y: 45 } });
+    await selectHandCard(page,page.locator('.hand .playable').first(),width<851);
     await expect(page.locator('.hand .selected')).toHaveCount(1);
     if (width >= 851 && await page.locator('.hand').evaluate(node => node.classList.contains('desktop-fan'))) {
       await expect(page.locator('.selected-preview')).toBeHidden();
       expect(await page.locator('.hand .selected').evaluate(node => parseFloat(node.style.getPropertyValue('--hand-lift')))).toBeLessThan(-20);
-    } else await expect(page.locator('.selected-preview')).toBeVisible();
+    } else if(await page.locator('body').getAttribute('data-table-layout')==='strip') await expect(page.locator('.selected-preview')).toBeHidden();
+    else await expect(page.locator('.selected-preview')).toBeVisible();
     await expect(page.locator('#confirm-play')).toBeEnabled();
     await screenshotStable(page,{ path: `${out}/${prefix}-selected.png` });
     const selected = await page.locator('.hand .selected').getAttribute('data-card');
@@ -132,16 +156,17 @@ try {
     await handControl(page, '#hand-expand');
     await page.locator('#cancel-card').click();
     await expect(page.locator('#confirm-play')).toBeDisabled();
-    await page.locator('.hand .playable').first().click({ position: { x: 15, y: 45 } });
+    await selectHandCard(page,page.locator('.hand .playable').first(),width<851);
     await page.locator('#confirm-play').click();
     await expect(page.locator('.hand .card')).toHaveCount(19);
     checks.push({ width, height, cards: 20, layout, nativeTouchScroll: scroll, selected, confirmedExactlyOnce: true });
     await context.close();
   }
   for (const round of [1, 15]) for (const width of [1440, 390]) {
+    if(!wantedViewport([width,width===390?844:900]))continue;
     const { context, page } = await openFixture(3, round, width, width === 390 ? 844 : 900);
     await expect(page.locator('.hand .card')).toHaveCount(round);
-    await page.locator('.hand .playable').first().click({ position: { x: 15, y: 45 } });
+    await selectHandCard(page,page.locator('.hand .playable').first(),width<851);
     const id = await page.locator('.hand .selected').getAttribute('data-card');
     await handControl(page, '#hand-sort');
     await expect(page.locator(`.hand [data-card="${id}"]`)).toHaveClass(/selected/);
@@ -151,7 +176,7 @@ try {
     checks.push({ players: 3, cards: round, width, stableSelectionAcrossSort: true });
     await context.close();
   }
-  for (const [width, height] of [[1440, 900], [390, 844], [360, 800]]) {
+  for (const [width, height] of [[1440, 900], [390, 844], [360, 800]].filter(wantedViewport)) {
     const { context, page } = await openFixture(6, 10, width, height);
     const layout = await bounds(page); expect(layout.overflow).toBe(false);
     for (const seat of layout.seats) {
@@ -162,7 +187,7 @@ try {
     checks.push({ players: 6, width, height, layout }); await context.close();
   }
   }
-  for (const [width, height] of [[1440, 900], [1280, 720], [390, 844], [360, 800], [844, 390]]) {
+  if (process.env.LAYOUT_CASE !== 'hand') for (const [width, height] of [[1440, 900], [1280, 720], [390, 844], [360, 800], [844, 390]].filter(wantedViewport)) {
     const { context, page } = await openFixture(6, 10, width, height, true);
     const layout = await bounds(page); expect(layout.played).toHaveLength(6);
     await screenshotStable(page,{ path:`${out}/six-card-trick-${width}.png` });
@@ -181,18 +206,18 @@ try {
     await screenshotStable(page,{ path:`${out}/six-card-trick-${width}.png` });
     await page.locator('#chat-toggle').click();
     await expect(page.locator('#room-chat')).toBeVisible();
-    const chatBounds = await page.locator('#room-chat').boundingBox(), confirm = await page.locator('#confirm-play').boundingBox();
+    const chatBounds = await page.locator('#room-chat').boundingBox(), next = await page.locator('#next').boundingBox();
     await screenshotStable(page,{ path:`${out}/chat-dock-${width}.png` });
-    expect(overlap(chatBounds,confirm)).toBeLessThan(1);
+    expect(overlap(chatBounds,next)).toBeLessThan(1);
     await page.locator('#close-chat').click();
     await page.locator('#table-scores').click();
     await expect(page.locator('.score-ledger tbody tr')).toHaveCount(10);
     await screenshotStable(page,{ path:`${out}/score-ledger-${width}.png` });
     checks.push({ players:6,playedCards:6,width,height,layout,chatDock:true,ledger:true }); await context.close();
   }
-  if (process.env.LAYOUT_CASE !== 'full-trick') {
+  if (process.env.LAYOUT_CASE !== 'full-trick'&&wantedViewport([390,844])) {
     const { context, page } = await openFixture(3,20,390,844);
-    await page.locator('.hand .playable').first().click({position:{x:15,y:45}});
+    await selectHandCard(page,page.locator('.hand .playable').first(),true);
     const selected=await page.locator('.hand .selected').getAttribute('data-card');
     await handControl(page, '#hand-collapse');
     await expect(page.locator('body')).toHaveClass(/hand-collapsed/);
@@ -203,9 +228,11 @@ try {
     await handControl(page, '#hand-collapse');
     await expect(page.locator(`.hand [data-card="${selected}"]`)).toHaveClass(/selected/);
     await page.setViewportSize({width:844,height:390});
-    await expect(page.locator('.hand.desktop-fan')).toBeVisible();
+    await expect(page.locator('.hand.hand-strip')).toBeVisible();
+    await expect(page.locator('.hand')).not.toHaveClass(/desktop-fan/);
     await expect(page.locator(`.hand [data-card="${selected}"]`)).toHaveClass(/selected/);
     const landscape=await bounds(page);expect(landscape.overflow).toBe(false);
+    expect(landscape.scrollWidth).toBeGreaterThan(landscape.clientWidth);
     expect(landscape.confirm.y+landscape.confirm.height).toBeLessThanOrEqual(391);
     await screenshotStable(page,{path:`${out}/mobile-landscape-fan.png`});
     checks.push({width:390,rotatedWidth:844,collapsedHeight:collapsed.height,selectionPreserved:selected});

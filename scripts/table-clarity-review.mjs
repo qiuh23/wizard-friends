@@ -1,6 +1,6 @@
 import { chromium, expect } from '@playwright/test';
 import fs from 'node:fs';
-import { createGame, addPlayer, act, viewFor } from '../src/game.js';
+import { createGame, addPlayer, act, viewFor, winner } from '../src/game.js';
 import { createRandomStream } from '../src/random.js';
 import { DEFAULT_OPTIONS } from '../src/rules-options.js';
 import { leadInfo } from '../src/table-summary.js';
@@ -12,7 +12,7 @@ const out = 'output/playwright'; fs.mkdirSync(out,{recursive:true});
 const errors = [], checks = [];
 function fixture(count, round, phase, mode = 'public', selfLeader = false) {
   const game = createGame(); game.randomState = createRandomStream(Array(11).fill(8));
-  for (let i=0;i<count;i++) addPlayer(game,`p${i}`,['远帆探险的旅人','云舒','风行','清月','星河','林语'][i]);
+  for (let i=0;i<count;i++) addPlayer(game,`p${i}`,['远帆探险的旅人','青山学徒的长昵称','青山守林的长昵称','青山远航的长昵称','星河','林语'][i]);
   act(game,'p0',{type:'start',options:{...DEFAULT_OPTIONS,predictionMode:mode}});
   for (let step=0;step<15000;step++) {
     if (game.round>=round && game.phase===phase && (phase!=='bid'||viewFor(game,'p0').canBid)
@@ -31,9 +31,10 @@ function fixture(count, round, phase, mode = 'public', selfLeader = false) {
 }
 const overlaps=(a,b)=>a.left<b.right-1 && a.right>b.left+1 && a.top<b.bottom-1 && a.bottom>b.top+1;
 const browser=await chromium.launch({channel:process.env.BROWSER_CHANNEL||'chrome',headless:true});
-async function open(record,width,height,webgl=true) {
-  const context=await browser.newContext({viewport:{width,height},hasTouch:width<851,reducedMotion:'reduce'});
+async function open(record,width,height,webgl=true,reducedMotion='reduce') {
+  const context=await browser.newContext({viewport:{width,height},hasTouch:width<1000,reducedMotion});
   await context.addInitScript(({record,webgl})=>{
+    record.game.turnDeadline=Date.now()+30000;
     sessionStorage.setItem('wizard-room-session',JSON.stringify(record));
     localStorage.setItem('wizard-trump-motion','false');
     localStorage.setItem('wizard-low-graphics','true');
@@ -46,6 +47,25 @@ async function open(record,width,height,webgl=true) {
   await page.route(/\/src\/table-scene\.js(?:\?|$)/,async route=>{
     const response=await route.fetch();
     await route.fulfill({response,body:(await response.text()).replace('this.animate(0);','window.__clarityScene=this;this.animate(0);')});
+  });
+  if(process.env.CLARITY_CASE==='playfield') await page.route(/\/src\/main\.js(?:\?|$)/,async route=>{
+    const response=await route.fetch();
+    // Browser-only instrumentation of the fetched development module. The
+    // application and Worker expose no arbitrary-state endpoint.
+    const instrument=`
+window.__clarityApply=async(next,{initial=false,role='host',practiceMode=true}={})=>{
+  clearTimeout(turnTimer);clearTimeout(botTimer);game=next;me='p0';
+  if(game.phase==='play')game.turnDeadline=Date.now()+30000;
+  practice=practiceMode;isHost=role==='host';spectating=role==='spectator';networkReady=true;
+  const {spectatorView}=await import('/src/game.js');
+  state=spectating?spectatorView(game):viewFor(game,me);
+  state.lifecycle=next.lifecycle||{};updateEventEffects(initial);render();
+};
+window.__clarityMotion=tableMotion;
+window.__clarityLoadId=crypto.randomUUID();
+window.__claritySnapshot=()=>({round:state.round,phase:state.phase,eventSeq:state.eventSeq,gameTrick:game.trick.length,stateTrick:state.trick.length,loadId:window.__clarityLoadId});
+`;
+    await route.fulfill({response,body:await response.text()+instrument});
   });
   await page.goto(base);await page.locator('.own-status').waitFor();
   if(webgl) await page.waitForFunction(()=>window.__clarityScene?.mode==='game');
@@ -81,6 +101,7 @@ async function inspect(page,webgl) {
       avatars:avatars.map(el=>({rect:rect(el),label:el.getAttribute('aria-label')})),
       panels:[...document.querySelectorAll('.action-panel')].filter(shown).map(rect),
       slot:slot?rect(slot):null,occluded:document.querySelector('.trump-display')?.dataset.occluded,
+      trumpPresentation:document.querySelector('.trump-display')?.dataset.presentation,
       projected,flat:document.querySelector('.player')?getComputedStyle(document.querySelector('.player')).backgroundColor:null,
       trumpMarks:[...document.querySelectorAll('.trump-card .corner')].map(el=>getComputedStyle(el).visibility),
       overlay:getComputedStyle(document.querySelector('.scene-host'),'::after').display,
@@ -88,7 +109,302 @@ async function inspect(page,webgl) {
     };
   },webgl);
 }
+
+function trickSequence(count) {
+  const record=fixture(count,8,'play'), game=record.game;
+  const snapshots=[structuredClone(game)];
+  while(game.phase==='play') {
+    const player=game.players[game.turn], legal=viewFor(game,player.id).legal;
+    // Prefer a legal overtaking card so this also exercises emphasis transfer;
+    // the shared engine remains the only source of winning-card decisions.
+    const card=legal.map(id=>player.hand.find(card=>card.id===id)).find(card=>
+      winner([...game.trick,{player:game.turn,card}],game.trump,game.options.deckMode)===game.turn
+    ) || player.hand.find(card=>card.id===legal[0]);
+    act(game,player.id,{type:'play',card:card.id});snapshots.push(structuredClone(game));
+  }
+  return {record:{...record,game:snapshots[0]},snapshots};
+}
+async function playfieldGeometry(page,webgl) {
+  return page.evaluate(webgl=>{
+    const rect=node=>{const r=node.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height}};
+    const shown=node=>{const s=getComputedStyle(node),r=node.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0};
+    const nodes=[...document.querySelectorAll('.played')], scene=window.__clarityScene;
+    const canvas=scene?.renderer.domElement.getBoundingClientRect();
+    let trumpFace=null;
+    if(webgl&&scene?.trump.visible){
+      scene.trump.updateMatrixWorld(true);const mesh=scene.trumpFace,{width,height}=mesh.geometry.parameters,points=[];
+      for(const x of [-width/2,width/2])for(const y of [-height/2,height/2]){
+        const p=mesh.position.clone().set(x,y,0).applyMatrix4(mesh.matrixWorld).project(scene.camera);
+        points.push({x:canvas.left+(p.x+1)*canvas.width/2,y:canvas.top+(1-p.y)*canvas.height/2});
+      }
+      trumpFace={left:Math.min(...points.map(p=>p.x)),right:Math.max(...points.map(p=>p.x)),top:Math.min(...points.map(p=>p.y)),bottom:Math.max(...points.map(p=>p.y))};
+    }
+    const cards=nodes.map(node=>{
+      const group=scene?.cards.get(node.dataset.cardId),face=group?.userData.face;
+      let physical=null,edge=null;
+      if(webgl&&face){
+        group.updateMatrixWorld(true);const {width,height}=face.geometry.parameters,points=[];
+        for(const x of [-width/2,width/2])for(const y of [-height/2,height/2]){
+          const p=face.position.clone().set(x,y,0).applyMatrix4(face.matrixWorld).project(scene.camera);
+          points.push({x:canvas.left+(p.x+1)*canvas.width/2,y:canvas.top+(1-p.y)*canvas.height/2});
+        }
+        physical={left:Math.min(...points.map(p=>p.x)),right:Math.max(...points.map(p=>p.x)),top:Math.min(...points.map(p=>p.y)),bottom:Math.max(...points.map(p=>p.y))};
+        physical.width=physical.right-physical.left;physical.height=physical.bottom-physical.top;
+        const mesh=group.userData.edge;mesh.geometry.computeBoundingBox();const box=mesh.geometry.boundingBox,points3=[];
+        for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z]){
+          const p=mesh.position.clone().set(x,y,z).applyMatrix4(mesh.matrixWorld).project(scene.camera);
+          points3.push({x:canvas.left+(p.x+1)*canvas.width/2,y:canvas.top+(1-p.y)*canvas.height/2});
+        }
+        edge={left:Math.min(...points3.map(p=>p.x)),right:Math.max(...points3.map(p=>p.x)),top:Math.min(...points3.map(p=>p.y)),bottom:Math.max(...points3.map(p=>p.y))};
+      }
+      const label=node.querySelector(':scope > small'),card=node.querySelector('.card'),box=node.getBoundingClientRect();
+      return {id:node.dataset.cardId,player:node.dataset.player,seat:+node.dataset.playSeat,
+        winner:node.classList.contains('winner'),badge:getComputedStyle(node,'::before').content,label:label.textContent,labelRect:rect(label),face:physical||rect(card),edge:edge||rect(card),
+        base:{x:box.left+card.offsetLeft+card.offsetWidth/2,y:box.top+card.offsetTop+card.offsetHeight/2,width:card.offsetWidth,height:card.offsetHeight},
+        enter:scene?.motion?.pose(node.dataset.cardId).enter,
+        marks:[...card.querySelectorAll('.corner')].map(mark=>getComputedStyle(mark).visibility)};
+    });
+    return {width:innerWidth,height:innerHeight,scrollX,scrollY,fixture:window.__claritySnapshot?.(),mode:document.querySelector('.table').dataset.layoutMode,
+      playedWidth:parseFloat(document.querySelector('.played-cards').style.getPropertyValue('--played-width')),
+      overflow:document.documentElement.scrollWidth>innerWidth,cards,
+      obstacles:[...document.querySelectorAll('.opponents .player,.own-status,.action-panel,.hand-section,.hand .card.selected,.game-toolbar,.roundbar')].filter(shown).map(rect),
+      identities:[...document.querySelectorAll('.opponents .player,.own-status')].filter(shown).map(rect),
+      controls:[...document.querySelectorAll('.game-toolbar,#chat-toggle,.table-trump,.play-confirm')].filter(shown).map(rect),
+      trump:{presentation:document.querySelector('.trump-display')?.dataset.presentation,
+        rect:rect(document.querySelector('.trump-display')),physical:scene?.trump.visible,
+        anchor:document.querySelector('.trump-card')?rect(document.querySelector('.trump-card')):null,face:trumpFace,
+        visibleFaceParts:[...document.querySelectorAll('.trump-card,.trump-card *')].filter(shown).length,
+        label:document.querySelector('.table-trump')?.textContent},
+      names:[...document.querySelectorAll('.opponents .player')].map(node=>({player:node.dataset.player,label:node.textContent,short:node.querySelector('.seat-name')?.textContent,aria:node.getAttribute('aria-label')}))};
+  },webgl);
+}
+function verifyPlayfield(data,count,expectedWinner,webgl) {
+  expect(data.overflow).toBe(false);expect(data.scrollY).toBe(0);
+  for(const identity of data.identities)for(const control of data.controls)expect(overlaps(identity,control),`${data.width}x${data.height}: player identity is hidden by a control`).toBe(false);
+  if(data.trump.presentation==='badge') {
+    expect(data.trump.visibleFaceParts,'badge must hide its complete miniature-card subtree').toBe(0);
+    if(webgl)expect(data.trump.physical).toBe(false);
+  }
+  if(webgl&&data.trump.presentation==='card'&&data.trump.anchor?.width){
+    expect(data.trump.physical).toBe(true);const {face,anchor}=data.trump;
+    expect(face.left).toBeGreaterThanOrEqual(anchor.left-1);expect(face.right).toBeLessThanOrEqual(anchor.right+1);
+    expect(face.top).toBeGreaterThanOrEqual(anchor.top-1);expect(face.bottom).toBeLessThanOrEqual(anchor.bottom+1);
+    expect(face.right-face.left,'actual trump face remains readable inside its motion envelope').toBeGreaterThanOrEqual(data.mode==='strip'?44:60);
+    for(const card of data.cards)expect(overlaps(card.edge,face),'trump is separate from the trick').toBe(false);
+  }
+  expect(data.cards).toHaveLength(count);
+  if(count) expect(data.cards.filter(card=>card.winner).map(card=>card.player)).toEqual([expectedWinner]);
+  if(count) expect(data.cards.find(card=>card.winner).badge).toContain(['trickEnd','roundEnd','finished'].includes(data.fixture.phase)?'赢得本墩':'当前最大');
+  for(const card of data.cards){
+    expect(Math.abs(card.base.width-data.playedWidth),'CSS card width must match the shared reserved layout width').toBeLessThanOrEqual(1);
+    expect(card.edge.left,`${data.width}: ${card.id} left`).toBeGreaterThanOrEqual(-1);
+    expect(card.edge.right,`${data.width}: ${card.id} right`).toBeLessThanOrEqual(data.width+1);
+    expect(card.edge.top,`${data.width}: ${card.id} top`).toBeGreaterThanOrEqual(-1);
+    expect(card.edge.bottom,`${data.width}: ${card.id} bottom`).toBeLessThanOrEqual(data.height+1);
+    for(const obstacle of data.obstacles) {
+      expect(overlaps(card.edge,obstacle),`${data.width}x${data.height}: physical ${card.id} overlaps ${JSON.stringify(obstacle)}`).toBe(false);
+      expect(overlaps(card.labelRect,obstacle),`${data.width}x${data.height}: owner ${card.id} overlaps controls`).toBe(false);
+    }
+    expect(overlaps(card.edge,card.labelRect),`${data.width}: enlarged card hides its owner`).toBe(false);
+    for(const other of data.cards.filter(other=>other.id!==card.id)) {
+      expect(overlaps(card.edge,other.edge),`${data.width}: physical cards overlap`).toBe(false);
+      expect(overlaps(card.edge,other.labelRect),`${data.width}: physical card hides owner`).toBe(false);
+    }
+    expect(Math.abs((card.face.left+card.face.right)/2-card.base.x),'physical face stays at owner anchor').toBeLessThanOrEqual(2);
+    expect(card.face.width/card.base.width).toBeCloseTo(card.winner ? data.mode==='strip'?1.15:1.22 : 1,1);
+    expect(card.marks.every(value=>value===(webgl?'hidden':'visible'))).toBe(true);
+  }
+}
+async function visibleButton(page,selector) {
+  const result=await page.locator(selector).evaluate(button=>{
+    const r=button.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2;
+    return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:innerWidth,height:innerHeight,
+      unblocked:button.contains(document.elementFromPoint(x,y)),scrollY};
+  });
+  expect(result.scrollY).toBe(0);expect(result.left).toBeGreaterThanOrEqual(0);
+  expect(result.right).toBeLessThanOrEqual(result.width);expect(result.top).toBeGreaterThanOrEqual(0);
+  expect(result.bottom).toBeLessThanOrEqual(result.height);expect(result.unblocked).toBe(true);
+}
+async function reviewPlayfield() {
+  const section=process.env.PLAYFIELD_SECTION,viewport=process.env.PLAYFIELD_VIEWPORT;
+  const counts=(process.env.PLAYFIELD_COUNTS||'3,4,5,6').split(',').map(Number);
+  const wanted=([width,height])=>!viewport||viewport===`${width}x${height}`;
+  const viewports=[[1440,900],[844,390],[932,430],[844,300],[390,844],...(viewport==='360x640'?[[360,640]]:[])].filter(wanted);
+  if(!section||section==='cards') {
+  for(const [width,height] of viewports) for(const count of counts) {
+    const {record,snapshots}=trickSequence(count),{page,context}=await open(record,width,height);
+    const anchors=new Map();let previousWinner=null,switches=0;
+    const loadId=await page.evaluate(()=>window.__clarityLoadId);
+    for(const [index,snapshot] of snapshots.entries()) {
+      await page.evaluate(async game=>window.__clarityApply(game,{initial:true}),snapshot);
+      await page.waitForTimeout(120);
+      const data=await playfieldGeometry(page,true),winning= snapshot.trick.length ? snapshot.players[winner(snapshot.trick,snapshot.trump,snapshot.options.deckMode)].id : null;
+      try {
+        expect(data.fixture.loadId,'development source reloaded during the scenario').toBe(loadId);
+        expect(data.fixture.stateTrick).toBe(index);verifyPlayfield(data,index,winning,true);
+      }
+      catch(error) {
+        fs.writeFileSync(`${out}/playfield-failure-${width}x${height}-${count}-${index}.json`,JSON.stringify(data,null,2));
+        await page.screenshot({path:`${out}/playfield-failure-${width}x${height}-${count}-${index}.png`});
+        throw error;
+      }
+      expect(data.mode).toBe(width>=600&&height<=540?'strip':width<600&&height<=700?'portrait-grid':'ring');
+      if(previousWinner&&winning!==previousWinner)switches++;previousWinner=winning;
+      for(const card of data.cards){
+        if(anchors.has(card.id)) expect(card.base).toEqual(anchors.get(card.id));
+        else anchors.set(card.id,card.base);
+      }
+      if(index===0) anchors.set('trump',data.trump.rect);
+      else expect(data.trump.rect).toEqual(anchors.get('trump'));
+      if(count===6&&index===4&&[1440,844].includes(width)){
+        const legal=page.locator('.hand .card.playable');
+        await (await legal.count()?legal.first():page.locator('.hand .card').first()).click({position:{x:12,y:36}});
+        await expect(page.locator('.hand .selected')).toHaveCount(1);await visibleButton(page,'#confirm-play');
+        if(snapshot.players[snapshot.turn].id==='p0')await expect(page.locator('#confirm-play')).toBeEnabled();
+        await expect(page.locator('#notice')).toBeEmpty({timeout:6000});
+        await page.waitForTimeout(160);verifyPlayfield(await playfieldGeometry(page,true),index,winning,true);
+        await page.screenshot({path:`${out}/playfield-live-selected-${width}x${height}-3d.png`});
+        await page.locator('#cancel-card').click();
+      }
+      if(index===count&&count===6){
+        expect(new Set(data.names.map(name=>name.short)).size).toBe(5);
+        for(const name of data.names.filter(name=>/^p[123]$/.test(name.player))) expect(name.aria).toContain('青山');
+        await expect(page.locator('#notice')).toBeEmpty({timeout:6000});
+        await page.screenshot({path:`${out}/playfield-six-${width}x${height}-3d.png`});
+        fs.writeFileSync(`${out}/playfield-six-${width}x${height}.json`,JSON.stringify(data,null,2));
+        if(data.trump.presentation==='badge'&&record.game.reveal){
+          expect(data.trump.physical).toBe(false);
+          await page.locator('.table-trump').click();await expect(page.locator('.trump-preview')).toBeVisible();
+          const preview=await page.locator('.trump-preview-face').boundingBox();
+          expect(preview.width).toBeGreaterThanOrEqual(90);expect(preview.height).toBeGreaterThanOrEqual(135);
+          expect(preview.y).toBeGreaterThanOrEqual(0);expect(preview.y+preview.height).toBeLessThanOrEqual(height);
+          await page.getByRole('button',{name:'返回牌桌',exact:true}).click();await expect(page.locator('.trump-preview')).toHaveCount(0);
+          await visibleButton(page,'#next');
+        }
+      }
+    }
+    checks.push({width,height,count,fullTrick:true,stableSlots:true,physicalProjection:true,leaderSwitches:switches});
+    await context.close();
+  }
+  // The fallback has the same ownership, winner and layout at both sides of
+  // the former 850px breakpoint and in the constrained toolbar-height case.
+  for(const [width,height] of [[844,390],[932,430],[844,300],[390,844]].filter(wanted)) {
+    const {record,snapshots}=trickSequence(6),{page,context}=await open(record,width,height,false);
+    const game=snapshots.at(-1);await page.evaluate(game=>window.__clarityApply(game,{initial:true}),game);await page.waitForTimeout(120);
+    const data=await playfieldGeometry(page,false);
+    verifyPlayfield(data,6,game.players[winner(game.trick,game.trump,game.options.deckMode)].id,false);
+    await page.screenshot({path:`${out}/playfield-six-${width}x${height}-2d.png`});
+    checks.push({width,height,count:6,fallback:true});await context.close();
+  }
+  }
+  if(!section||section==='settlement') {
+  for(const [width,height] of viewports) {
+    const {page,context}=await open(fixture(6,8,'trickEnd'),width,height);
+    for(const phase of ['trickEnd','roundEnd','finished']){
+      const record=fixture(6,phase==='finished'?10:8,phase);
+      await page.evaluate(game=>window.__clarityApply(game,{initial:true}),record.game);await page.waitForTimeout(120);
+      const selector=phase==='finished'?'#rematch':'#next';await expect(page.locator(selector)).toBeVisible();
+      await visibleButton(page,selector);await expect(page.locator('.win-reason')).toHaveCount(0);
+      const details=page.locator('.settlement-details');
+      if(await details.count()){
+        expect(await details.getAttribute('open')).toBeNull();
+        await details.locator('summary').click();await visibleButton(page,selector);
+        await details.locator('summary').click();
+      }
+      await expect(page.locator('#notice')).toBeEmpty({timeout:6000});await page.waitForTimeout(150);
+      await page.screenshot({path:`${out}/settlement-${phase}-${width}x${height}.png`});
+      if(phase==='finished')await expect(page.locator('#next')).toHaveCount(0);
+      checks.push({width,height,phase,ctaInInitialViewport:true});
+    }
+    await context.close();
+  }
+  {
+    const {page,context}=await open(fixture(6,8,'roundEnd'),844,300);
+    for(const phase of ['roundEnd','finished']) for(const role of ['guest','spectator']) {
+      const record=fixture(6,phase==='finished'?10:8,phase);
+      await page.evaluate(async({game,role})=>window.__clarityApply(game,{initial:true,role,practiceMode:false}),{game:record.game,role});
+      await expect(page.locator('#next,#rematch,#confirm-results')).toHaveCount(0);
+      await expect(page.locator('.settlement-summary')).toBeVisible();
+      checks.push({width:844,height:300,phase,role,noUnauthorizedAdvance:true});
+    }
+    const offline=fixture(6,8,'roundEnd').game;offline.players[1].online=false;
+    await page.evaluate(game=>window.__clarityApply(game,{initial:true,practiceMode:false}),offline);
+    await expect(page.locator('#next')).toBeDisabled();await visibleButton(page,'#next');
+    const closing=fixture(6,8,'roundEnd').game;closing.lifecycle={closeAfterRound:true,resultsConfirmed:[]};
+    await page.evaluate(game=>window.__clarityApply(game,{initial:true,practiceMode:false}),closing);
+    await expect(page.locator('#next,#rematch')).toHaveCount(0);await visibleButton(page,'#confirm-results');
+    const next=fixture(6,8,'roundEnd').game;
+    await page.evaluate(game=>window.__clarityApply(game,{initial:true}),next);
+    await page.locator('#next').evaluate(button=>{button.click();button.click();button.click();});
+    expect(await page.evaluate(()=>window.__claritySnapshot().round)).toBe(9);
+    expect(await page.evaluate(()=>window.__claritySnapshot().phase)).toMatch(/bid|trump/);
+    checks.push({width:844,height:300,offlineHostDisabled:true,closingConfirmationVisible:true,repeatedClickAdvancedOnce:true});await context.close();
+  }
+  }
+  if(section==='capture') for(const [width,height] of viewports.filter(([width])=>[1440,844].includes(width))) {
+    const {record,snapshots}=trickSequence(6),game=snapshots[4];
+    const {page,context}=await open({...record,game},width,height);
+    await expect(page.locator('#notice')).toBeEmpty({timeout:6000});
+    await page.locator('.hand .card.playable').first().click({position:{x:12,y:36}});
+    await expect(page.locator('#confirm-play')).toBeEnabled();await visibleButton(page,'#confirm-play');
+    await page.waitForTimeout(160);
+    verifyPlayfield(await playfieldGeometry(page,true),4,game.players[winner(game.trick,game.trump,game.options.deckMode)].id,true);
+    await page.screenshot({path:`${out}/playfield-live-selected-${width}x${height}-3d.png`});
+    checks.push({width,height,livePlayCapture:true,legalSelection:true,confirmInInitialViewport:true});await context.close();
+  }
+  // Ordinary animation is interruptible: resize mid-entry, repeat the same
+  // state and restore the final snapshot without replaying cards.
+  if(!section||section==='motion') {
+  const {record,snapshots}=trickSequence(6),{page,context}=await open(record,844,390,true,'no-preference');
+  for(const [index,game] of snapshots.slice(1,4).entries()){
+    for(const event of game.events)if(event.type==='play'&&event.card?.id===game.trick.at(-1).card.id)event.time=Date.now();
+    await page.evaluate(game=>window.__clarityApply(game),game);await page.waitForTimeout(60);
+    if(index===0)await page.setViewportSize({width:932,height:430});
+    const before=await page.evaluate(()=>Object.fromEntries([...window.__clarityMotion.entries]));
+    await page.evaluate(game=>window.__clarityApply(game),game);
+    expect(await page.evaluate(()=>Object.fromEntries([...window.__clarityMotion.entries]))).toEqual(before);
+  }
+  const full=snapshots.at(-1);await page.evaluate(game=>window.__clarityApply(game,{initial:true}),full);await page.waitForTimeout(120);
+  let data=await playfieldGeometry(page,true);expect(data.cards.every(card=>card.enter===1)).toBe(true);
+  verifyPlayfield(data,6,full.players[winner(full.trick,full.trump,full.options.deckMode)].id,true);
+  const paused=structuredClone(full);paused.lifecycle={paused:true};
+  await page.evaluate(game=>window.__clarityApply(game,{initial:true}),paused);
+  const frozen=await page.evaluate(()=>({time:window.__clarityMotion.clock(),entries:Object.fromEntries(window.__clarityMotion.entries)}));
+  for(const [width,height] of [[844,390],[390,844],[932,430]]){
+    await page.setViewportSize({width,height});
+    await expect.poll(async()=>{
+      const layout=await playfieldGeometry(page,true),leader=layout.cards.find(card=>card.winner);
+      return layout.mode===(width>=600&&height<=540?'strip':'ring')&&leader ? leader.face.width/leader.base.width : 0;
+    }).toBeCloseTo(width>=600&&height<=540?1.15:1.22,2);
+    expect(await page.evaluate(()=>({time:window.__clarityMotion.clock(),entries:Object.fromEntries(window.__clarityMotion.entries)}))).toEqual(frozen);
+    data=await playfieldGeometry(page,true);verifyPlayfield(data,6,full.players[winner(full.trick,full.trump,full.options.deckMode)].id,true);
+  }
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await expect.poll(()=>page.evaluate(()=>window.__clarityMotion.reducedMotion)).toBe(true);
+  expect(await page.evaluate(()=>window.__clarityMotion.isAnimating())).toBe(false);
+  expect(await page.evaluate(()=>({time:window.__clarityMotion.clock(),entries:Object.fromEntries(window.__clarityMotion.entries)}))).toEqual(frozen);
+  checks.push({pausedResize:true,pausedClockFrozen:true,pausedEntriesStable:true,dynamicReducedMotion:true});
+  await page.evaluate(game=>window.__clarityApply(game,{initial:true}),full);await page.emulateMedia({reducedMotion:'no-preference'});
+  await page.setViewportSize({width:390,height:844});
+  await expect.poll(async()=>{
+    const layout=await playfieldGeometry(page,true),leader=layout.cards.find(card=>card.winner);
+    return layout.mode==='ring'&&leader ? leader.face.width/leader.base.width : 0;
+  }).toBeCloseTo(1.22,2);
+  data=await playfieldGeometry(page,true);verifyPlayfield(data,6,full.players[winner(full.trick,full.trump,full.options.deckMode)].id,true);
+  checks.push({normalMotion:true,interruptedResize:true,noRepeatedArrival:true,rotated:true});await context.close();
+  const restored=await open({...record,game:full},844,390,true,'no-preference');
+  const recovered=await playfieldGeometry(restored.page,true);
+  expect(recovered.cards).toHaveLength(6);expect(recovered.cards.every(card=>card.enter===1)).toBe(true);
+  await expect(restored.page.locator('.played.card-enter')).toHaveCount(0);
+  verifyPlayfield(recovered,6,full.players[winner(full.trick,full.trump,full.options.deckMode)].id,true);
+  checks.push({restoredWithoutReplay:true,normalMotion:true});await restored.context.close();
+  }
+  expect(errors).toEqual([]);fs.writeFileSync(`${out}/playfield-${section?section+'-':''}${viewport?viewport+'-':''}results.json`,JSON.stringify({checks,errors},null,2));
+  console.log(JSON.stringify({checks,errors}));
+}
 try {
+  if(process.env.CLARITY_CASE==='playfield') await reviewPlayfield();
+  else {
   if (process.env.CLARITY_CASE !== 'secondary') {
   for(const [width,height] of [[1440,900],[1280,720],[390,844],[360,640],[844,390],[667,375]]) {
     for(const count of [3,4,5,6]) {
@@ -101,8 +417,8 @@ try {
       for(let i=0;i<data.players.length;i++) for(let j=i+1;j<data.players.length;j++) expect(overlaps(data.players[i],data.players[j]),`${width}/${count}: player overlap ${JSON.stringify(data.players)}`).toBe(false);
       if(record.game.reveal) {
         expect(data.trumpMarks.every(value=>value==='hidden')).toBe(true);
-        expect(data.occluded,`${width}/${count}: trump hidden`).toBe('false');
-        for(const card of [...data.projected,data.slot]) for(const player of data.players) expect(overlaps(card,player),`${width}/${count}: trump overlaps avatar`).toBe(false);
+        expect(data.occluded,`${width}/${count}: trump presentation`).toBe(data.trumpPresentation==='badge'?'true':'false');
+        if(data.trumpPresentation==='card') for(const card of [...data.projected,data.slot]) for(const player of data.players) expect(overlaps(card,player),`${width}/${count}: trump overlaps avatar`).toBe(false);
       }
       const lead=leadInfo(record.game);
       await expect(page.locator('.lead-callout')).toContainText(record.game.players[lead.seat].name);
@@ -141,7 +457,11 @@ try {
     const record=fixture(4,2,phase,'hidden',true);
     const {page,context}=await open(record,390,844,webgl);
     await expect(page.locator('.own-status .lead-badge')).toBeVisible();
-    await expect(page.locator('.lead-callout')).toContainText('· 你');
+    if(phase==='bid') await expect(page.locator('.lead-callout')).toContainText('· 你');
+    else {
+      await expect(page.locator('.settlement-summary')).toBeVisible();
+      await visibleButton(page,'#next');
+    }
     await expect(page.locator('.lead-badge')).toHaveCount(1);
     checks.push({phase,webgl,selfLeader:true});await context.close();
   }
@@ -168,4 +488,5 @@ try {
     checks.push({home:width,contained:true});await context.close();
   }
   expect(errors).toEqual([]);console.log(JSON.stringify({checks,errors}));
+  }
 } finally {await browser.close();}

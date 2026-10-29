@@ -1,6 +1,36 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { openCardSlot, playedCardSlots, playedCardLink } from '../src/table-layout.js';
+import { openCardSlot, playedCardSlots, playedCardLink, tableLayoutMode, stripCardSlots, compactCardSlots, shortSeatName } from '../src/table-layout.js';
+
+test('container height selects the same compact mode on either side of 850px', () => {
+  for (const [width,height] of [[844,390],[932,430],[844,300]]) assert.equal(tableLayoutMode(width,height),'strip');
+  for (const [width,height] of [[1440,900],[390,844]]) assert.equal(tableLayoutMode(width,height),'ring');
+  assert.equal(tableLayoutMode(360,640),'portrait-grid');
+});
+
+test('a short portrait chooses columns from available face size and reserves all six owners', () => {
+  const area={left:10,right:350,top:154,bottom:430};
+  const seats=Array.from({length:6},(_,i)=>({id:`p${i}`}));
+  const layout=compactCardSlots(area,seats,62);
+  assert.ok(layout.width>=50);
+  for(const slot of layout.slots.values())assert.ok(slot.rect.top>=area.top&&slot.rect.bottom<=area.bottom);
+});
+
+test('short landscape reserves six fixed slots including owner and maximum emphasis before any play', () => {
+  const area={left:10,right:834,top:82,bottom:212};
+  const seats=Array.from({length:6},(_,i)=>({id:`p${i}`}));
+  const layout=stripCardSlots(area,seats,56);
+  assert.ok(layout.width>=48);
+  for (const [i,seat] of seats.entries()) {
+    const slot=layout.slots.get(seat.id);
+    assert.ok(slot.rect.top>=area.top&&slot.rect.bottom<=area.bottom+3);
+    assert.ok(slot.rect.left>=area.left&&slot.rect.right<=area.right);
+    assert.ok(slot.rect.right-slot.rect.left>layout.width*1.15+6);
+    if(i)assert.ok(layout.slots.get(seats[i-1].id).rect.right<slot.rect.left);
+  }
+  assert.notEqual(shortSeatName('青山学徒-长昵称',1),shortSeatName('青山旅人-长昵称',2));
+  assert.equal(shortSeatName('某某',0,true),'1 你');
+});
 
 test('trump yields to an opposite seat and never leaves the available table', () => {
   const area = {left:8,right:382,top:64,bottom:410};

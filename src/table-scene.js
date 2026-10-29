@@ -3,8 +3,9 @@ import { cardImage, loadCardImage } from './card-art.js';
 import { trumpStyle } from './trump-style.js';
 import { paintCardFace } from './card-face.js';
 import { playedCardRect } from './table-layout.js';
+import { winner } from './game.js';
 
-const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const motionMedia = matchMedia('(prefers-reduced-motion: reduce)');
 export class TableScene {
   constructor() {
     const qualityPreference = localStorage.getItem('wizard-low-graphics');
@@ -22,7 +23,7 @@ export class TableScene {
     this.renderer.domElement.setAttribute('aria-hidden', 'true');
     this.textures = new Map(); this.cards = new Map(); this.flames = []; this.candles = [];
     this.mode = 'hero'; this.key = ''; this.frame = 0;
-    this.trumpMotion = !reducedMotion;
+    this.trumpMotion = !motionMedia.matches;
     this.observer = new ResizeObserver(() => this.resize());
     this.scene.add(new THREE.HemisphereLight('#b6d6df', '#2f1c12', 2.0));
     const light = new THREE.DirectionalLight('#ffd4a1', 3.5);
@@ -182,7 +183,7 @@ export class TableScene {
     this.foresight = Boolean(state?.foresightActive);
     this.surround.visible = this.mode === 'game';
     this.trumpRingMaterial.color.set(this.mode === 'game' ? trumpStyle(state).color : '#ae8f51');
-    this.trumpRingMaterial.opacity = this.mode === 'game' ? .85 : .35;
+    this.trumpRingMaterial.opacity = this.mode === 'game' ? .22 : .35;
     this.updateTrump(state);
     const sample=[{kind:'number',suit:'blue',rank:13,id:'sample-blue'},{kind:'number',suit:'red',rank:7,id:'sample-red'}];
     const cards=this.mode==='hero' ? sample.map((card,player)=>({card,player})) : state.trick;
@@ -194,6 +195,8 @@ export class TableScene {
     this.resize();
   }
   updateCards(entries,state) {
+    const currentWinner = this.mode === 'game' && entries.length
+      ? winner(entries, state.trump, state.options.deckMode) : null;
     const keys=new Set(entries.map(x=>x.card.id));
     for(const [id,group] of this.cards) if(!keys.has(id)){
       this.scene.remove(group);
@@ -207,20 +210,22 @@ export class TableScene {
         const edge=this.mesh(new THREE.BoxGeometry(1.12,.035,1.68),this.material('#d4bd87'),0,0,0,group);
         const face=this.mesh(new THREE.PlaneGeometry(1.1,1.66),this.material('#ffffff',{map:this.face(card),roughness:.65,metalness:.08}),0,.02,0,group);
         face.rotation.x=-Math.PI/2;
-        group.position.set((i-entries.length/2)*1.1, reducedMotion? .43 : 2.8, 3.5);
+        group.position.set((i-entries.length/2)*1.1, motionMedia.matches? .43 : 2.8, 3.5);
         group.userData.face=face;group.userData.edge=edge;this.scene.add(group);this.cards.set(card.id,group);
       }
       const isWinner=state && ['trickEnd','roundEnd','finished'].includes(state.phase) && state.lastWinner===player;
-      group.userData.edge.scale.set(isWinner ? 1.07 : 1,1,isWinner ? 1.05 : 1);
-      group.userData.edge.material.color.set(isWinner ? '#ffe09a' : '#d4bd87');
-      group.userData.edge.material.emissive.set(isWinner ? '#ffcf63' : '#000000');
-      group.userData.edge.material.emissiveIntensity=isWinner ? .8 : 0;
+      const isLeading = currentWinner === player;
+      group.userData.edge.scale.set(isLeading ? 1.05 : 1,1,isLeading ? 1.035 : 1);
+      group.userData.edge.material.color.set(isLeading ? '#ffe09a' : '#d4bd87');
+      group.userData.edge.material.emissive.set(isLeading ? '#ffcf63' : '#000000');
+      group.userData.edge.material.emissiveIntensity=isLeading ? .4 : 0;
+      group.userData.leading = isLeading;
       group.userData.player=player;
       group.userData.target=new THREE.Vector3((i-(entries.length-1)/2)*(this.mode==='hero' ? 3.1 : 1.28),isWinner ? .56 : .43,this.mode==='hero' ? .65 : 1.4);
       group.userData.rotation=(i-(entries.length-1)/2)*(this.mode==='hero' ? -.14 : -.035);
       group.userData.face.material.emissive?.set(isWinner?'#9e742f':'#000000');
       if ('emissiveIntensity' in group.userData.face.material) group.userData.face.material.emissiveIntensity=isWinner ? .25 : 0;
-      if(reducedMotion){group.position.copy(group.userData.target);group.rotation.y=group.userData.rotation;}
+      if(motionMedia.matches){group.position.copy(group.userData.target);group.rotation.y=group.userData.rotation;}
     });
   }
   resize() {
@@ -234,7 +239,8 @@ export class TableScene {
     this.camera.aspect=width/height;
     this.camera.clearViewOffset();
     this.trump.quaternion.identity();
-    const touchTable = this.mode === 'game' && width <= 850;
+    const compact = this.host.closest('.table')?.dataset.layoutMode === 'strip';
+    const touchTable = this.mode === 'game' && (width <= 850 || compact);
     for (const surface of this.tableSurface) surface.visible = !touchTable;
     // On a phone the felt is the playfield, rather than a small table model
     // between wide strips of timber. Keep the original framed table on desktop.
@@ -244,13 +250,8 @@ export class TableScene {
       const mobile = width <= 600;
       const distance = THREE.MathUtils.clamp((mobile ? 9.6 : 11.8) / (2 * Math.tan(THREE.MathUtils.degToRad(43 / 2)) * this.camera.aspect), height <= 540 && width >= 600 ? 7.7 : 9, 34);
       this.camera.position.set(0, distance * .68, distance * .73);
-      // Spend the narrow viewport on readable cards, while fitting a six-card trick.
-      const cardScale = mobile ? Math.min(1.7, 6.3 / this.cards.size) : 1;
-      [...this.cards.values()].forEach((group, index) => {
-        group.scale.set(cardScale, 1, cardScale);
-        group.userData.target.x = (index - (this.cards.size - 1) / 2) * 1.28 * cardScale;
-        if (reducedMotion) group.position.copy(group.userData.target);
-      });
+      // Actual game cards are positioned only from their persistent DOM slots
+      // in alignCardSeats(); resize must not requeue them by cards played so far.
       this.trump.scale.setScalar(mobile ? 1.4 : height <= 520 ? .65 : .95);
       this.trump.position.set(0, mobile ? 1.7 : height <= 520 ? .95 : 1.25, 0);
       if (this.foresight) {
@@ -274,8 +275,8 @@ export class TableScene {
   alignTrump() {
     const display = this.host.closest('.table')?.querySelector('.trump-display');
     const anchor = display?.querySelector('.trump-card');
-    if (!anchor) return;
-    this.trump.visible = display.dataset.occluded !== 'true';
+    if (!anchor) { this.trump.visible = false; return; }
+    this.trump.visible = display.dataset.occluded !== 'true' && display.dataset.presentation !== 'badge';
     if (!this.trump.visible) return;
     const rect = anchor.getBoundingClientRect(), canvas = this.renderer.domElement.getBoundingClientRect();
     const ray = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0,1,0),-2);
@@ -288,26 +289,43 @@ export class TableScene {
     // Read the trump square-on even with the phone's steep table camera.
     this.trump.quaternion.copy(this.camera.quaternion);
     this.trump.position.copy(point); this.trump.scale.setScalar(1);
-    // A box enclosing every rotation and the subtle float keeps the entire
-    // physical card inside its reserved DOM slot, including edge-on frames.
+    // The game uses only a small readable turn (-.12 ± .22 radians), not a
+    // full spin. Reserve that actual motion and the world-space float rather
+    // than a card-width depth box, which made an 82px anchor a tiny 47px face.
+    const turnAxis = new THREE.Vector3(0,1,0);
+    const turns = Array.from({length:13},(_,i)=>-.34+.44*i/12).concat(0);
     const bounds = () => {
       const points = [];
-      for (const x of [-.57,.57]) for (const y of [-.92,.92]) for (const z of [-.57,.57]) {
-        const p = new THREE.Vector3(x,y,z).multiplyScalar(this.trump.scale.x).applyQuaternion(this.trump.quaternion).add(this.trump.position).project(this.camera);
+      for (const turn of turns) for (const x of [-.56,.56]) for (const y of [-.84,.84]) for (const z of [-.03,.03]) for (const float of [-.07,.07]) {
+        const p = new THREE.Vector3(x,y,z).applyAxisAngle(turnAxis,turn)
+          .multiplyScalar(this.trump.scale.x).applyQuaternion(this.trump.quaternion).add(this.trump.position);
+        p.y += float * this.trump.scale.y;
+        p.project(this.camera);
         points.push({ x:canvas.left+(p.x+1)*canvas.width/2, y:canvas.top+(1-p.y)*canvas.height/2 });
       }
       return { left:Math.min(...points.map(p=>p.x)), right:Math.max(...points.map(p=>p.x)), top:Math.min(...points.map(p=>p.y)), bottom:Math.max(...points.map(p=>p.y)) };
     };
-    const initial = bounds();
-    this.trump.scale.setScalar(Math.min(rect.width/(initial.right-initial.left),rect.height/(initial.bottom-initial.top))*.96);
-    const scaled = bounds();
-    const corrected = pointAt(center.x+center.x-(scaled.left+scaled.right)/2,center.y+center.y-(scaled.top+scaled.bottom)/2);
-    if (corrected) this.trump.position.copy(corrected);
+    // Perspective near an outer HUD anchor is nonlinear: the unit-sized
+    // sample is much closer to the camera than the fitted small card. Refine
+    // its fit after scaling and recentering, keeping the same 2% safety inset.
+    for (let pass=0;pass<3;pass++) {
+      const current = bounds();
+      this.trump.scale.multiplyScalar(Math.min(rect.width/(current.right-current.left),rect.height/(current.bottom-current.top))*.98);
+      const scaled = bounds();
+      const corrected = pointAt(center.x+center.x-(scaled.left+scaled.right)/2,center.y+center.y-(scaled.top+scaled.bottom)/2);
+      if (corrected) this.trump.position.copy(corrected);
+    }
     this.trump.userData.baseHeight = this.trump.position.y;
   }
   layoutDecorations(width, height) {
     for (const { group, position, scale } of this.tableProps) { group.position.copy(position); group.scale.copy(scale); group.visible = true; }
-    if (this.mode !== 'game' || width > 850) return;
+    if (this.mode !== 'game') return;
+    const compact = this.host.closest('.table')?.dataset.layoutMode === 'strip';
+    this.trumpRingMaterial.opacity = compact ? .1 : .22;
+    if (width > 850 && !compact) {
+      for (const { group } of this.tableProps) group.scale.multiplyScalar(this.candles.includes(group) ? .55 : .68);
+      return;
+    }
     const portrait = height > width;
     const plane = new THREE.Plane(new THREE.Vector3(0,1,0),-.36), ray = new THREE.Raycaster();
     const place = (group, x, y, pixels, size) => {
@@ -327,6 +345,10 @@ export class TableScene {
     for (let i=0;i<this.candles.length;i++) {
       const left=i%2===0, outer=i<2;
       place(this.candles[i], left ? .035 : .965, portrait ? outer ? .21 : .38 : outer ? .32 : .66, portrait ? 13 : 14, .78);
+    }
+    if (compact) {
+      for (const group of [this.book, this.deck, this.coins, this.orbStand]) group.visible = false;
+      for (const candle of this.candles) candle.scale.multiplyScalar(.65);
     }
   }
   // Keep Three.js faces and their accessible DOM labels at the same stable seat.
@@ -380,7 +402,7 @@ export class TableScene {
       const data = group.userData;
       if (!data.from || !data.baseScale) continue;
       const pose = this.motion.pose(id);
-      if (reducedMotion) Object.assign(pose, { enter: 1, collect: 0, lift: 0, opacity: 1,
+      if (motionMedia.matches) Object.assign(pose, { enter: 1, collect: 0, lift: 0, opacity: 1,
         scale: this.motion.emphasisAt(id) });
       group.position.lerpVectors(data.from, data.target, pose.enter);
       if (pose.collect) group.position.lerp(data.collectTo, pose.collect);
@@ -406,20 +428,21 @@ export class TableScene {
   animate(time) {
     requestAnimationFrame(t=>this.animate(t));
     if(this.lost||document.hidden||!this.host?.isConnected)return;
-    const interval=this.motion?.isAnimating() && !reducedMotion ? this.low ? 33 : 16 : this.low ? 50 : 33;
+    const interval=this.motion?.isAnimating() && !motionMedia.matches ? this.low ? 33 : 16 : this.low ? 50 : 33;
     if(time-this.frame<interval)return;
     const elapsed = Math.max(0, Math.min(100, time - (this.frame || time)));
     this.frame=time;
     if (!this.paused) this.animationTime = (this.animationTime || 0) + elapsed;
     const sceneTime = this.animationTime || 0;
-    const t=reducedMotion?0:sceneTime*.001;
-    for(const {flame,point,offset} of this.flames){flame.scale.y=1.7+Math.sin(t*7+offset)*.18;point.intensity=14+Math.sin(t*5+offset)*1.4;}
-    this.dust.visible=!this.low;
+    const t=motionMedia.matches?0:sceneTime*.001;
+    for(const {flame,point,offset} of this.flames){flame.scale.y=1.7+Math.sin(t*7+offset)*.18;point.intensity=(this.mode==='game' ? 5 : 14)+Math.sin(t*5+offset)*.6;}
+    this.dust.visible=!this.low && this.mode !== 'game';
     this.dust.rotation.y=t*.014;
     this.orb.rotation.y=t*.2;
     if (this.trump.visible) {
-      const trumpTime = this.trumpMotion ? sceneTime * .001 : 0;
-      this.trump.position.y = this.trump.userData.baseHeight + Math.sin(trumpTime * Math.PI / 2.4) * (this.trumpMotion ? .07 * (this.mode === 'game' ? this.trump.scale.y : 1) : 0);
+      const animateTrump = this.trumpMotion && !motionMedia.matches;
+      const trumpTime = animateTrump ? sceneTime * .001 : 0;
+      this.trump.position.y = this.trump.userData.baseHeight + Math.sin(trumpTime * Math.PI / 2.4) * (animateTrump ? .07 * (this.mode === 'game' ? this.trump.scale.y : 1) : 0);
       this.trumpCard.rotation.y = this.mode === 'game' ? -.12 + Math.sin(trumpTime * .65) * .22 : -.25 + trumpTime * Math.PI / 8;
     }
     for(const group of this.paused || this.mode === 'game' && this.motion ? [] : this.cards.values()){
