@@ -35,15 +35,22 @@ async function closeScores(page) {
 }
 async function actOnce(page) {
   if (await page.locator('[data-trump]').count()) {
-    await page.locator('[data-trump]').first().click(); return true;
+    await page.locator('[data-trump]').first().click();
+    await expect.poll(async () => (await state(page)).phase).not.toBe('trump');
+    return true;
   }
   if (await page.locator('[data-bid]').count()) {
-    await page.locator('[data-bid]').first().click(); return true;
+    const { me } = await session(page);
+    await page.locator('[data-bid]').first().click();
+    await expect.poll(async () => (await state(page)).players.find(p => p.id === me)?.bidSubmitted).toBe(true);
+    return true;
   }
   const view = await state(page), saved = await session(page);
   if (view?.phase === 'play' && view.players[view.turn]?.id === saved.me && view.legal?.length) {
     await page.locator(`.hand [data-card="${view.legal[0]}"]`).click();
-    await page.locator('#confirm-play').click(); return true;
+    await page.locator('#confirm-play').click();
+    await expect.poll(async () => (await state(page)).eventSeq).toBeGreaterThan(view.eventSeq);
+    return true;
   }
   return false;
 }
