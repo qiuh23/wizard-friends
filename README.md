@@ -2,6 +2,10 @@
 
 **[开始游戏](https://wizard-friends.wizard-friends.workers.dev/)**
 
+**[个人 Cloudflare 补充入口](https://wizard-friends.qiuh23.workers.dev/)**
+
+两个入口的房间和浏览器返回记录各自独立；一起游戏时请使用同一个入口。
+
 3–6 人中文 Wizard 网页游戏，保留原 SVG 插画、暗绿三维牌桌、二维降级、省电模式、聊天、观战和离线练习。
 
 ## 对局与手机手牌
@@ -65,9 +69,19 @@ GAME_URL=http://127.0.0.1:5173/ npm run test:layout
 
 ## CI 与发布
 
-`verify.yml` 是唯一验证流程：缓存依赖、语法检查、规则／隐私／生命周期／随机数测试、一次前端构建、Worker 打包预演及一组小规模联机冒烟。不需要生产授权；纯 Markdown／开发记录修改跳过无关检查，重复运行自动取消。
+`verify.yml` 保留为 GitHub 上的验证流程：缓存依赖、语法检查、规则／隐私／生命周期／随机数测试、一次前端构建、Worker 打包预演及一组小规模联机冒烟。验证任务不需要生产授权；纯 Markdown／开发记录修改跳过无关检查，重复验证自动取消。
 
-Pages 部署保留为独立手动工作流，复用成功的 main 验证产物，不重新构建；核对产物内公开 relay 配置与当前 `RELAY_URL` 一致。Worker 发布仍由维护者主动执行 `npm run deploy`。本次 PR 不自动部署或合并，现有线上地址不会因为本地验证而更新。
+个人补充入口通过 **Cloudflare Workers Builds** 连接 [`qiuh23/wizard-friends`](https://github.com/qiuh23/wizard-friends) 的 `main`，该分支更新后自动验证并发布到 `wizard-friends.qiuh23.workers.dev`。原来的游戏入口继续保留，原账户的发布方式不在此仓库中调整。
+
+Cloudflare 的 Git 构建设置为：
+
+- 仓库：`qiuh23/wizard-friends`；生产分支：`main`；根目录：`/`；预览分支构建关闭。
+- 构建命令：`npm run build:cloudflare`，依次完成语法检查、全部单测、前端构建及 Worker 打包预演，任一步失败即停止发布。
+- 部署命令：`npm run deploy:cloudflare`，发布网页与 Worker，再核对线上前端的完整提交号及 `/api/health` 的版本 2 协议，传播期间有限重试；核对失败则本次构建报错。
+
+发布授权由 Cloudflare 构建设置管理，仓库中不保存令牌。个人入口使用同域 API／WebSocket，构建时不要设置指向原入口的 `VITE_RELAY_URL`，以免网页连接到另一套房间。`wrangler.jsonc` 固定个人账户和 Worker 名称；`npm run deploy` 仍可用于维护者手动发布。GitHub 验证与 Cloudflare 构建分别运行；Cloudflare 发布前必跑上述检查，完整三客户端浏览器冒烟仍由 GitHub 验证流程承担。
+
+GitHub Pages 保留为独立手动工作流，复用成功的 `main` 验证产物，不重新构建；核对产物内公开 relay 配置与当前 `RELAY_URL` 一致。Workers Builds 的连接和构建记录可在 Cloudflare 的 `wizard-friends` → 设置 → 构建中检查，机制见 [Cloudflare 官方文档](https://developers.cloudflare.com/workers/ci-cd/builds/)。
 
 ## 素材与设计参考
 

@@ -206,3 +206,12 @@
 - 基线：上游 `main` 为 `fd92eee`，已由用户合并 PR #9，文件树与通过远端 CI 的 `b232f73` 相同；个人仓库的 `main` 及 `feat/authoritative-table-and-mobile-hand` 均为 `4926ebe`。同步采用保留历史的快进，完成后核对两个远端引用与文件树。
 - README 在标题后直接提供 **[开始游戏](https://wizard-friends.wizard-friends.workers.dev/)**。本轮实际检查首页 HTTP 200、游戏 JavaScript HTTP 200，并确认包含创建房间与单人练习入口；健康接口返回 cloudflare-websocket / version 1，此地址仍是此前部署的线上版本。仓库同步与文档修改不等于发布新 Worker。
 - 验证：文档补链使用既有线上地址，执行链接与资源检查及 `git diff --check`；规则和客户端源码不变，不重复既有 191 项测试及三客户端回归。CI 修复的实际成功任务为 [40807256207](https://github.com/xsk23/wizard-friends/actions/runs/40807256207)。
+
+<a id="h-017"></a>
+## H-017 · 2026-10-29 · 增加 Cloudflare 自动发布流程
+- 来源：用户要求自动部署，随后指定只修改自己的 `qiuh23/wizard-friends`，用个人 Cloudflare 添加补充入口并保留原入口。个人仓库 main 与上游基线均为 `5502874`；本轮没有向原仓库提交修改。策略见 [D-012](DECISIONS.md#d-012)。
+- 实现：新增 Cloudflare 构建／发布脚本和线上版本核对，固定个人账户，README 增加补充入口与独立房间提示；既有 GitHub 验证和 Pages 工作流保留。Cloudflare Workers Builds 将连接个人 main，使用已有 GitHub 授权和构建令牌，不把密钥写进代码。
+- 本地验证：语法检查、196/196 单测（新增五项覆盖正确版本、旧前端、旧 Worker／HTTP 错误、传播重试和缺失提交号）、前端构建、Worker 预演及 `git diff --check` 通过；两个工作流通过官方 actionlint v1.7.12。保留原有 Three.js 大分包提示。未重复与发布配置无关的本地浏览器回归，远端仍保留完整三客户端冒烟。
+- 授权与首次发布：用户通过最小 Workers OAuth 范围授权个人账户；实际确认子域为 qiuh23，账户此前只有 magical-athlete 的两个 Worker。新建 wizard-friends，初次手动部署版本 `394fd82c-9138-458d-b43f-be2dcab5f130` 成功，线上完整提交号及版本 2 健康响应核对通过。两个独立 Durable Objects 绑定随 Worker 创建。
+- 环境修正：本机便携 npm 的嵌套 npm 调用遇到 npm-prefix 路径错误，改用本机 Node 直接执行 Vite、build-info 和 Wrangler 完成首次部署；Cloudflare 构建环境使用标准 npm。原先考虑的 GitHub Actions 发布方案在用户指定个人账户后改为复用 Cloudflare 已有构建连接。
+- 交付边界：此条写入时个人补充入口可用，自动构建连接和远端 main 更新仍在进行，后续实际运行结果另补充，不以初次手动发布代替自动部署验收。

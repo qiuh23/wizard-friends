@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "wizard-friends",
+  "account_id": "1304ab798d39e085d8355f1f4a75cf75",
   "main": "worker/index.js",
   "compatibility_date": "2026-10-20",
   "workers_dev": true,

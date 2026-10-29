@@ -100,4 +100,12 @@
 - 设计方法参考 [Anthropic frontend-design](https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md)、[UI/UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) 的层级／触控／状态反馈，以及 [Kenney Fantasy UI Borders](https://kenney.nl/assets/fantasy-ui-borders) 的少量边框处理；采用本项目 CSS 实现，未引入新的美术包或整图界面。
 - 手牌结构参考 [beUI Card Dealer 源码](https://github.com/starc007/ui-components/blob/main/components/motion/card-dealer.tsx) 的按 ID 布局与自适应间距；[BGA 现行文档](https://en.doc.boardgamearena.com/BgaCards) 和[归档结构](https://github.com/thoun/bga-cards)的身份／排列／可选／选中分离；[Embla v8 稳定文档](https://www.embla-carousel.com/docs/v8/api/options) 的边界及滑后点击处理；并选读 [board-game-ui](https://github.com/fil512/upship/blob/main/.claude/skills/board-game-ui/SKILL.md) 的手牌／点击选择／键盘部分。保留原 JavaScript/CSS 栈，手机采用原生非循环滚动，无自动播放，不移植示例洗牌或 BGA 专属 API。
 - 洗牌移植 [Magical Athlete 的随机流](https://github.com/qiuh23/magical-athlete-online/blob/91c6a0f6f698eceb76078e0e72ba4ad3691605a2/src/shared/random.ts)，使用 RFC 8439 标准向量校验；正式局私有流与 UI／AI 分离。机器人默认有预算的预期得分策略，保留简单难度，不能读到其他人的私有牌或秘密目标。
-- 远端仅一个精简验证工作流，生产配置无需授权；部署为维护者主动操作，复用验证产物而不重建。本次交付 PR，不自动合并或部署。
+- 远端仅一个精简验证工作流，生产配置无需授权；部署为维护者主动操作，复用验证产物而不重建。本次交付 PR，不自动合并或部署。此处手动发布约定后由 [D-012](#d-012) 的用户新要求取代，游戏设计约定继续适用。
+
+<a id="d-012"></a>
+## D-012 · 2026-10-29 · 个人仓库的 Cloudflare 补充入口与自动发布
+- 状态：补充入口已部署，自动构建连接待核实；来源：用户要求自动部署，随后明确仅修改自己的 `qiuh23/wizard-friends`，使用个人 Cloudflare 增加 README 补充入口，原入口后续再处理。本条取代 D-011 对个人入口的手动发布约定，实施证据见 [H-017](HISTORY.md#h-017)。
+- 个人账户的 `wizard-friends.qiuh23.workers.dev` 使用独立 Worker 和 Durable Objects，README 同时保留原入口，说明房间与返回记录不互通。`wrangler.jsonc` 固定个人账户，防止本地命令选错目标。
+- 使用 Cloudflare Workers Builds 已有的 qiuh23 GitHub 连接和构建授权，连接个人仓库 main；预览构建关闭。构建命令完成语法、单测、前端和 Worker 预演，再发布并检查线上完整提交号和版本 2 健康接口；失败如实报告。
+- 个人入口使用同域 API，构建不设置指向原入口的 `VITE_RELAY_URL`。GitHub 的既有完整联机冒烟继续独立运行，Cloudflare 构建本身的前置检查不宣称包含该浏览器回归。
+- 不向原仓库提交、不改原 Cloudflare，不把认证令牌保存到仓库。GitHub Pages 保持独立手动发布，`npm run deploy` 保留为维护入口。
