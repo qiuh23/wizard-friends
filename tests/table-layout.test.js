@@ -76,3 +76,23 @@ test('ownership links stop before the player and card rectangles and omit a gap 
   for(const [key,value]of Object.entries({x1:34,y1:20,x2:56,y2:20}))assert.ok(Math.abs(link[key]-value)<1e-9);
   assert.equal(playedCardLink(source,player,{left:34,right:54,top:10,bottom:30}),null);
 });
+
+test('a leading card can grow on a small portrait table without changing ownership or overlapping seats', () => {
+  const seats=[{id:'p1',x:44,y:315.117},{id:'p2',x:91.125,y:184.742},
+    {id:'p3',x:268.859,y:184.742},{id:'p4',x:316,y:315.117},{id:'p0',self:true,x:32,y:470}];
+  const center={x:180,y:325.805};
+  const obstacles=seats.filter(seat=>!seat.self).map(seat=>({left:seat.x-36,right:seat.x+36,top:seat.y-22,bottom:seat.y+46.797}));
+  obstacles.push({left:10,right:350,top:448,bottom:492},{left:117,right:243,top:516,bottom:632},
+    {left:206,right:350,top:8,bottom:52},{left:14,right:148,top:12,bottom:31},
+    {left:161.203,right:198.797,top:297.609,bottom:354});
+  const layout=playedCardSlots({left:8,right:352,top:8,bottom:632},seats,center,obstacles,36,1.06);
+  assert.ok(layout); assert.equal(layout.slots.size,5);
+  for(const seat of seats){
+    const slot=layout.slots.get(seat.id),face={x:slot.x-center.x,y:slot.y-10-center.y};
+    const alignment=source=>(face.x*(source.x-center.x)+face.y*(source.y-center.y))/Math.hypot(source.x-center.x,source.y-center.y);
+    for(const other of seats.filter(other=>other.id!==seat.id))assert.ok(alignment(seat)>alignment(other));
+    for(const rect of [...obstacles,...[...layout.slots].filter(([id])=>id!==seat.id).map(([,other])=>other.rect)]){
+      assert.ok(slot.rect.right<=rect.left||slot.rect.left>=rect.right||slot.rect.bottom<=rect.top||slot.rect.top>=rect.bottom);
+    }
+  }
+});

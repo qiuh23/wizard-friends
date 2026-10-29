@@ -71,6 +71,7 @@ async function inspect(page) {
           label: node?.parentElement.querySelector('.played-name')?.textContent,
           opacity: node && Number(getComputedStyle(node).opacity),
           animations: node?.getAnimations().map(a => ({ name: a.animationName, state: a.playState, delay: a.effect.getTiming().delay, time: a.currentTime })),
+          transform: node && getComputedStyle(node).transform,
           mesh: group && { visible: group.visible, scale: group.scale.x / group.userData.baseScale.x,
             distance: group.position.distanceTo(group.userData.target), opacity: group.userData.face.material.opacity },
         };
@@ -192,9 +193,11 @@ try {
   await home.waitForTimeout(350);
   const redrawn = await inspect(home);
   expect(redrawn.cards.map(c => c.pose)).toEqual(paused.cards.map(c => c.pose));
-  for (const card of redrawn.cards) expect(card.mesh.scale).toBeCloseTo(1 - .65 * card.pose.collect, 5);
+  for (const card of redrawn.cards) expect(card.mesh.scale).toBeCloseTo(card.pose.scale, 5);
   const fallback = await inspect(guest);
-  expect(fallback.cards.every(c => c.animations.every(a => a.state === 'paused'))).toBe(true);
+  await guest.waitForTimeout(150);
+  const still = await inspect(guest);
+  expect(still.cards.map(c => [c.transform,c.opacity])).toEqual(fallback.cards.map(c => [c.transform,c.opacity]));
   await home.reload();
   await home.waitForFunction(() => window.__reviewScene?.mode === 'game' && window.__reviewScene.state.lifecycle.paused);
   const recovered = await inspect(home);

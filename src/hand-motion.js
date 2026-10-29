@@ -46,15 +46,16 @@ export class HandMotion {
     }
     for(const node of this.nodes) {
       node.onpointerenter=event=>{if(this.canHover && event.pointerType==='mouse')this.inspect(node.dataset.card);};
-      node.onpointerleave=event=>{if(this.canHover && event.pointerType==='mouse')this.inspect(null);};
+      node.onpointerleave=null;
       node.onfocus=()=>{if(this.canHover)this.inspect(node.dataset.card);};
       node.onblur=()=>{if(this.canHover)this.inspect(null);};
     }
-    this.onInspect(this.canHover ? this.hovered : null);
+    hand.onpointerleave=event=>{if(this.canHover && event.pointerType==='mouse')this.inspect(null);};
+    this.onInspect(this.canHover && !this.fan ? this.hovered : null);
     this.observer=new ResizeObserver(()=>this.layout());this.observer.observe(hand);
     if(previous?.focus) this.nodes.find(node=>node.dataset.card===previous.focus)?.focus({preventScroll:true});
   }
-  inspect(id) { this.hovered=id;this.layout();this.onInspect(id); }
+  inspect(id) { this.hovered=id;this.layout();this.onInspect(this.fan ? null : id); }
   layout() {
     if(!this.hand)return;
     if(!this.fan)return;

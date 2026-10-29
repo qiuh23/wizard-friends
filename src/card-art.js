@@ -6,3 +6,22 @@ export function cardImage(card) {
     : card.kind;
   return new URL(`./assets/cards/${artwork}.svg`, import.meta.url).href;
 }
+
+const imageLoads = new Map();
+// HTML cards and physical faces share one decoded image per illustration.
+export function loadCardImage(card) {
+  const url = cardImage(card);
+  if (!imageLoads.has(url)) {
+    const request = new Promise((resolve, reject) => {
+      const image = new Image();
+      image.decoding = 'async';
+      image.onload = async () => {
+        try { await image.decode(); resolve(image); } catch (error) { reject(error); }
+      };
+      image.onerror = () => reject(new Error('牌面插画加载失败。'));
+      image.src = url;
+    }).catch(error => { imageLoads.delete(url); throw error; });
+    imageLoads.set(url, request);
+  }
+  return imageLoads.get(url);
+}

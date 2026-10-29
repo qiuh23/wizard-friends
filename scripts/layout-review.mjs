@@ -104,7 +104,9 @@ try {
     if (layout.scrollWidth > layout.clientWidth + 10) expect(scroll).toBeGreaterThan(0);
     } else {
       await page.locator('.hand .card').first().hover();
-      await expect(page.locator('.hover-preview')).toBeVisible();
+      await expect(page.locator('.hover-preview')).toBeHidden();
+      await expect(page.locator('.hand .card.hovered')).toHaveCount(1);
+      expect(await page.locator('.hand .card.hovered').evaluate(node => parseFloat(node.style.getPropertyValue('--hand-lift')))).toBeLessThan(0);
       await expect(page.locator('.hand .selected')).toHaveCount(0);
       await expect(page.locator('#confirm-play')).toBeDisabled();
       await page.mouse.move(20, 100);
@@ -113,7 +115,10 @@ try {
     await page.locator('.hand').evaluate(el => { el.scrollLeft = 0; });
     await page.locator('.hand .playable').first().click({ position: { x: 15, y: 45 } });
     await expect(page.locator('.hand .selected')).toHaveCount(1);
-    await expect(page.locator('.selected-preview')).toBeVisible();
+    if (width >= 851 && await page.locator('.hand').evaluate(node => node.classList.contains('desktop-fan'))) {
+      await expect(page.locator('.selected-preview')).toBeHidden();
+      expect(await page.locator('.hand .selected').evaluate(node => parseFloat(node.style.getPropertyValue('--hand-lift')))).toBeLessThan(-20);
+    } else await expect(page.locator('.selected-preview')).toBeVisible();
     await expect(page.locator('#confirm-play')).toBeEnabled();
     await screenshotStable(page,{ path: `${out}/${prefix}-selected.png` });
     const selected = await page.locator('.hand .selected').getAttribute('data-card');

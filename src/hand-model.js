@@ -60,12 +60,14 @@ export function desktopFan(count, width, inspected = -1, selected = -1, compact 
   const cardHeight = cardWidth * 1.5, edge = 20;
   const room = Math.max(0,width - cardWidth - edge * 2);
   const step = count > 1 ? Math.min(count <= 5 ? 78 : 54,room/(count-1)) : 0;
+  const active = inspected >= 0 ? inspected : selected;
+  const opening = compact ? 6 : 14;
   return {cardWidth,cardHeight,step,poses:Array.from({length:count},(_,i)=>{
     const offset=i-(count-1)/2,reach=count>1?offset/Math.max(1,(count-1)/2):0;
     return {x:width/2-cardWidth/2+offset*step,y:(compact?4:26)+reach*reach*(compact?3:8),
-      angle:reach*Math.min(compact?6:12,Math.max(0,count-1)*1.2),
-      push:inspected<0 || i===inspected ? 0 : Math.sign(i-inspected)*10,
-      lift:i===inspected ? (compact?-8:-19) : i===selected ? (compact?-5:-14) : 0,
+      angle:reach*Math.min(compact?6:12,Math.max(0,count-1)*1.2)*(active>=0 ? 1.06 : 1),
+      push:active<0 || i===active ? 0 : Math.sign(i-active)*opening,
+      lift:i===selected ? (compact?-9:-26) : i===inspected ? (compact?-7:-18) : 0,
       z:i===inspected ? 300 : i===selected ? 250 : 100+i};
   })};
 }

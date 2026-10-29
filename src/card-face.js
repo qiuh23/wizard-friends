@@ -22,7 +22,14 @@ export function cardMarksHTML(card) {
 // Bake every mark into the physical face: no independently animated DOM numbers.
 export function paintCardFace(ctx, image, card) {
   const mark = cardMark(card);
-  ctx.drawImage(image, 0, 0, 320, 480);
+  // A complete, readable face exists before the illustration is downloaded.
+  ctx.fillStyle = '#e8deca'; ctx.fillRect(0, 0, 320, 480);
+  if (image) ctx.drawImage(image, 0, 0, 320, 480);
+  else {
+    ctx.fillStyle = mark.color; ctx.font = 'bold 124px Georgia, serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(mark.symbol, 160, 260);
+  }
   ctx.strokeStyle = mark.color; ctx.lineWidth = 8;
   ctx.strokeRect(4, 4, 312, 472);
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';

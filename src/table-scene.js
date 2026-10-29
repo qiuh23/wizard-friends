@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { cardImage } from './card-art.js';
+import { cardImage, loadCardImage } from './card-art.js';
 import { trumpStyle } from './trump-style.js';
 import { paintCardFace } from './card-face.js';
 import { playedCardRect } from './table-layout.js';
@@ -130,12 +130,13 @@ export class TableScene {
   face(card) {
     const key=cardImage(card);
     if(!this.textures.has(key)){
-      const texture=new THREE.TextureLoader().load(key, loaded => {
-        const canvas = document.createElement('canvas'); canvas.width = 320; canvas.height = 480;
-        const ctx = canvas.getContext('2d');
-        paintCardFace(ctx, loaded.image, card);
-        loaded.image = canvas; loaded.needsUpdate = true;
-      });
+      const canvas = document.createElement('canvas'); canvas.width = 320; canvas.height = 480;
+      const ctx = canvas.getContext('2d');
+      paintCardFace(ctx, null, card);
+      const texture = new THREE.CanvasTexture(canvas);
+      loadCardImage(card).then(image => {
+        paintCardFace(ctx, image, card); texture.needsUpdate = true;
+      }).catch(() => {}); // The readable fallback also covers an unavailable asset.
       texture.colorSpace=THREE.SRGBColorSpace;
       texture.anisotropy=Math.min(4,this.renderer.capabilities.getMaxAnisotropy());
       this.textures.set(key,texture);
@@ -368,6 +369,7 @@ export class TableScene {
       const offset = name => parseFloat(node.style.getPropertyValue(name)) || 0;
       group.userData.from = pointAt(x + offset('--from-x'), y + offset('--from-y')) || target;
       group.userData.collectTo = pointAt(x + offset('--winner-dx'), y + offset('--winner-dy')) || target;
+      group.userData.collectLift = (pointAt(x, y - 1) || target.clone()).sub(target);
       group.userData.baseScale = group.scale.clone();
       if (!this.motion) group.position.copy(target);
     }
@@ -377,15 +379,18 @@ export class TableScene {
     for (const [id, group] of this.cards) {
       const data = group.userData;
       if (!data.from || !data.baseScale) continue;
-      const pose = reducedMotion ? { enter: 1, collect: 0 } : this.motion.pose(id);
+      const pose = this.motion.pose(id);
+      if (reducedMotion) Object.assign(pose, { enter: 1, collect: 0, lift: 0, opacity: 1,
+        scale: this.motion.emphasisAt(id) });
       group.position.lerpVectors(data.from, data.target, pose.enter);
       if (pose.collect) group.position.lerp(data.collectTo, pose.collect);
-      group.scale.copy(data.baseScale).multiplyScalar(1 - .65 * pose.collect);
+      if (data.collectLift) group.position.addScaledVector(data.collectLift, pose.lift);
+      group.scale.copy(data.baseScale).multiplyScalar(pose.scale);
       group.rotation.y = data.rotation;
       group.visible = pose.collect < 1;
       for (const mesh of [data.face, data.edge]) {
         mesh.material.transparent = true;
-        mesh.material.opacity = pose.enter * (1 - pose.collect);
+        mesh.material.opacity = pose.enter * pose.opacity;
       }
     }
   }
@@ -401,7 +406,7 @@ export class TableScene {
   animate(time) {
     requestAnimationFrame(t=>this.animate(t));
     if(this.lost||document.hidden||!this.host?.isConnected)return;
-    const interval=this.low?50:33;
+    const interval=this.motion?.isAnimating() && !reducedMotion ? this.low ? 33 : 16 : this.low ? 50 : 33;
     if(time-this.frame<interval)return;
     const elapsed = Math.max(0, Math.min(100, time - (this.frame || time)));
     this.frame=time;

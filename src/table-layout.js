@@ -33,20 +33,20 @@ const intersects = (a, b, gap = 4) => a.left < b.right + gap && a.right > b.left
 // Reserve every player's destination, including seats that have not played.
 // Keep each face in its owner's angular sector around the trump. Empty felt
 // in a different player's sector is not a valid destination.
-export function playedCardSlots(area, seats, center, obstacles, preferredWidth) {
+export function playedCardSlots(area, seats, center, obstacles, preferredWidth, emphasis = 1) {
   const directions = seats.map(seat=>{
     const length=Math.hypot(seat.x-center.x,seat.y-center.y)||1;
     return {id:seat.id,x:(seat.x-center.x)/length,y:(seat.y-center.y)/length};
   });
   for (const width of [...new Set([1,.92,.84,.76,.68,.6].map(scale => Math.max(36, Math.round(preferredWidth * scale))).concat(36))]) {
-    const slotWidth = Math.max(56, width), height = width * 1.5 + 20;
+    const slotWidth = Math.max(56, width * emphasis), height = width * 1.5 * emphasis + 20;
     const rectAt = (x,y) => ({ left:x-slotWidth/2, right:x+slotWidth/2, top:y-height/2, bottom:y+height/2 });
     const candidates = seats.map(seat => {
       const dx = center.x-seat.x, dy = center.y-seat.y, length2 = Math.max(1,dx*dx+dy*dy);
       const preferred = { x:seat.x+dx*.36, y:seat.y+dy*.36 };
       if (seat.self) preferred.y = Math.max(preferred.y,center.y+height*.35);
       const xs = [preferred.x], ys = [preferred.y];
-      for(const offset of [-.6,-.3,.3,.6]){xs.push(preferred.x+slotWidth*offset);ys.push(preferred.y+slotWidth*offset);}
+      for(const offset of [-.7,-.6,-.5,-.3,.3,.5,.6,.7]){xs.push(preferred.x+slotWidth*offset);ys.push(preferred.y+slotWidth*offset);}
       for (const t of [.32,.4,.5,.6,.7,.8]) { xs.push(seat.x+dx*t); ys.push(seat.y+dy*t); }
       for (const r of obstacles) { xs.push(r.left-4-slotWidth/2,r.right+4+slotWidth/2); ys.push(r.top-4-height/2,r.bottom+4+height/2); }
       const options = [];
