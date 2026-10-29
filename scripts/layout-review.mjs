@@ -2,7 +2,7 @@ import { chromium, expect } from '@playwright/test';
 import fs from 'node:fs';
 import { createGame, addPlayer, act, viewFor } from '../src/game.js';
 import { createRandomStream } from '../src/random.js';
-import { DEFAULT_OPTIONS } from '../src/rules-vote.js';
+import { DEFAULT_OPTIONS } from '../src/rules-options.js';
 
 // Local/manual only. Reach fixtures through legal engine actions; never expose
 // test clocks, seeded games or arbitrary-state endpoints in the Worker.
@@ -12,13 +12,10 @@ function fixture(count, round) {
   const game = createGame(); game.randomState = createRandomStream(Array(11).fill(4));
   for (let i = 0; i < count; i++) addPlayer(game, `p${i}`, ['青岚', '云舒', '风行', '清月', '星河', '林语'][i]);
   const run = (id, action) => act(game, id, action);
-  run('p0', { type: 'beginVote' });
+  run('p0', { type: 'start', options: DEFAULT_OPTIONS });
   for (let i = 0; i < 10000; i++) {
     if (game.phase === 'play' && game.round === round && game.turn === 0) break;
-    if (game.phase === 'rules') {
-      for (const player of game.players) run(player.id, { type: 'vote', choices: Object.fromEntries(Object.keys(game.vote.pending).map(key => [key, DEFAULT_OPTIONS[key]])) });
-      run('p0', { type: 'start' });
-    } else if (game.phase === 'trump') run(game.players[game.turn].id, { type: 'trump', suit: 'blue' });
+    if (game.phase === 'trump') run(game.players[game.turn].id, { type: 'trump', suit: 'blue' });
     else if (game.phase === 'bid') {
       const id = game.players[game.turn].id;
       run(id, { type: 'bid', value: viewFor(game, id).bids[0] });
@@ -65,6 +62,8 @@ async function bounds(page) {
     return { overflow: document.documentElement.scrollWidth > innerWidth,
       hand: rect(hand), scrollWidth: hand.scrollWidth, clientWidth: hand.clientWidth,
       target: rect(document.querySelector('.own-status')),
+      action: rect(document.querySelector('.action-panel')),
+      chat: rect(document.querySelector('#chat-toggle')),
       confirm: rect(document.querySelector('#confirm-play')),
       seats: [...document.querySelectorAll('.opponents .player')].map(rect),
       played: [...document.querySelectorAll('.played .card')].map(rect) };
@@ -152,17 +151,33 @@ try {
     checks.push({ players: 6, width, height, layout }); await context.close();
   }
   }
-  for (const [width, height] of [[390, 844], [360, 800], [844, 390]]) {
+  for (const [width, height] of [[1440, 900], [1280, 720], [390, 844], [360, 800], [844, 390]]) {
     const { context, page } = await openFixture(6, 10, width, height, true);
     const layout = await bounds(page); expect(layout.played).toHaveLength(6);
     await screenshotStable(page,{ path:`${out}/six-card-trick-${width}.png` });
     fs.writeFileSync(`${out}/six-card-trick-${width}.json`, JSON.stringify(layout,null,2));
     const overlap = (a,b) => Math.max(0,Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x)) *
       Math.max(0,Math.min(a.y+a.height,b.y+b.height)-Math.max(a.y,b.y));
-    for (const card of layout.played) for (const seat of layout.seats) expect(overlap(card,seat)).toBeLessThan(1);
+    for (const card of layout.played) {
+      for (const seat of layout.seats) expect(overlap(card,seat)).toBeLessThan(1);
+      expect(overlap(card,layout.target)).toBeLessThan(1); expect(overlap(card,layout.action)).toBeLessThan(1);
+    }
+    for (const seat of layout.seats) { expect(overlap(seat,layout.action)).toBeLessThan(1); expect(overlap(seat,layout.target)).toBeLessThan(1); }
+    for (let i=0;i<layout.seats.length;i++) for (let j=i+1;j<layout.seats.length;j++) expect(overlap(layout.seats[i],layout.seats[j])).toBeLessThan(1);
+    expect(overlap(layout.target,layout.action)).toBeLessThan(1);
+    expect(overlap(layout.chat,layout.confirm)).toBeLessThan(1);
     for (let i=0;i<layout.played.length;i++) for (let j=i+1;j<layout.played.length;j++) expect(overlap(layout.played[i],layout.played[j])).toBeLessThan(1);
     await screenshotStable(page,{ path:`${out}/six-card-trick-${width}.png` });
-    checks.push({ players:6,playedCards:6,width,height,layout }); await context.close();
+    await page.locator('#chat-toggle').click();
+    await expect(page.locator('#room-chat')).toBeVisible();
+    const chatBounds = await page.locator('#room-chat').boundingBox(), confirm = await page.locator('#confirm-play').boundingBox();
+    await screenshotStable(page,{ path:`${out}/chat-dock-${width}.png` });
+    expect(overlap(chatBounds,confirm)).toBeLessThan(1);
+    await page.locator('#close-chat').click();
+    await page.locator('#table-scores').click();
+    await expect(page.locator('.score-ledger tbody tr')).toHaveCount(10);
+    await screenshotStable(page,{ path:`${out}/score-ledger-${width}.png` });
+    checks.push({ players:6,playedCards:6,width,height,layout,chatDock:true,ledger:true }); await context.close();
   }
   if (process.env.LAYOUT_CASE !== 'full-trick') {
     const { context, page } = await openFixture(3,20,390,844);

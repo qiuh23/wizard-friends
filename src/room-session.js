@@ -52,7 +52,7 @@ function lifecycleView(life) {
   if (!life || typeof life !== 'object') return undefined;
   const clean = {};
   for (const key of ['paused','hostOffline','closeAfterRound','closed','reconnecting']) if (typeof life[key] === 'boolean') clean[key] = life[key];
-  for (const key of ['retentionDeadline','retentionMs','resultsDeadline','remainingMs']) if (life[key] === null || Number.isFinite(life[key])) clean[key] = life[key];
+  for (const key of ['retentionDeadline','retentionMs','resultsDeadline','remainingMs','nextTrickAt','reviewRemainingMs']) if (life[key] === null || Number.isFinite(life[key])) clean[key] = life[key];
   if (typeof life.pauseReason === 'string') clean.pauseReason = life.pauseReason.slice(0,300);
   if (Array.isArray(life.resultsConfirmed)) clean.resultsConfirmed = life.resultsConfirmed.filter(id=>typeof id==='string');
   const vote=life.continuationVote;
@@ -67,11 +67,10 @@ export function sanitizeClientView(source, me, spectator = false) {
   if (spectator) return withLifecycle(spectatorView(source),source);
   const state = source;
   const full = state.players.every(player => Array.isArray(player.hand));
-  if (full && (!state.vote || state.vote.ballots)) return withLifecycle(viewFor(state, me),state);
+  if (full) return withLifecycle(viewFor(state, me),state);
   const visible = viewFor({ ...state,
     options:{...state.options,foresight:seesOthers(state)},
     players: state.players.map(player => ({...player,hand:player.hand || []})),
-    vote: state.vote ? {...state.vote,ballots:{}} : null,
   }, me);
   visible.options.foresight=state.options?.foresight===true;
   visible.foresightActive=seesOthers(state);
@@ -79,12 +78,6 @@ export function sanitizeClientView(source, me, spectator = false) {
     count: Array.isArray(state.players[i].hand) ? state.players[i].hand.length : Math.max(0,Number(state.players[i].count) || 0),
     bidSubmitted: state.players[i].bidSubmitted === true,
   }));
-  if (state.vote) visible.vote = {
-    ...visible.vote,
-    submitted: (state.vote.submitted || []).filter(id => state.players.some(p => p.id === id)),
-    ownChoices: state.vote.ownChoices && typeof state.vote.ownChoices === 'object' ?
-      Object.fromEntries(Object.entries(state.vote.ownChoices).filter(([key,value]) => visible.vote.pending[key]?.includes(value))) : null,
-  };
   visible.canBid = state.canBid === true;
   visible.bids = (state.bids || []).filter(n => Number.isInteger(n) && n >= 0 && n <= visible.cardsPerRound);
   return withLifecycle(visible,state);

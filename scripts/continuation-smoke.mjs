@@ -83,12 +83,7 @@ try {
     await page.locator('#join').click(); await connected(page);
   }
   await expect.poll(async () => (await view(host))?.players.length).toBe(3);
-  await host.locator('#begin-vote').click();
-  for (const page of [host, guest, other]) {
-    await page.locator('#vote-form').waitFor();
-    for (const [key, value] of Object.entries({ short: true, predictionMode: 'public', foresight: false })) await page.locator(`input[name="${key}"][value="${value}"]`).check();
-    await page.locator('#submit-vote').click();
-  }
+  for (const [key, value] of Object.entries({ short: true, predictionMode: 'public', foresight: false })) await host.locator(`input[name="${key}"][value="${value}"]`).check();
   await host.locator('#start').click();
   for (let step = 0; step < 12 && (await view(host)).phase !== 'play'; step++) {
     for (const page of [host, guest, other]) await act(page);

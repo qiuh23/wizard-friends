@@ -217,3 +217,16 @@
 - 远端与连接：个人 main 已更新到 `6823e90`；Cloudflare 设置已确认连接 `qiuh23/wizard-friends` 的 main，构建启用、包含全部路径、预览关闭、两个 npm 命令正确，复用已有构建授权且没有配置跨入口 relay。设置核验截图在忽略提交的 `output/playwright/cloudflare-auto-deploy.png`。本次记录推送用于触发首次自动构建，结果随后补充。
 - 自动部署验收：推送 `796c710` 实际触发 [Cloudflare 构建 1afa9b5a](https://dash.cloudflare.com/1304ab798d39e085d8355f1f4a75cf75/workers/services/view/wizard-friends/production/builds/1afa9b5a-c059-40c7-89a3-c0b887b4ebc3)，GitHub Workers Builds 检查返回 success，发布版本为 `39f58f5e-6fba-4777-9c4c-bf9e702acdcf`。从独立请求核对线上 `build-info.json` 为完整 `796c7107a71b85bb9ef6fb2809007896784ee57d`，API 为版本 2；新入口首页已实际打开，创建房间／加入房间／练习入口可见。
 - 远端验证：代码提交 `6823e90` 的 [GitHub Verify game 40812587835](https://github.com/qiuh23/wizard-friends/actions/runs/40812587835) 成功，覆盖 196 项单测、构建、Worker 预演及既有三客户端联机冒烟。此后的记录提交只更新文档，Cloudflare 仍按 main 推送自动发布。原仓库和原 Cloudflare 服务未被更新。
+
+
+<a id="h-018"></a>
+## H-018 · 2026-10-29 · 个人仓库的整局规则、结算与围桌聊天改进
+- 来源：用户要求只更新自己的仓库并提交 PR，原始六项需求及后续手机、音乐、聊天、消息气泡、座次和单行按钮约束均纳入 [D-013](DECISIONS.md#d-013)。基线 `05b17b1`，工作区与暂存区起初干净，从个人 main 建立 `feat/host-rules-and-round-clarity`；不向 upstream 写入。
+- 规则核对：读取 [AMIGO 官方规则](https://blog.amigo-spiele.de/content/ap/rule/06900-GB-AmigoRule.pdf)，确认庄家左手边先预测与首攻、以后赢墩者先出，以及精确预测奖励、偏差扣分、累计最高分及并列获胜。房主预设整局玩法是本轮用户决定，替换此前逐轮投票；整局内规则不可修改，已有轮次不重发牌。
+- 实现：删除规则投票 UI 和执行入口，保留旧存档迁移及续赛生命周期；增加首攻／下墩／下轮先手、同房续局胜场、累计赢墩和猜中轮数、明确的逐轮计分表。秘密数字在表格中仍按规则隐藏。联机赢墩展示从 1.5 秒延至 5 秒，三维收牌从约 0.7 秒改到展示末尾，轮末／终局等待房主继续；有玩家离线时不提前开下一轮。
+- UI：所有端保持顺时针循环；窄高屏使用围桌席位，手机横屏及低高度电脑用同一循环的弧形席位。手牌、个人栏、结算和聊天分别安排空间，修复低高度侧座互盖、横屏牌缘压住个人栏，以及底部工具影响规则选项点击的问题。音乐默认关，单击开关，设备控制音量。手机复用桌面装饰，书册／蜡烛／水晶球／牌堆／金币均有三维与二维安排；两枚手牌按钮保持单行。
+- 聊天：读取参考仓库的 `community.css`、`community.ts` 和 `chat-notices.tsx`，沿用原生 DOM 接入下方聊天、键盘高度适配和独立八秒气泡。新消息只冒泡一次，点击打开记录；首载、重连历史和本人消息不冒泡。计分表放在比分面板最前，渲染保留表格滚动位置。
+- 本地验证：JavaScript 语法检查、194/194 单测、前端生产构建、build-info 生成、Wrangler `deploy --dry-run` 及 `git diff --check` 通过。单测覆盖开局权限与非法选项、跨轮不变、旧投票迁移、同分胜场、断线继续、顺时针几何、公开范围和消息生命周期。原 Three.js 分包体积提示保留。
+- 浏览器验证：真实本地 Durable Objects＋WebSocket 三客户端及只读观众通过，包含秘密数字、暂停聊天、气泡点击、关闭房主标签与新标签返回、刷新、同步记分、固定规则进入第二轮、至少五秒赢墩展示及解散关闭。完整三维五轮练习、二维离线练习、音乐默认关／单击／持久化／PCM、12 种手机三维分辨率与牌数投影、先见之明八张牌的两端可达均通过，errors=[]。
+- 布局验证：现有完整 15 组本地触控／布局通过；追加 1440×900、1280×720、390×844、360×800、844×390 的六张公开牌、玩家框相互避让、牌面／个人／结算分区、聊天与确认按钮、逐轮表检查通过。最终截图：[电脑](../screenshots/host-rules-desktop.png)、[竖屏](../screenshots/host-rules-mobile.png)、[横屏](../screenshots/host-rules-landscape.png)、[逐轮表](../screenshots/host-rules-score-ledger.png)。这是桌面浏览器设备模拟，未声称真实手机 GPU、键盘或耗电验证。
+- 交付：代码、验证脚本、文档及四张截图一起提交个人仓库 PR；未修改依赖、GitHub 工作流或远端浏览器矩阵，未合并或发布。远端检查状态在 PR 中核对，不以本地结果代替。

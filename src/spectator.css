@@ -73,9 +73,7 @@ body[data-spectator="true"] { --spectator-log-height: clamp(104px, 16dvh, 148px)
 body[data-spectator="true"] .hand-section,
 body[data-spectator="true"] #rename-toggle,
 body[data-spectator="true"] #rename-panel,
-body[data-spectator="true"] #chat-form,
-body[data-spectator="true"] #vote-form,
-body[data-spectator="true"] .vote-host-actions button { display: none; }
+body[data-spectator="true"] #chat-form { display: none; }
 .spectator-banner {
   position: fixed; z-index: 8; left: 0; right: 0; bottom: 0; min-height: 32px;
   display: flex; align-items: center; justify-content: center; margin: 0;

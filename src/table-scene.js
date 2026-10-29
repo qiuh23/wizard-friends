@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { cardImage } from './card-art.js';
 import { trumpStyle, TRUMP_COLORS } from './trump-style.js';
 import { CARD_BACK_IMAGE } from './trump-display.js';
+import { TRICK_REVIEW_MS } from './game.js';
 
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 export class TableScene {
@@ -19,7 +20,7 @@ export class TableScene {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.4;
     this.renderer.domElement.setAttribute('aria-hidden', 'true');
-    this.textures = new Map(); this.cards = new Map(); this.flames = [];
+    this.textures = new Map(); this.cards = new Map(); this.flames = []; this.candles = [];
     this.mode = 'hero'; this.key = ''; this.frame = 0;
     this.trumpMotion = !reducedMotion;
     this.observer = new ResizeObserver(() => this.resize());
@@ -81,22 +82,25 @@ export class TableScene {
     this.candle(5.15,-1.8,.85,brass);
     this.candle(-4.8,-2.1,.7,brass);
     this.candle(4.8,-2.4,1.35,brass);
-    const book = new THREE.Group(); book.position.set(-5,.5,1.55); book.rotation.y=.25; this.scene.add(book);
+    const book = this.book = new THREE.Group(); book.position.set(-5,.5,1.55); book.rotation.y=.25; this.scene.add(book);
     this.mesh(new THREE.BoxGeometry(1.2,.18,1.7),this.material('#b3a080'),0,0,0,book);
     for (const y of [-.13,.13]) this.mesh(new THREE.BoxGeometry(1.3,.065,1.8),this.material('#402128'),0,y,0,book);
     this.mesh(new THREE.BoxGeometry(.15,.04,1.75),brass,.35,.18,0,book);
-    this.mesh(new THREE.CylinderGeometry(.48,.6,.15,32),brass,4.8,.48,1.5);
-    this.orb = this.mesh(new THREE.SphereGeometry(.43,28,20),this.material('#65aaac',{metalness:.4,roughness:.13,emissive:'#183b44',emissiveIntensity:1}),4.8,.96,1.5);
-    const orbLight = new THREE.PointLight('#61d2cf',9,5); orbLight.position.set(4.8,1.3,1.5); this.scene.add(orbLight);
+    this.orbStand = new THREE.Group(); this.orbStand.position.set(4.8,0,1.5); this.scene.add(this.orbStand);
+    this.mesh(new THREE.CylinderGeometry(.48,.6,.15,32),brass,0,.48,0,this.orbStand);
+    this.orb = this.mesh(new THREE.SphereGeometry(.43,28,20),this.material('#65aaac',{metalness:.4,roughness:.13,emissive:'#183b44',emissiveIntensity:1}),0,.96,0,this.orbStand);
+    const orbLight = new THREE.PointLight('#61d2cf',9,5); orbLight.position.set(0,1.3,0); this.orbStand.add(orbLight);
+    this.coins = new THREE.Group(); this.coins.position.set(3.85,0,2.6); this.scene.add(this.coins);
     for(let i=0;i<7;i++){
-      const coin=this.mesh(new THREE.CylinderGeometry(.16,.16,.045,20),brass,3.85+(i%3)*.28,.4+Math.floor(i/3)*.05,2.6+(i%2)*.2);
+      const coin=this.mesh(new THREE.CylinderGeometry(.16,.16,.045,20),brass,(i%3)*.28,.4+Math.floor(i/3)*.05,(i%2)*.2,this.coins);
       coin.rotation.z=(i%2)*.08;
     }
     // A physical deck with fine alternating layers, rather than a flat rectangle.
-    this.deck = new THREE.Group(); this.scene.add(this.deck);
-    for(let i=0;i<8;i++) this.mesh(new THREE.BoxGeometry(.85,.025,1.28),this.material(i%2?'#a6926a':'#253d40'),-3.7,.37+i*.028,1,this.deck);
-    const back=this.mesh(new THREE.PlaneGeometry(.78,1.21),this.material('#31525b',{metalness:.2}),-3.7,.58,1,this.deck);
+    this.deck = new THREE.Group(); this.deck.position.set(-3.7,0,1); this.scene.add(this.deck);
+    for(let i=0;i<8;i++) this.mesh(new THREE.BoxGeometry(.85,.025,1.28),this.material(i%2?'#a6926a':'#253d40'),0,.37+i*.028,0,this.deck);
+    const back=this.mesh(new THREE.PlaneGeometry(.78,1.21),this.material('#31525b',{metalness:.2}),0,.58,0,this.deck);
     back.rotation.x=-Math.PI/2;
+    this.tableProps = [this.book, this.orbStand, this.coins, this.deck, ...this.candles].map(group => ({ group, position: group.position.clone(), scale: group.scale.clone() }));
     const positions = new Float32Array(80*3);
     for(let i=0;i<80;i++) { positions[i*3]=Math.sin(i*43)*7; positions[i*3+1]=.5+(i%19)/5; positions[i*3+2]=Math.cos(i*17)*5; }
     const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(positions,3));
@@ -104,20 +108,21 @@ export class TableScene {
     this.scene.add(this.dust);
   }
   candle(x,z,height,brass) {
-    this.mesh(new THREE.CylinderGeometry(.29,.39,.12,24),brass,x,.42,z);
-    this.mesh(new THREE.CylinderGeometry(.09,.15,.5,18),brass,x,.7,z);
-    this.mesh(new THREE.CylinderGeometry(.24,.15,.12,24),brass,x,.96,z);
-    this.mesh(new THREE.CylinderGeometry(.13,.15,height,20),this.material('#d6bb87'),x,1+height/2,z);
-    const flame=this.mesh(new THREE.SphereGeometry(.09,12,12),new THREE.MeshBasicMaterial({color:'#ffe7a5'}),x,1.1+height,z);
+    const group = new THREE.Group(); group.position.set(x,0,z); this.scene.add(group); this.candles.push(group);
+    this.mesh(new THREE.CylinderGeometry(.29,.39,.12,24),brass,0,.42,0,group);
+    this.mesh(new THREE.CylinderGeometry(.09,.15,.5,18),brass,0,.7,0,group);
+    this.mesh(new THREE.CylinderGeometry(.24,.15,.12,24),brass,0,.96,0,group);
+    this.mesh(new THREE.CylinderGeometry(.13,.15,height,20),this.material('#d6bb87'),0,1+height/2,0,group);
+    const flame=this.mesh(new THREE.SphereGeometry(.09,12,12),new THREE.MeshBasicMaterial({color:'#ffe7a5'}),0,1.1+height,0,group);
     flame.scale.set(.7,1.8,.7);
-    const point=new THREE.PointLight('#ffb45b',14,7); point.position.copy(flame.position); this.scene.add(point);
+    const point=new THREE.PointLight('#ffb45b',14,7); point.position.copy(flame.position); group.add(point);
     this.flames.push({flame,point,offset:x});
     const glowCanvas=document.createElement('canvas'); glowCanvas.width=64; glowCanvas.height=64;
     const ctx=glowCanvas.getContext('2d'), gradient=ctx.createRadialGradient(32,32,0,32,32,32);
     gradient.addColorStop(0,'rgba(255,191,85,.6)');gradient.addColorStop(.2,'rgba(255,141,45,.16)');gradient.addColorStop(1,'rgba(255,140,30,0)');
     ctx.fillStyle=gradient;ctx.fillRect(0,0,64,64);
     const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(glowCanvas),blending:THREE.AdditiveBlending,depthWrite:false}));
-    glow.position.copy(flame.position);glow.scale.set(1.5,1.5,1);this.scene.add(glow);
+    glow.position.copy(flame.position);glow.scale.set(1.5,1.5,1);group.add(glow);
   }
   face(card) {
     const key=cardImage(card);
@@ -225,8 +230,7 @@ export class TableScene {
     if(!width||!height)return;
     this.renderer.setSize(width,height,false);this.camera.aspect=width/height;
     this.camera.clearViewOffset();
-    this.deck.position.x = this.mode === 'game' && width <= 600 ? -1.2 : 0;
-    this.deck.visible=!(this.mode==='game' && matchMedia('(max-width:850px)').matches);
+
     if (this.mode === 'game') {
       const mobile = width <= 600;
       const distance = THREE.MathUtils.clamp((mobile ? 9.6 : 11.8) / (2 * Math.tan(THREE.MathUtils.degToRad(43 / 2)) * this.camera.aspect), 9, 34);
@@ -253,7 +257,32 @@ export class TableScene {
     }
     this.trump.userData.baseHeight = this.trump.position.y;
     this.camera.lookAt(0,0,0);this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld();
+    this.layoutDecorations(width, height);
     if (this.mode === 'game') this.alignCardSeats();
+  }
+  layoutDecorations(width, height) {
+    for (const { group, position, scale } of this.tableProps) { group.position.copy(position); group.scale.copy(scale); group.visible = true; }
+    if (this.mode !== 'game' || width > 850) return;
+    const portrait = height > width;
+    const plane = new THREE.Plane(new THREE.Vector3(0,1,0),-.36), ray = new THREE.Raycaster();
+    const place = (group, x, y, pixels, size) => {
+      ray.setFromCamera(new THREE.Vector2(x*2-1,1-y*2),this.camera);
+      const point = ray.ray.intersectPlane(plane,new THREE.Vector3());
+      if (!point) return;
+      // Reuse desktop props at the outer rim, at a bounded screen size. The
+      // central card anchors and camera stay unchanged, including six seats.
+      group.position.set(point.x, group === this.book ? .5 : 0, point.z);
+      const origin=point.clone().project(this.camera), edge=point.clone().add(new THREE.Vector3(size,0,0)).project(this.camera);
+      group.scale.setScalar(pixels / Math.max(1,Math.abs(edge.x-origin.x)*width/2));
+    };
+    place(this.book, portrait ? .1 : .035, portrait ? .185 : .51, portrait ? 42 : 48, 1.3);
+    place(this.orbStand, portrait ? .9 : .965, portrait ? .185 : .43, portrait ? 33 : 36, 1.2);
+    place(this.deck, portrait ? .01 : .9, portrait ? .49 : .52, portrait ? 24 : 35, .85);
+    place(this.coins, portrait ? .92 : .94, portrait ? .49 : .39, portrait ? 24 : 28, .9);
+    for (let i=0;i<this.candles.length;i++) {
+      const left=i%2===0, outer=i<2;
+      place(this.candles[i], left ? .035 : .965, portrait ? outer ? .21 : .38 : outer ? .32 : .66, portrait ? 13 : 14, .78);
+    }
   }
   // Keep Three.js faces and their accessible DOM labels at the same stable seat.
   // Intersect the screen anchor with the felt plane instead of changing game indices.
@@ -297,15 +326,15 @@ export class TableScene {
       group.userData.rotation=0;
       if (!group.userData.seated || reducedMotion) {
         const angle=seat*Math.PI*2/this.state.players.length;
-        const from=pointAt(area.left+area.width*(.5+Math.sin(angle)*.42),area.top+area.height*(.51+Math.cos(angle)*.39));
+        const from=pointAt(area.left+area.width*(.5-Math.sin(angle)*.42),area.top+area.height*(.51+Math.cos(angle)*.39));
         group.position.copy(!reducedMotion && node.classList.contains('card-enter') && from ? from : target);
         group.userData.seated=true;
       }
       if (!reducedMotion && node.classList.contains('collect-winner') && !group.userData.collect) {
         const winner=(this.state.lastWinner-self+this.state.players.length)%this.state.players.length;
         const angle=winner*Math.PI*2/this.state.players.length;
-        const to=pointAt(area.left+area.width*(.5+Math.sin(angle)*.42),area.top+area.height*(.51+Math.cos(angle)*.39));
-        if(to) group.userData.collect={start:(this.animationTime||0)+700,to};
+        const to=pointAt(area.left+area.width*(.5-Math.sin(angle)*.42),area.top+area.height*(.51+Math.cos(angle)*.39));
+        if(to) group.userData.collect={start:(this.animationTime||0)+TRICK_REVIEW_MS-800,to};
       }
     }
   }

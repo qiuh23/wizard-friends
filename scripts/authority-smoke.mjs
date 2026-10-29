@@ -24,11 +24,10 @@ async function position(page) {
     players: view.players.map(p => ({ id: p.id, bid: p.bid, won: p.won, score: p.score, hand: p.hand })) };
 }
 async function chooseRules(page) {
-  await page.locator('#vote-form').waitFor();
+  await page.locator('#rules-form').waitFor();
   for (const [key, value] of Object.entries({ short: true, predictionMode: 'secret', foresight: false })) {
     await page.locator(`input[name="${key}"][value="${value}"]`).check();
   }
-  await page.locator('#submit-vote').click();
 }
 async function closeScores(page) {
   const close = page.locator('.close-scores');
@@ -67,10 +66,11 @@ try {
     await page.locator('#join').click(); await connected(page);
   }
   for (const page of pages) await expect.poll(async () => (await state(page))?.players.length).toBe(3);
-  await host.locator('#begin-vote').click();
-  for (const page of pages) await chooseRules(page);
+  await chooseRules(host);
+  for (const page of [guest, other]) await expect(page.locator('#rules-form input').first()).toBeDisabled();
   await host.locator('#start').click();
   for (const page of pages) await page.locator('.table').waitFor();
+  await expect(host.locator('.lead-order')).toContainText('首墩先手');
   // Authority secrets must never enter even the host browser cache.
   for (const page of pages) {
     const saved = await session(page), view = saved.state;
@@ -107,6 +107,11 @@ try {
   await guest.locator('#chat-input').fill('暂停期间仍可聊天');
   await guest.locator('#chat-form button').click();
   await expect(host.locator('#chat-messages span').last()).toHaveText('暂停期间仍可聊天');
+  await expect(host.locator('.chat-notice')).toContainText('暂停期间仍可聊天');
+  await host.locator('.chat-notice').click();
+  await expect(host.locator('#room-chat')).toBeVisible();
+  await expect(host.locator('.chat-notice')).toHaveCount(0);
+  await host.locator('#close-chat').click();
   await guest.locator('#close-chat').click();
   // Really close the host tab. A fresh tab explicitly claims the same browser's
   // room-scoped return handle; merely toggling network emulation can leave WS alive.
@@ -138,8 +143,27 @@ try {
     await page.locator('.personal-result').waitFor();
     await closeScores(page);
   }
+  await host.locator('#table-scores').click();
+  await expect(host.locator('.score-ledger tbody tr')).toHaveCount(1);
+  await expect(host.locator('.score-ledger')).toContainText('预测');
+  await closeScores(host);
   await host.screenshot({ path: `${evidence}/smoke-mobile-result.png` });
   await guest.screenshot({ path: `${evidence}/smoke-desktop-result.png` });
+  const options = (await state(host)).options;
+  await host.locator('#next').click();
+  await expect.poll(async () => (await state(host)).round).toBe(2);
+  expect((await state(host)).options).toEqual(options);
+  await expect(host.locator('#rules-form')).toHaveCount(0);
+  for (let step = 0; step < 25 && (await state(host)).phase !== 'trickEnd'; step++) {
+    for (const page of pages) await actOnce(page);
+    await host.waitForTimeout(80);
+  }
+  await expect.poll(async () => (await state(host)).phase).toBe('trickEnd');
+  await expect(host.locator('.win-reason')).not.toBeEmpty();
+  await expect(host.locator('.lead-order')).toContainText('下墩先手');
+  await host.waitForTimeout(2000);
+  expect((await state(host)).phase).toBe('trickEnd');
+  await expect.poll(async () => (await state(host)).phase, {timeout:7000}).toBe('play');
   await host.locator('#room-dissolve').click();
   for (const page of pages) await page.locator('#create').waitFor();
   await watcher.locator('#create').waitFor();
@@ -151,7 +175,7 @@ try {
   expect(errors).toEqual([]);
   console.log(JSON.stringify({ clients: 3, graphics: '2D', transport: 'local Durable Objects + WebSockets',
     verified: ['secret-bid privacy', 'host cache privacy', 'read-only spectator privacy', 'pause freezes gameplay', 'chat while paused',
-      'host tab close and explicit new-tab return', 'resume remaining deadline', 'host refresh', 'round scores synchronized', 'dissolve tombstone'], errors }));
+      'host tab close and explicit new-tab return', 'resume remaining deadline', 'host refresh', 'round scores synchronized', 'host-only whole-game rules', 'live chat bubble and click-to-open', 'five-second trick review and next leader', 'dissolve tombstone'], errors }));
 } catch (error) {
   for (const [i, page] of pages.entries()) await page.screenshot({ path: `${evidence}/failure-${i}.png` }).catch(() => {});
   console.error(JSON.stringify({ errors, pages: await Promise.all(pages.map(async page => ({

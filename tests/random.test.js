@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chacha20Block, createRandomStream, secureRandomSeed, nextRandomWord, uniformInteger, shuffle } from '../src/random.js';
 import { createGame, addPlayer, act, deck, monoDeck, viewFor, spectatorView, normalizeGame } from '../src/game.js';
-import { DEFAULT_OPTIONS } from '../src/rules-vote.js';
+import { DEFAULT_OPTIONS } from '../src/rules-options.js';
 
 // RFC 8439 §2.3.2: full 64-byte block, represented as little-endian words.
 test('ChaCha20 matches the complete RFC 8439 block-function test vector', () => {
@@ -64,8 +64,7 @@ function ready(mode = 'standard', count = 3) {
   const g = createGame();
   g.randomState = createRandomStream(Array(11).fill(7));
   for (let i = 0; i < count; i++) addPlayer(g, `p${i}`, `玩家${i}`, i > 0);
-  act(g, 'p0', { type: 'beginVote' });
-  act(g, 'p0', { type: 'vote', choices: { ...DEFAULT_OPTIONS, deckMode: mode } });
+  act(g, 'p0', { type: 'configure', options: { ...DEFAULT_OPTIONS, deckMode: mode } });
   return g;
 }
 test('all production deals use the persisted stream, including independent mono suit assignment', t => {
@@ -115,9 +114,7 @@ test('nested rule options and cached views whitelist rule keys and enum values',
   const poison = { randomState: { key: 'nested-key' }, seed: 'nested-seed', key: 'nested-secret', deckMode: 'invalid-deck' };
   Object.assign(g.options, poison);
   g.history.push({ round: 0, cardsPerRound: 0, options: { ...DEFAULT_OPTIONS, ...poison }, result: [] });
-  Object.assign(g.vote.pending, { seed: ['vote-secret'] });
-  Object.assign(g.vote.resolved, { key: 'vote-key' });
-  g.vote.ballots.p0 = { ...DEFAULT_OPTIONS, seed: 'ballot-secret' };
+  g.vote = { pending: { seed: ['vote-secret'] }, resolved: { key: 'vote-key' }, ballots: { p0: { seed: 'ballot-secret' } } };
   for (const visible of [viewFor(g, 'p0'), viewFor(g, 'p1'), spectatorView(g), sanitizeClientView(g, 'p0')]) {
     assert.deepEqual(visible.options, DEFAULT_OPTIONS);
     const raw = JSON.stringify(visible);

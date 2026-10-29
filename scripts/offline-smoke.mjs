@@ -12,10 +12,10 @@ const saved = () => page.evaluate(() => JSON.parse(sessionStorage.getItem('wizar
 try {
   page.on('pageerror', error => errors.push(error.message)); page.on('dialog', dialog => dialog.accept());
   await page.goto(process.env.GAME_URL || 'http://127.0.0.1:8787/');
-  await page.locator('#practice').click(); await page.locator('#begin-vote').click();
+  await page.locator('#practice').click();
   await page.locator('input[name="foresight"][value="true"]').check();
   await page.locator('input[name="predictionMode"][value="secret"]').check();
-  await page.locator('#submit-vote').click(); await page.locator('#start').click();
+  await page.locator('#start').click();
   await expect(page.locator('.concealed-hand')).toBeVisible();
   await expect(page.locator('.foresight-player')).toHaveCount(2);
   await expect(page.locator('body.has-webgl')).toHaveCount(0);

@@ -2,7 +2,29 @@
 export function relativeSeat(index, self, count) { return (index - Math.max(0, self) + count) % count; }
 export function seatPosition(index, self, count, radius = 1) {
   const seat = relativeSeat(index, self, count), angle = seat * Math.PI * 2 / count;
-  return { seat, x: 50 + Math.sin(angle) * 42 * radius, y: 51 + Math.cos(angle) * 39 * radius };
+  // Increasing engine seats run clockwise from the viewer at the bottom.
+  return { seat, x: 50 - Math.sin(angle) * 42 * radius, y: 51 + Math.cos(angle) * 39 * radius };
+}
+export function landscapeSeatPosition(index, self, count) {
+  const seat = relativeSeat(index, self, count);
+  const ring = {
+    3: [[14,100],[20,35],[80,35]],
+    4: [[14,100],[9,70],[50,12],[91,70]],
+    5: [[14,100],[8,70],[34,20],[66,20],[92,70]],
+    6: [[14,100],[8,70],[25,20],[50,12],[75,20],[92,70]],
+  }[count];
+  return { seat, x: ring[seat][0], y: ring[seat][1] };
+}
+export function desktopPlayedPosition(index, self, count, short = false) {
+  const seat = relativeSeat(index, self, count);
+  if (short) return { seat, x: count === 3 ? 35 + seat * 15 : 24 + seat * 52 / Math.max(1, count - 1), y: 50 };
+  const ring = {
+    3: [[50,78],[32,22],[68,22]],
+    4: [[50,78],[30,50],[50,22],[70,50]],
+    5: [[50,78],[30,78],[30,22],[70,22],[70,78]],
+    6: [[50,78],[30,78],[30,22],[50,22],[70,22],[70,78]],
+  }[count];
+  return { seat, x: ring[seat][0], y: ring[seat][1] };
 }
 export function targetStatus(player, settled = false) {
   if (!Number.isInteger(player?.bid)) return { text: '等待预估', value: '—', state: 'unknown' };
@@ -45,5 +67,5 @@ export function compactPlayedPosition(index,self,count,width,landscape=false) {
  const seat=relativeSeat(index,self,count),left=width<=380?42:40,right=100-left;
  if(landscape)return {seat,x:count===1?50:34+seat*40/(count-1),y:52};
  const positions=count===3 ? [{x:50,y:86},{x:right,y:45},{x:left,y:45}] : count===4 ? [{x:50,y:88},{x:right,y:60},{x:50,y:30},{x:left,y:60}] : count===5 ? [{x:50,y:89},{x:right,y:64.5},{x:right,y:40},{x:left,y:40},{x:left,y:64.5}] : [{x:left,y:89},{x:right,y:89},{x:right,y:64.5},{x:right,y:40},{x:left,y:40},{x:left,y:64.5}];
- return {seat,...positions[seat]};
+ return {seat,...positions[seat],x:100-positions[seat].x};
 }

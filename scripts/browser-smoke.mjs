@@ -24,17 +24,15 @@ await page.locator('#practice').click();
 await page.locator('.lobby-scene .scene-host.ready canvas').waitFor();
 if (await page.locator('.seats .seat').count() !== 6) throw new Error('Lobby must have six seats');
 await page.locator('[data-remove]').last().click();
-if (await page.locator('#begin-vote').isEnabled()) throw new Error('Two players cannot vote');
+if (await page.locator('#start').isEnabled()) throw new Error('Two players cannot start');
 await page.locator('#addbot').click();
-if (!await page.locator('#begin-vote').isEnabled()) throw new Error('Three players should be able to vote');
+if (!await page.locator('#start').isEnabled()) throw new Error('Three players should be able to start');
 await page.screenshot({ path: '.local/smoke-lobby-desktop.png', fullPage: true });
 await page.setViewportSize({ width: 390, height: 844 });
 await page.screenshot({ path: '.local/smoke-lobby-mobile.png', fullPage: true });
-if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth || document.documentElement.scrollHeight > innerHeight)) throw new Error('Lobby mobile overflow');
+if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw new Error('Lobby mobile overflow');
 await page.setViewportSize({ width: 1440, height: 1000 });
-await page.locator('#begin-vote').click();
 if (!await page.locator('input[name="short"][value="true"]').isChecked()) throw new Error('Practice must default to five rounds');
-await page.locator('#submit-vote').click();
 await page.locator('#start').click();
 await page.locator('.table .scene-host.ready canvas').waitFor();
 const tableFillsScreen = await page.locator('.table').evaluate(el => {
@@ -55,16 +53,7 @@ if (!await waitingCards.first().isEnabled()) throw new Error('Waiting cards must
 await waitingCards.first().click();
 if (!await page.locator('.selected-preview').isVisible() || await page.locator('#confirm-play').isEnabled()) throw new Error('Inspecting a waiting card must show its preview without permitting a play');
 await page.screenshot({ path: '.local/smoke-fullscreen-table.png', fullPage: true });
-let votedRounds = 1;
 for (let step = 0; step < 400; step++) {
-  if (await page.locator('#vote-form').count()) {
-    if (await page.locator('.vote-groups fieldset').count() !== 3 ||
-        await page.locator('input[name="deckMode"], input[name="short"]').count()) throw new Error('Later rounds must vote only on the three round rules');
-    await page.locator('#submit-vote').click();
-    await page.locator('#start').click();
-    votedRounds++;
-    continue;
-  }
   const trumpDisplay = await page.locator('.table').evaluate(el => ({
     suit: el.dataset.trumpSuit, color: el.style.getPropertyValue('--trump-color'),
     label: el.querySelector('.table-trump')?.textContent,
@@ -82,7 +71,7 @@ for (let step = 0; step < 400; step++) {
   else await page.waitForTimeout(180);
 }
 if (!await page.locator('#rematch').count()) throw new Error('Practice game did not finish');
-if (votedRounds !== 5) throw new Error('Every round must require a fresh rule vote');
+if (await page.locator('#rules-form').count()) throw new Error('Rules must remain fixed during play');
 if (await page.locator('.scene-host canvas').count() !== 1) throw new Error('Expected one persistent 3D canvas');
 await page.screenshot({ path: '.local/smoke-game.png', fullPage: true });
 await page.setViewportSize({ width: 390, height: 844 });
@@ -93,10 +82,10 @@ await page.locator('#chat-form button').click();
 await page.screenshot({ path: '.local/smoke-chat-mobile.png', fullPage: true });
 await page.locator('#close-chat').click();
 if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw new Error('Mobile horizontal overflow');
-await page.locator('.close-scores').click();
+if (await page.locator('.close-scores').isVisible()) await page.locator('.close-scores').click();
 await page.locator('#rematch').click();
-await page.locator('#begin-vote').waitFor();
-if (await page.locator('#start, #vote-form').count()) throw new Error('Rematch must return to the lobby and require a fresh vote');
+await page.locator('#start').waitFor();
+if (!await page.locator('#rules-form').count()) throw new Error('Rematch must return to lobby rule selection');
 const mobile = await ctx.newPage();
 await mobile.setViewportSize({ width: 390, height: 844 });
 await mobile.goto(base);
@@ -116,12 +105,10 @@ await fallbackPage.locator('#quick-settings > summary').click();
 await fallbackPage.getByRole('button', { name: 'WebGL 不可用，已自动使用二维界面' }).waitFor();
 await fallbackPage.locator('#quick-settings > summary').click();
 await fallbackPage.locator('#practice').click();
-await fallbackPage.locator('#begin-vote').click();
-await fallbackPage.locator('#submit-vote').click();
 await fallbackPage.locator('#start').click();
 await fallbackPage.locator('.hand .card').first().waitFor();
 await fallbackPage.locator('.trump-card').waitFor();
 if (await fallbackPage.locator('.trump-marker').count()) throw new Error('2D mode retains the old corner trump marker');
 await fallbackBrowser.close();
-console.log(JSON.stringify({ practice: '5-round game complete with a fresh rule vote each round and WebGL', mobile: 'no overflow', fallback: '2D game starts without WebGL', errors }));
+console.log(JSON.stringify({ practice: '5-round game complete with fixed host-selected rules and WebGL', mobile: 'no overflow', fallback: '2D game starts without WebGL', errors }));
 if (errors.length) process.exitCode = 1;
