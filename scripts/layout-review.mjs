@@ -51,7 +51,8 @@ async function openFixture(count, round, width, height, settle = false) {
     localStorage.setItem('wizard-low-graphics', 'true');
     localStorage.setItem('wizard-trump-motion', 'false');
   }, record);
-  await page.goto(base); await page.locator('.hand .card').first().waitFor();
+  await page.goto(base);
+  await page.locator(settle ? '.own-status' : '.hand .card').first().waitFor();
   await expect(page.locator('#notice')).toBeEmpty({ timeout: 6000 });
   return { context, page };
 }
