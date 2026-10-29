@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { cardImage } from './card-art.js';
-import { trumpStyle, TRUMP_COLORS } from './trump-style.js';
-import { CARD_BACK_IMAGE } from './trump-display.js';
+import { trumpStyle } from './trump-style.js';
+import { paintCardFace } from './card-face.js';
 import { TRICK_REVIEW_MS } from './game.js';
 
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -128,15 +128,9 @@ export class TableScene {
     const key=cardImage(card);
     if(!this.textures.has(key)){
       const texture=new THREE.TextureLoader().load(key, loaded => {
-        // The illustration's tiny printed corner cannot carry the game state on a phone.
         const canvas = document.createElement('canvas'); canvas.width = 320; canvas.height = 480;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(loaded.image, 0, 0, 320, 480);
-        ctx.fillStyle = '#0b1518'; ctx.fillRect(10, 10, 100, 128);
-        ctx.fillStyle = '#fff0cb'; ctx.font = 'bold 70px Georgia, serif';
-        ctx.fillText(card.kind === 'number' ? card.rank : card.kind === 'wizard' ? 'W' : 'J', 20, 81);
-        ctx.fillStyle = TRUMP_COLORS[card.suit] || '#fff0cb'; ctx.font = '34px sans-serif';
-        ctx.fillText({ blue: '❄', red: '♜', green: '❧', yellow: '✧', wizard: '✦', jester: '☾' }[card.suit || card.kind], 22, 122);
+        paintCardFace(ctx, loaded.image, card);
         loaded.image = canvas; loaded.needsUpdate = true;
       });
       texture.colorSpace=THREE.SRGBColorSpace;
@@ -152,11 +146,12 @@ export class TableScene {
     this.trump.add(this.trumpCard);
     const edge = this.material('#d7bf82', { metalness: .55, roughness: .35 });
     this.mesh(new THREE.BoxGeometry(1.12, 1.68, .055), edge, 0, 0, 0, this.trumpCard);
-    this.trumpFace = this.mesh(new THREE.PlaneGeometry(1.1, 1.66), this.material('#ffffff', { roughness: .65, metalness: .08 }), 0, 0, .03, this.trumpCard);
-    const backMap = new THREE.TextureLoader().load(CARD_BACK_IMAGE);
-    backMap.colorSpace = THREE.SRGBColorSpace;
-    const back = this.mesh(new THREE.PlaneGeometry(1.1, 1.66), this.material('#ffffff', { map: backMap, roughness: .65, metalness: .08 }), 0, 0, -.03, this.trumpCard);
-    back.rotation.y = Math.PI;
+    // Both outward-facing sides show the same unlit face, preserving suit colors
+    // through rotation instead of tinting them with the table's colored lights.
+    const faceMaterial = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false });
+    this.trumpFace = this.mesh(new THREE.PlaneGeometry(1.1, 1.66), faceMaterial, 0, 0, .03, this.trumpCard);
+    this.trumpBackFace = this.mesh(new THREE.PlaneGeometry(1.1, 1.66), faceMaterial, 0, 0, -.03, this.trumpCard);
+    this.trumpBackFace.rotation.y = Math.PI;
     this.scene.add(this.trump);
   }
   updateTrump(state) {

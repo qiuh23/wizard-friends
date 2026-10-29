@@ -16,6 +16,8 @@
 
 手机使用紧凑横滑牌带：滑动浏览，点击选中及放大预览，再按固定「确认出牌」。不能出的牌也能查看原因。展开为 3–4 列纵向滚动网格，切换保留排序、滚动和选择；展开不会暂停游戏。手机可将手牌收成窄栏以看清棋盘；横屏采用类似桌面的并排布局与浅扇形手牌。倒计时嵌在个人状态框中，减少独立横框。等待手牌保持完整亮度，金边／「可出」和冰蓝选中边框表达不同状态。提供行动提示音开关，主牌旋转仍可单独控制并尊重减少动态效果偏好。手机竖屏和横屏都保留边缘的书册、蜡烛、水晶球、牌堆和金币，二维降级提供对应装饰。
 
+旋转主牌的两面均显示实际翻开的牌面，以花色边框和清晰角标加强对比度；原插画保持不变，不在牌面增加颜色名称。三维出牌的数字和花色直接绘入同一张纹理，入场、移动和收牌一起运动；二维继续以整张牌为动画单位。牌下玩家名字与「领先／赢墩／首攻」始终排在同一行。
+
 ## 房间权威与保留
 
 真人房的完整牌局、随机流、操作校验、出牌计时和机器人均在每房 Cloudflare Durable Object 中执行并持久化。包括房主在内的浏览器只接收自己的权限视图；观众始终只读。关闭房主标签页不会断开其他玩家的房间连接。网络恢复期间保留短暂操作宽限；主动暂停与单人离线、服务不可用分别处理。
@@ -65,6 +67,8 @@ npm run dev:relay
 GAME_URL=http://127.0.0.1:8787/ npm run test:smoke
 # 本地／手动：完整布局和原生触控模拟，不加入远端截图矩阵
 GAME_URL=http://127.0.0.1:5173/ npm run test:layout
+# 本地／手动：主牌双面、数字随牌、标签单行与无颜色文字
+GAME_URL=http://127.0.0.1:5173/ npm run test:cards
 ```
 
 默认使用本机 Google Chrome；CI 使用 `BROWSER_CHANNEL=chromium` 及 `npx playwright install --with-deps chromium`。`test:smoke` 固定使用二维界面，避免无 GPU 的 CI 同时软件渲染多张三维牌桌而阻塞输入；仍连接真实本地 Durable Objects，验证完整联机操作。三维画质另由 `test:graphics`、`test:layout` 及完整浏览器回归在本地／手动验证。浏览器证据输出至忽略提交的 `output/playwright/`。布局测试通过公开规则引擎生成三人 20 张和六人牌局，再恢复为本地练习，不增加生产测试接口。原 `test:network`、`test:refresh`、`test:spectator` 入口统一复用这组服务端权威回归，避免维护三份重复场景；CI 仅运行一次 `test:smoke`。完整练习／变体浏览器回归仍可用 `test:browser`、`test:variants` 本地手动运行。
@@ -76,6 +80,8 @@ GAME_URL=http://127.0.0.1:5173/ npm run test:layout
 `verify.yml` 保留为 GitHub 上的验证流程：缓存依赖、语法检查、规则／隐私／生命周期／随机数测试、一次前端构建、Worker 打包预演及一组小规模联机冒烟。验证任务不需要生产授权；纯 Markdown／开发记录修改跳过无关检查，重复验证自动取消。
 
 个人补充入口通过 **Cloudflare Workers Builds** 连接 [`qiuh23/wizard-friends`](https://github.com/qiuh23/wizard-friends) 的 `main`，该分支更新后自动验证并发布到 `wizard-friends.qiuh23.workers.dev`。原来的游戏入口继续保留，原账户的发布方式不在此仓库中调整。
+
+**发布触发点是个人仓库的 `main` 更新。** 功能分支推送和未合并的 PR 不会更新这个游戏入口；PR 合并进入 `main` 后才会自动发布。判断是否发布完成时，将线上 [`build-info.json`](https://wizard-friends.qiuh23.workers.dev/build-info.json) 的 `revision` 与个人 `main` 的完整提交号比较，并确认 [`/api/health`](https://wizard-friends.qiuh23.workers.dev/api/health) 返回 `version: 2`。Cloudflare 的构建记录须同时显示成功，只有 GitHub 验证通过不代表已发布。
 
 Cloudflare 的 Git 构建设置为：
 
