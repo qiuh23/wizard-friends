@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { landscapeSeatPosition, relativeSeat, seatPosition, targetStatus, isSwipe, playBlockedReason, sortCards, desktopFan, compactPlayedPosition } from '../src/hand-model.js';
+import { landscapeSeatPosition, relativeSeat, seatPosition, targetStatus, isSwipe, playBlockedReason, sortCards, desktopFan } from '../src/hand-model.js';
 import { savePractice, readPractice, PRACTICE_SAVE_KEY, PRACTICE_KEEP_MS } from '../src/practice-save.js';
 test('3–6 seats keep the viewer below without changing action indices', () => {
   for (let n = 3; n <= 6; n++) for (let self = 0; self < n; self++) {
@@ -44,17 +44,6 @@ test('desktop shallow fan adapts few, fifteen, and twenty unique cards within it
  const fan=desktopFan(20,880,3,4);
  assert.equal(fan.poses[3].lift,-19);assert.equal(fan.poses[4].lift,-14);
  assert.equal(fan.poses[2].push,-10);assert.equal(fan.poses[5].push,10);
-});
-
-test('compact played slots keep real seat identity and use two columns for six cards',()=>{
- for(const width of [360,390]) for(const count of [3,4,5,6]) {
-  const points=Array.from({length:count},(_,i)=>compactPlayedPosition(i,0,count,width));
-  assert.equal(new Set(points.map(p=>`${p.x}:${p.y}`)).size,count);
-  assert.ok(points.every(p=>p.x*width/100-28>=118 && p.x*width/100+28<=width-118));
-  for(let self=0;self<count;self++)assert.equal(compactPlayedPosition(self,self,count,width).seat,0);
- }
- const six=Array.from({length:6},(_,i)=>compactPlayedPosition(i,0,6,390));
- assert.equal(new Set(six.map(p=>p.x)).size,2);
 });
 
 test('all screen layouts keep successive seats in a physical clockwise cycle for every viewer', () => {

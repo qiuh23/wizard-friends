@@ -70,7 +70,7 @@ export function layoutTrumpDisplay(table) {
   const dock = visible('.own-status, .action-panel, .hand-section');
   const area = { left:box.left+8, right:box.right-8,
     top:Math.max(box.top+8,...header.map(r=>r.bottom+12)), bottom:Math.min(box.bottom-8,...dock.map(r=>r.top-10)) };
-  const obstacles = visible('.opponents .player, .played, .foresight-hands, .lifecycle-banner');
+  const obstacles = visible('.opponents .player, .foresight-hands, .lifecycle-banner');
   const width = box.width > 850 ? 100 : box.width > box.height ? 76 : 94;
   const preferred = { x:box.left+box.width/2, y:area.top+(area.bottom-area.top)*.7 };
   let slot = null, best = Infinity;

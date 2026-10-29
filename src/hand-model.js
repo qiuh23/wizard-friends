@@ -29,17 +29,6 @@ export function landscapeSeatPosition(index, self, count) {
   }[count];
   return { seat, x: ring[seat][0], y: ring[seat][1] };
 }
-export function desktopPlayedPosition(index, self, count, short = false) {
-  const seat = relativeSeat(index, self, count);
-  if (short) return { seat, x: count === 3 ? 35 + seat * 15 : 24 + seat * 52 / Math.max(1, count - 1), y: 50 };
-  const ring = {
-    3: [[50,78],[32,22],[68,22]],
-    4: [[50,78],[30,50],[50,22],[70,50]],
-    5: [[50,78],[30,78],[30,22],[70,22],[70,78]],
-    6: [[50,78],[30,78],[30,22],[50,22],[70,22],[70,78]],
-  }[count];
-  return { seat, x: ring[seat][0], y: ring[seat][1] };
-}
 export function targetStatus(player, settled = false) {
   if (!Number.isInteger(player?.bid)) return { text: '等待预估', value: '—', state: 'unknown' };
   const gap = player.bid - player.won;
@@ -79,10 +68,4 @@ export function desktopFan(count, width, inspected = -1, selected = -1, compact 
       lift:i===inspected ? (compact?-8:-19) : i===selected ? (compact?-5:-14) : 0,
       z:i===inspected ? 300 : i===selected ? 250 : 100+i};
   })};
-}
-export function compactPlayedPosition(index,self,count,width,landscape=false) {
- const seat=relativeSeat(index,self,count),left=width<=380?42:40,right=100-left;
- if(landscape)return {seat,x:count===1?50:34+seat*40/(count-1),y:52};
- const positions=count===3 ? [{x:50,y:86},{x:right,y:45},{x:left,y:45}] : count===4 ? [{x:50,y:88},{x:right,y:60},{x:50,y:30},{x:left,y:60}] : count===5 ? [{x:50,y:89},{x:right,y:64.5},{x:right,y:40},{x:left,y:40},{x:left,y:64.5}] : [{x:left,y:89},{x:right,y:89},{x:right,y:64.5},{x:right,y:40},{x:left,y:40},{x:left,y:64.5}];
- return {seat,...positions[seat],x:100-positions[seat].x};
 }
