@@ -61,7 +61,7 @@ body[data-screen="game"] .bid-options {
   padding:3px 2px 5px;overflow:auto hidden;scrollbar-width:thin;scrollbar-color:#b9cbbb66 transparent;
   overscroll-behavior:contain;scroll-snap-type:x proximity;
 }
-body[data-screen="game"] .bid-options .bid { flex:0 0 44px;min-width:44px;min-height:44px;padding:0;border:0;border-radius:50%;background:#173b2bbd;color:#f8e6b7;font-size:20px;scroll-snap-align:center; }
+body[data-screen="game"] .bid-options .bid { flex:0 0 44px;min-width:44px;min-height:44px;padding:0;border:0;border-radius:50%;background:#173b2bbd;color:#f8e6b7;font-size:20px;scroll-snap-align:center;box-shadow:inset 0 0 0 1px #e6cc8a4d,0 0 6px #d9bd6a12; }
 body[data-screen="game"] .bid-options .bid:hover { background:#e6c486;color:#211c11; }
 body[data-screen="game"] .play-confirm:not([data-submitting="true"]):has(#cancel-card:disabled) { visibility:hidden;pointer-events:none; }
 body[data-screen="game"] .hand-heading > b { display:none; }
