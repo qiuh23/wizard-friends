@@ -40,7 +40,7 @@
 
 游戏开始前由房主在大厅选择牌库、局长、预估方式、加减预估和先见之明，其他玩家可查看；整局沿用，不再逐轮投票或改规则。每轮从庄家左手边先预测（公开模式）并首攻，之后每墩赢家下墩先出，庄家逐轮顺时针轮换。公开、隐藏、秘密数字、先见之明、3–4 人单色牌库及快速局继续保留。
 
-基本规则依据 [AMIGO 官方规则](https://blog.amigo-spiele.de/content/ap/rule/06900-GB-AmigoRule.pdf)。巫师、小丑始终可出；数字牌须跟首攻花色，后出的巫师不解除已建立的跟色要求。最先巫师胜；否则最大主牌／首攻花色胜，全小丑先出者胜。猜中得 `20 + 10 × 赢墩数`，猜错扣 `10 × 偏差绝对值`。单色数字跨花色比较，同数字先出胜。
+基本规则依据 [AMIGO 官方规则](https://blog.amigo-spiele.de/content/ap/rule/06900-GB-AmigoRule.pdf)。巫师、小丑始终可出；手中有首攻色数字牌时须跟色，主牌也不能例外，后出的巫师不解除已建立的要求。W 首攻或若干 J 后先出 W 时，本墩自由出牌。最先巫师胜；否则最大主牌／首攻花色胜，全小丑先出者胜。猜中得 `20 + 10 × 赢墩数`，猜错扣 `10 × 偏差绝对值`。单色不跟花色，数字跨花色比较，同数字先出胜。公开、隐藏、秘密数字和先见之明均不改变标准牌库的跟花要求；完整核对与项目自定边界见 [玩法审查](docs/rules-audit-2026-10-29.md)。
 
 正式发牌采用参考项目的 ChaCha20 流、Web Crypto 安全种子、无偏拒绝采样与 Fisher–Yates，覆盖标准牌库、单色牌库和独占花色分配。每局新种子，恢复继续持久化流。随机密钥和流状态不下发真人房客户端、观众或公开记录。固定种子只出现在测试；离线练习的浏览器本身是本地权威端。AI 使用确定性、有预算的预期得分评估，不消耗发牌流，只读取规则允许的视图；大厅可选择策略或简单机器人。
 
@@ -69,6 +69,8 @@ GAME_URL=http://127.0.0.1:8787/ npm run test:smoke
 GAME_URL=http://127.0.0.1:5173/ npm run test:layout
 # 本地／手动：主牌双面、数字随牌、标签单行与无颜色文字
 GAME_URL=http://127.0.0.1:5173/ npm run test:cards
+# 本地／手动：跨变体跟花提交、无框手牌与聊天定位
+GAME_URL=http://127.0.0.1:5173/ node scripts/rules-ui-review.mjs
 ```
 
 默认使用本机 Google Chrome；CI 使用 `BROWSER_CHANNEL=chromium` 及 `npx playwright install --with-deps chromium`。`test:smoke` 固定使用二维界面，避免无 GPU 的 CI 同时软件渲染多张三维牌桌而阻塞输入；仍连接真实本地 Durable Objects，验证完整联机操作。三维画质另由 `test:graphics`、`test:layout` 及完整浏览器回归在本地／手动验证。浏览器证据输出至忽略提交的 `output/playwright/`。布局测试通过公开规则引擎生成三人 20 张和六人牌局，再恢复为本地练习，不增加生产测试接口。原 `test:network`、`test:refresh`、`test:spectator` 入口统一复用这组服务端权威回归，避免维护三份重复场景；CI 仅运行一次 `test:smoke`。完整练习／变体浏览器回归仍可用 `test:browser`、`test:variants` 本地手动运行。
