@@ -161,7 +161,9 @@ export class TableScene {
   }
   updateTrump(state) {
     const card = this.mode === 'hero' ? { kind: 'wizard', id: 'sample-wizard' } : state.options?.deckMode === 'mono' ? null : state.reveal;
-    this.trump.visible = Boolean(card);
+    // In-game reveals share the DOM layer with 2D. Keep the existing hero mesh
+    // on the home page, and never draw a second copy underneath a reveal.
+    this.trump.visible = this.mode === 'hero' && Boolean(card);
     if (card) {
       const texture = this.face(card);
       if (this.trumpFace.material.map !== texture) {
@@ -272,51 +274,19 @@ export class TableScene {
     this.drawCards();
     this.renderer.render(this.scene,this.camera);
   }
-  alignTrump() {
-    const display = this.host.closest('.table')?.querySelector('.trump-display');
-    const anchor = display?.querySelector('.trump-card');
-    if (!anchor) { this.trump.visible = false; return; }
-    this.trump.visible = display.dataset.occluded !== 'true' && display.dataset.presentation !== 'badge';
-    if (!this.trump.visible) return;
-    const rect = anchor.getBoundingClientRect(), canvas = this.renderer.domElement.getBoundingClientRect();
-    const ray = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0,1,0),-2);
-    const pointAt = (x,y) => {
-      ray.setFromCamera(new THREE.Vector2((x-canvas.left)/canvas.width*2-1,1-(y-canvas.top)/canvas.height*2),this.camera);
-      return ray.ray.intersectPlane(plane,new THREE.Vector3());
-    };
-    const center = { x:rect.x+rect.width/2, y:rect.y+rect.height/2 };
-    const point = pointAt(center.x,center.y); if (!point) return;
-    // Read the trump square-on even with the phone's steep table camera.
-    this.trump.quaternion.copy(this.camera.quaternion);
-    this.trump.position.copy(point); this.trump.scale.setScalar(1);
-    // The game uses only a small readable turn (-.12 ± .22 radians), not a
-    // full spin. Reserve that actual motion and the world-space float rather
-    // than a card-width depth box, which made an 82px anchor a tiny 47px face.
-    const turnAxis = new THREE.Vector3(0,1,0);
-    const turns = Array.from({length:13},(_,i)=>-.34+.44*i/12).concat(0);
-    const bounds = () => {
-      const points = [];
-      for (const turn of turns) for (const x of [-.56,.56]) for (const y of [-.84,.84]) for (const z of [-.03,.03]) for (const float of [-.07,.07]) {
-        const p = new THREE.Vector3(x,y,z).applyAxisAngle(turnAxis,turn)
-          .multiplyScalar(this.trump.scale.x).applyQuaternion(this.trump.quaternion).add(this.trump.position);
-        p.y += float * this.trump.scale.y;
-        p.project(this.camera);
-        points.push({ x:canvas.left+(p.x+1)*canvas.width/2, y:canvas.top+(1-p.y)*canvas.height/2 });
-      }
-      return { left:Math.min(...points.map(p=>p.x)), right:Math.max(...points.map(p=>p.x)), top:Math.min(...points.map(p=>p.y)), bottom:Math.max(...points.map(p=>p.y)) };
-    };
-    // Perspective near an outer HUD anchor is nonlinear: the unit-sized
-    // sample is much closer to the camera than the fitted small card. Refine
-    // its fit after scaling and recentering, keeping the same 2% safety inset.
-    for (let pass=0;pass<3;pass++) {
-      const current = bounds();
-      this.trump.scale.multiplyScalar(Math.min(rect.width/(current.right-current.left),rect.height/(current.bottom-current.top))*.98);
-      const scaled = bounds();
-      const corrected = pointAt(center.x+center.x-(scaled.left+scaled.right)/2,center.y+center.y-(scaled.top+scaled.bottom)/2);
-      if (corrected) this.trump.position.copy(corrected);
+  deckScreenRect() {
+    if (this.mode !== 'game' || !this.deck.visible || !this.host?.isConnected) return null;
+    const canvas = this.renderer.domElement.getBoundingClientRect();
+    const bounds = new THREE.Box3().setFromObject(this.deck), points = [];
+    for (const x of [bounds.min.x,bounds.max.x]) for (const y of [bounds.min.y,bounds.max.y]) for (const z of [bounds.min.z,bounds.max.z]) {
+      const p = new THREE.Vector3(x,y,z).project(this.camera);
+      points.push({ x:canvas.left+(p.x+1)*canvas.width/2, y:canvas.top+(1-p.y)*canvas.height/2 });
     }
-    this.trump.userData.baseHeight = this.trump.position.y;
+    const left = Math.max(canvas.left,Math.min(...points.map(p=>p.x))), right = Math.min(canvas.right,Math.max(...points.map(p=>p.x)));
+    const top = Math.max(canvas.top,Math.min(...points.map(p=>p.y))), bottom = Math.min(canvas.bottom,Math.max(...points.map(p=>p.y)));
+    return right > left && bottom > top ? { left,top,width:right-left,height:bottom-top } : null;
   }
+  alignTrump() { this.trump.visible = false; }
   layoutDecorations(width, height) {
     for (const { group, position, scale } of this.tableProps) { group.position.copy(position); group.scale.copy(scale); group.visible = true; }
     if (this.mode !== 'game') return;

@@ -8,6 +8,7 @@ const relay = process.env.RELAY_URL || 'http://127.0.0.1:8787/';
 const out = 'output/playwright'; fs.mkdirSync(out, { recursive: true });
 const room = Array.from(crypto.getRandomValues(new Uint8Array(8)), n => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[n & 31]).join('');
 const errors = [], checks = [], clients = [], pages = [];
+const trumpOnly = process.env.ROOM_ANIMATION_CASE === 'trump';
 let closing = false;
 const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'chrome', headless: true });
 const saved = page => page.evaluate(() => JSON.parse(sessionStorage.getItem('wizard-room-session') || 'null'));
@@ -35,20 +36,31 @@ async function client(host, token = crypto.randomUUID()) {
 }
 async function open(width, height, webgl) {
   const context = await browser.newContext({ viewport: { width, height }, reducedMotion: 'no-preference', hasTouch: width < 851 });
-  await context.addInitScript(webgl => {
-    localStorage.setItem('wizard-trump-motion', 'false');
+  await context.addInitScript(({webgl,trumpOnly}) => {
+    localStorage.setItem('wizard-trump-motion', String(trumpOnly));
     localStorage.setItem('wizard-low-graphics', 'true');
     localStorage.setItem('wizard-turn-sound', 'false');
+    if(trumpOnly) {
+      const NativeSocket=WebSocket;window.__reviewSockets=[];window.__reviewRevealCount=0;
+      window.WebSocket=class extends NativeSocket {
+        constructor(...args){super(...args);if(String(args[0]).includes('/api/rooms/'))window.__reviewSockets.push(this);}
+      };
+      new MutationObserver(records=>{
+        for(const record of records)for(const node of record.addedNodes)
+          if(node.nodeType===1&&node.matches('.trump-reveal'))window.__reviewRevealCount++;
+      }).observe(document,{childList:true,subtree:true});
+    }
     if (!webgl) {
       const original = HTMLCanvasElement.prototype.getContext;
       HTMLCanvasElement.prototype.getContext = function(kind, ...args) { return kind.startsWith('webgl') ? null : original.call(this, kind, ...args); };
     }
-  }, webgl);
+  }, {webgl,trumpOnly});
   const page = await context.newPage(); pages.push(page); page.setDefaultTimeout(15000);
   page.on('dialog', dialog => dialog.accept()); page.on('pageerror', e => errors.push(e.message));
   await page.route(/\/src\/main\.js(?:\?|$)/, async route => {
     const response = await route.fetch();
-    await route.fulfill({ response, body: (await response.text()).replace('const tableMotion = new TableMotion();', 'const tableMotion = new TableMotion();window.__reviewMotion=tableMotion;') });
+    await route.fulfill({ response, body: (await response.text()).replace('const tableMotion = new TableMotion();', 'const tableMotion = new TableMotion();window.__reviewMotion=tableMotion;')+
+      '\nwindow.__reviewReveal=trumpReveal;window.__reviewReady=()=>networkReady;' });
   });
   await page.route(/\/src\/table-scene\.js(?:\?|$)/, async route => {
     const response = await route.fetch();
@@ -83,6 +95,8 @@ async function inspect(page) {
   });
 }
 try {
+  if(trumpOnly) await reviewTrumpNetwork();
+  else {
   let host = await client(true);
   const home = await open(1440, 900, true), guest = await open(390, 844, false);
   const row = page => page.locator(`.room-directory-item[data-room="${room}"]`);
@@ -220,10 +234,89 @@ try {
   expect(errors).toEqual([]);
   fs.writeFileSync(`${out}/room-animation-review.json`, JSON.stringify({ checks, paused, redrawn, fallback, recovered, errors }, null, 2));
   console.log(JSON.stringify({ checks, errors }));
+  }
 } catch (error) {
   for (const [i, page] of pages.entries()) await page.screenshot({ path: `${out}/room-animation-failure-${i}.png` }).catch(() => {});
   console.error(JSON.stringify({ checks, errors })); throw error;
 } finally {
   for (const client of clients) { clearInterval(client.heartbeat); client.ws.close(); }
   await browser.close();
+}
+
+async function reviewTrumpNetwork() {
+  const host=await client(true),desktop=await open(1440,900,true),mobile=await open(844,390,false);
+  const row=page=>page.locator(`.room-directory-item[data-room="${room}"]`);
+  for(const [i,page] of [desktop,mobile].entries()) {
+    await page.locator('#nickname').fill(i?'横屏访客':'电脑访客');
+    await row(page).locator('button').click();await page.locator('.seats').waitFor();
+  }
+  await expect.poll(()=>host.state.players.length).toBe(3);
+  await host.send({type:'action',action:{type:'start'}});
+  for(const page of [desktop,mobile]) {
+    await expect(page.locator('.trump-reveal')).toHaveCount(1);
+    await page.evaluate(()=>{
+      const r=window.__reviewReveal,at=r.effect.start+600;r.clock=()=>at;r.draw();
+      window.__firstReveal=document.querySelector('.trump-reveal');window.__firstRevealStart=r.effect.start;
+    });
+    expect(await page.locator('.trump-reveal-front').evaluate(face=>face.style.backgroundImage)).toContain(host.state.reveal.kind==='number'
+      ?`${host.state.reveal.suit}-${String(host.state.reveal.rank).padStart(2,'0')}`:host.state.reveal.kind);
+  }
+  await host.send({type:'action',action:{type:'chat',text:'主牌揭示中同步消息'}});
+  for(const page of [desktop,mobile]) {
+    await expect.poll(async()=>(await saved(page)).state.chat.at(-1)?.text).toBe('主牌揭示中同步消息');
+    expect(await page.evaluate(()=>document.querySelector('.trump-reveal')===window.__firstReveal)).toBe(true);
+    expect(await page.evaluate(()=>window.__reviewReveal.effect.start===window.__firstRevealStart)).toBe(true);
+  }
+  checks.push('real authority reveal and repeated social snapshots preserve the same card and progress');
+  // Close the actual native room socket during the reveal. Its fresh authority
+  // snapshot must settle directly, even if the original round event is recent.
+  await mobile.evaluate(()=>{window.__reviewSockets.at(-1).close();});
+  await expect.poll(()=>mobile.evaluate(()=>window.__reviewSockets.length)).toBe(2);
+  await expect.poll(()=>mobile.evaluate(()=>window.__reviewReady()&&window.__reviewSockets.at(-1).readyState===WebSocket.OPEN)).toBe(true);
+  await expect(mobile.locator('.trump-reveal')).toHaveCount(0);
+  expect(await mobile.evaluate(()=>window.__reviewRevealCount)).toBe(1);
+  expect((await saved(mobile)).state.round).toBe(host.state.round);
+  checks.push('actual socket reconnect during reveal settles without replay');
+  await desktop.reload();await desktop.locator('.table-trump').waitFor();
+  await expect.poll(()=>desktop.evaluate(()=>window.__reviewReady())).toBe(true);
+  await expect(desktop.locator('.trump-reveal')).toHaveCount(0);
+  expect(await desktop.evaluate(()=>window.__reviewRevealCount)).toBe(0);
+  const spectator=await open(844,390,true);await row(spectator).locator('button').click();
+  await spectator.locator('.table-trump').waitFor();
+  expect((await saved(spectator)).state.spectator).toBe(true);
+  expect(await spectator.evaluate(()=>window.__reviewRevealCount)).toBe(0);
+  checks.push('online refresh and mid-round spectator join show current trump without history');
+  // Finish just this one-card round with real legal actions, then verify the
+  // next deal animates once on all three already-connected browser surfaces.
+  for(let step=0;step<15&&host.state.phase!=='roundEnd';step++) {
+    const all=[host,...await Promise.all([desktop,mobile].map(async page=>({state:(await saved(page)).state,page})))];
+    const current=host.state.phase==='bid'?all.find(c=>c.state.canBid)
+      :all.find(c=>c.state.players[host.state.turn]?.hand!==undefined);
+    if(!current)throw Error(`No actor in ${host.state.phase}`);
+    const state=current.state,phase=state.phase;
+    const action=phase==='trump'?{type:'trump',suit:'yellow'}:phase==='bid'?{type:'bid',value:state.bids[0]}:{type:'play',card:state.legal[0]};
+    const seq=host.state.eventSeq;
+    if(current.page) {
+      if(phase==='trump')await current.page.locator('[data-trump="yellow"]').click();
+      else if(phase==='bid')await current.page.locator(`[data-bid="${action.value}"]`).click();
+      else {await current.page.locator(`.hand [data-card="${action.card}"]`).click();await current.page.locator('#confirm-play').click();}
+    } else await host.send({type:'action',action});
+    await expect.poll(()=>host.state.eventSeq).toBeGreaterThan(seq);
+    for(const page of [desktop,mobile])await expect.poll(async()=>(await saved(page)).state.eventSeq).toBe(host.state.eventSeq);
+  }
+  expect(host.state.phase).toBe('roundEnd');
+  const before=await Promise.all([desktop,mobile,spectator].map(page=>page.evaluate(()=>window.__reviewRevealCount)));
+  await host.send({type:'action',action:{type:'next'}});
+  for(const [i,page] of [desktop,mobile,spectator].entries()) {
+    await expect(page.locator('.trump-reveal')).toHaveCount(1);
+    expect(await page.evaluate(()=>window.__reviewRevealCount)).toBe(before[i]+1);
+  }
+  await desktop.setViewportSize({width:932,height:430});await expect(desktop.locator('.trump-reveal')).toHaveCount(0);
+  checks.push('second real deal plays once for players and spectator; resize cancels it');
+  closing=true;await host.send({type:'dissolve'});
+  for(const page of [desktop,mobile,spectator]) {await page.locator('#create').waitFor();await expect(page.locator('.trump-reveal')).toHaveCount(0);}
+  checks.push('room exit cancels every temporary reveal');
+  expect(errors).toEqual([]);
+  fs.writeFileSync(`${out}/trump-network-review.json`,JSON.stringify({checks,errors},null,2));
+  console.log(JSON.stringify({checks,errors}));
 }

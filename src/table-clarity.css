@@ -29,7 +29,6 @@ body[data-screen="game"] .table .player .prediction .target-secret b { font-size
 body[data-screen="game"] .table .player .turn-label { display:block;position:absolute;top:-18px;width:max-content;font-size:11px;color:#c5fbff; }
 body[data-screen="game"] .roundbar { top:max(10px,env(safe-area-inset-top));left:max(14px,env(safe-area-inset-left));right:auto;min-height:0;padding:0;max-width:calc(100% - 174px);background:none;box-shadow:none; }
 body[data-screen="game"] .roundbar b { font-size:16px; }
-body[data-screen="game"] .compact-trump { display:none; }
 body[data-screen="game"] .game-toolbar { top:max(8px,env(safe-area-inset-top))!important;left:auto;right:max(10px,env(safe-area-inset-right));gap:6px;background:none;border:0; }
 body[data-screen="game"] .game-toolbar > button { width:44px;min-width:44px;height:44px;padding:0;border-radius:50%;font-size:23px;background:#10251ed9;border:1px solid #a9b5a759; }
 body[data-screen="game"] .table-menu-panel { top:60px;max-height:calc(100dvh - 80px); }
@@ -67,23 +66,6 @@ body[data-screen="game"][data-table-layout]:is([data-phase="trickEnd"],[data-pha
 body[data-screen="game"][data-table-layout] .table .played-cards .card > .corner:not(.bottom) { font-size:clamp(18px,calc(var(--played-width,56px) * .3),30px); }
 body[data-screen="game"].has-webgl .played .card .suit-mark { visibility:hidden; }
 
-/* Fixed reveal position: the physical mesh, badge and hit target share this root. */
-body[data-screen="game"] .table .trump-display { left:max(16px,env(safe-area-inset-left));top:52px;width:260px;height:144px;z-index:4;pointer-events:none; }
-body[data-screen="game"] .table .trump-card { display:block;left:0;top:0;width:var(--trump-width);height:var(--trump-height);animation:none!important; }
-body[data-screen="game"] .table .trump-display .table-trump { display:block;position:absolute;left:108px;top:0;transform:none;min-height:44px;width:max-content;max-width:150px;padding:5px 7px;white-space:normal;font-size:13px;line-height:1.5;color:var(--trump-color);border:1px solid #e6cf8c44;border-radius:5px;background:#10251edb;pointer-events:auto; }
-body[data-screen="game"] .table .trump-display[data-presentation="badge"] { height:44px;width:210px;top:38px; }
-body[data-screen="game"] .table .trump-display[data-presentation="badge"] .table-trump { left:0;top:0;max-width:210px; }
-body[data-screen="game"] .trump-neutral-sigil { display:none; }
-body[data-screen="game"].has-webgl .table .trump-card,body[data-screen="game"].has-webgl .table .trump-card *,
-body[data-screen="game"] .trump-display[data-occluded="true"] .trump-card,
-body[data-screen="game"] .trump-display[data-occluded="true"] .trump-card * { visibility:hidden; }
-body[data-screen="game"] .trump-preview { border:1px solid #d8c58d;border-radius:12px;background:#102b23;color:#f3ead6;padding:20px;text-align:center;pointer-events:auto;max-height:90dvh;overflow:auto; }
-.trump-preview::backdrop { background:#00100bba; }
-body[data-screen="game"] .trump-preview .trump-preview-face { display:block;width:128px;height:192px;margin:10px auto 18px;visibility:visible; }
-body[data-screen="game"] .trump-preview .corner { visibility:visible; }
-@keyframes trump-readable-turn { 0%,100% {transform:rotateY(-18deg);}50% {transform:rotateY(10deg);} }
-body[data-screen="game"][data-trump-motion="on"] .trump-card-rotor { animation:trump-readable-turn 6s ease-in-out infinite!important; }
-@media(prefers-reduced-motion:reduce) {body[data-screen="game"][data-trump-motion="on"] .trump-card-rotor {animation:none!important;}}
 
 /* Controls have a reserved dock. Selecting a card does not move the public table. */
 body[data-screen="game"] .own-status,body[data-screen="game"]:has(.own-action) .own-status,body[data-screen="game"]:not(:has(.own-action)) .own-status {
@@ -149,8 +131,6 @@ body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portr
 body[data-screen="game"][data-table-layout="portrait-grid"] .table .opponents .player { width:50px;max-width:50px;gap:2px; }
 body[data-screen="game"][data-table-layout="portrait-grid"] .table .player .avatar { width:28px;height:28px;min-width:28px;min-height:28px;font-size:16px; }
 body[data-screen="game"][data-table-layout="portrait-grid"] .table .player .prediction { display:none; }
-body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .table .trump-display[data-presentation="badge"] { width:135px; }
-body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .table .trump-display[data-presentation="badge"] .table-trump { max-width:135px;font-size:12px; }
 body[data-screen="game"].hand-collapsed[data-table-layout] .hand-section.collapsed { height:44px;min-height:44px; }
 body[data-screen="game"].hand-collapsed[data-table-layout] .hand-section.collapsed .hand-heading { display:flex;height:44px; }
 body[data-screen="game"].hand-collapsed[data-table-layout] .hand-section.collapsed .hand-heading > b { display:block; }
@@ -164,11 +144,6 @@ body[data-screen="game"][data-table-layout="strip"] .table .player .prediction {
 body[data-screen="game"][data-table-layout="strip"] .table .player .prediction b { font-size:12px; }
 body[data-screen="game"][data-table-layout="strip"] .table .player .prediction small { font-size:9px; }
 body[data-screen="game"][data-table-layout="strip"] .table .player .turn-label { top:-13px;font-size:10px; }
-body[data-screen="game"][data-table-layout="strip"] .table .trump-display { left:max(12px,env(safe-area-inset-left));top:52px;width:150px;height:93px; }
-body[data-screen="game"][data-table-layout="strip"] .table .trump-display .table-trump { left:0;top:-28px;min-height:24px;padding:1px 5px;max-width:195px;font-size:11px; }
-body[data-screen="game"][data-table-layout="strip"] .table .trump-display[data-presentation="badge"] { top:30px;height:44px; }
-body[data-screen="game"][data-table-layout="strip"] .table .trump-display[data-presentation="badge"] .table-trump { top:0;min-height:44px;max-width:150px; }
-body[data-screen="game"][data-table-layout="strip"] .table .trump-card { left:8px; }
 body[data-screen="game"][data-table-layout="strip"] .own-status { left:max(8px,env(safe-area-inset-left));right:auto;bottom:10px;width:145px;grid-template-columns:32px 1fr;gap:3px 8px; }
 body[data-screen="game"][data-table-layout="strip"] .own-status .avatar { width:32px;height:32px;min-width:32px;min-height:32px;font-size:17px; }
 body[data-screen="game"][data-table-layout="strip"] .own-metrics b { font-size:20px; }

@@ -8,12 +8,11 @@ import './social.css';
 import './clarity.css';
 import { BackgroundMusic } from './music.js';
 import { RoomSocial } from './room-social.js';
-import { trumpPresentation, renderTrumpDisplay, layoutTrumpDisplay } from './trump-display.js';
+import { TrumpReveal, renderTrumpDisplay, layoutTrumpDisplay } from './trump-display.js';
 import { uniqueRandomName, validateName } from './player-names.js';
 import { ruleSetupHTML, ruleSummary } from './rule-ui.js';
 import { leadInfo, playerTotals, scoreHistoryHTML } from './table-summary.js';
 import './variants.css';
-import './trump-display.css';
 import { cardImage, loadCardImage } from './card-art.js';
 import { createPresence } from './presence.js';
 import { createRoomTransport } from './room-transport.js';
@@ -27,6 +26,7 @@ import './card-face.css';
 import './table-dock.css';
 import './table-clarity.css';
 import './settlement.css';
+import './trump-display.css';
 import { settlementHTML } from './settlement.js';
 import { cardMark, cardMarksHTML } from './card-face.js';
 import { captureHand, HandMotion } from './hand-motion.js';
@@ -61,12 +61,13 @@ function updateTrumpMotion() {
   const enabled = trumpMotionPreference === null ? !motionMedia.matches : trumpMotionPreference === 'true';
   document.body.dataset.trumpMotion = enabled ? 'on' : 'off';
   if (tableScene) tableScene.trumpMotion = enabled;
+  if (!enabled || motionMedia.matches) trumpReveal.finish();
   const button = document.querySelector('#trump-motion');
   if (button) {
     button.textContent = `主牌动画：${enabled ? '开' : '关'}`;
     button.setAttribute('aria-pressed', String(enabled));
-    button.title = trumpMotionPreference === null && motionMedia.matches
-      ? '已跟随系统减少动态效果；点击开启主牌旋转与悬浮' : '切换主牌旋转与悬浮，自动记住选择';
+    button.title = motionMedia.matches
+      ? '已跟随系统减少动态效果，直接显示当前主牌' : '切换每轮主牌揭示动画，自动记住选择';
   }
 }
 motionMedia.addEventListener('change', () => {
@@ -120,6 +121,7 @@ let joinDraft = null;
 let pendingPlay = null, pendingSettlement = null, noticeTimer;
 const handMotion = new HandMotion(showHoveredCard);
 const tableMotion = new TableMotion();
+const trumpReveal = new TrumpReveal();
 let selectedCard = null, handExpanded = false, handCollapsed = false, handSort = 'suit', handScroll = 0, gridScroll = 0, selectionContext = '';
 let seenEventSeq = null, lastTurnCue = '', turnSound = localStorage.getItem('wizard-turn-sound') !== 'false';
 let practicePaused = false, practiceRemaining = null;
@@ -276,7 +278,6 @@ function render() {
   } else {
     const done = ['trickEnd', 'roundEnd', 'finished'].includes(state.phase);
     const roundEnd = ['roundEnd', 'finished'].includes(state.phase);
-    const trump = trumpPresentation(state);
     const leadOrder = leadInfo(state);
     const leadHint = leadOrder ? `${leadOrder.label}：${escape(state.players[leadOrder.seat]?.name)}` : '';
     const matchResult = '';
@@ -288,7 +289,7 @@ function render() {
     const currentWinner = state.trick.length ? winner(state.trick, state.trump, state.options.deckMode) : null;
     const followHint = followSuitHint(state, me);
     const settlement = settlementHTML(state, { me, isHost, practice, spectating, pending:!!pendingSettlement });
-    body = `<div class="game-layout"><main><div class="roundbar"><span>第 <b>${state.round}</b> / ${state.maxRounds} 轮<em class="compact-trump" style="--trump-color:${trump.color}" role="status" aria-live="polite" aria-atomic="true" aria-label="${escape(trump.label)}" title="${escape(trump.label)}"> · ${escape(trump.compactLabel)}</em></span><span>第 ${Math.min(state.cardsPerRound, done ? state.completedTricks : state.completedTricks + 1)} 墩 · 余 ${Math.max(0, state.cardsPerRound - state.completedTricks)} 墩 · 顺时针 ↻</span>${leadOrder ? `<span class="lead-order">${leadHint}</span>` : ''}</div><section class="table">${tableDecorHTML()}<div class="table-ring"></div><div class="opponents" data-count="${state.players.length}" aria-label="围桌席位">${state.players.filter(x => x.id !== me).map(x => {
+    body = `<div class="game-layout"><main><div class="roundbar"><span>第 <b>${state.round}</b> / ${state.maxRounds} 轮</span><span>第 ${Math.min(state.cardsPerRound, done ? state.completedTricks : state.completedTricks + 1)} 墩 · 余 ${Math.max(0, state.cardsPerRound - state.completedTricks)} 墩 · 顺时针 ↻</span>${leadOrder ? `<span class="lead-order">${leadHint}</span>` : ''}</div><section class="table">${tableDecorHTML()}<div class="table-ring"></div><div class="opponents" data-count="${state.players.length}" aria-label="围桌席位">${state.players.filter(x => x.id !== me).map(x => {
       const i = state.players.findIndex(y => y.id === x.id), pos = seatPosition(i, selfIndex, state.players.length);
       const identity = `${x.name} · 实赢 ${x.won} · 预测 ${x.bid ?? (x.bidSubmitted ? '已锁定' : '未预测')}${i === state.dealer ? ' · 庄家' : ''}${!x.online ? ' · 离线' : ''}`;
       return `<div class="player ${leadOrder?.seat === i ? 'lead-seat' : ''} ${!x.online ? 'offline' : ''} ${!done && !(state.phase === 'bid' && state.options.predictionMode !== 'public') && state.turn === i ? 'active' : ''}" role="group" aria-label="${escape(identity)}" data-seat="${pos.seat}" data-player="${escape(x.id)}" style="--seat-x:${pos.x}%;--seat-y:${pos.y}%" title="${escape(identity)}">${avatarHTML(x, i, leadOrder?.seat === i ? leadOrder : null)}<span class="seat-name">${escape(shortSeatName(x.name, pos.seat))}</span><span class="prediction"><span title="实赢墩数"><small>赢</small><b>${x.won}</b></span><span title="预测墩数" class="${Number.isInteger(x.bid) ? '' : 'target-secret'}"><small>估</small><b>${x.bid ?? (x.bidSubmitted ? '✓' : '—')}</b></span></span></div>`;
@@ -411,6 +412,13 @@ function bindCommon() {
   tableLayoutObserver.disconnect();
   document.querySelectorAll('.table,.own-status,.action-panel,.hand-section').forEach(node=>tableLayoutObserver.observe(node));
   syncScene(); updateGraphicsButton();
+  let deckRect = null;
+  if (trumpReveal.effect?.type === 'reveal' && !trumpReveal.root) {
+    const deck = $('.prop-deck');
+    deckRect = document.body.classList.contains('has-webgl') ? tableScene?.deckScreenRect()
+      : deck?.offsetWidth && getComputedStyle(deck).visibility !== 'hidden' ? deck.getBoundingClientRect() : null;
+  }
+  trumpReveal.mount($('.table'), deckRect);
   document.querySelectorAll('.played').forEach(played => {
     const label = document.createElement('span');
     label.className = 'played-value';
@@ -448,6 +456,7 @@ function drawHTMLCards() {
 }
 function animateHTMLCards() {
   requestAnimationFrame(animateHTMLCards);
+  trumpReveal.draw();
   drawHTMLCards();
 }
 requestAnimationFrame(animateHTMLCards);
@@ -670,6 +679,7 @@ function persistRoom() {
 }
 function stopRoomTransport() {
   roomEpoch++;
+  trumpReveal.finish();
   const previous = transport;
   transport = null;
   clearTimeout(botTimer); clearTimeout(turnTimer);
@@ -684,6 +694,7 @@ function leaveRoom(message = '', announce = true, keep = true) {
   }
   const previous = transport;
   roomEpoch++; transport = null; clearTimeout(botTimer); clearTimeout(turnTimer);
+  trumpReveal.finish();
   previous?.stop();
   if (!keep) { clearRoomSession(sessionStorage); if (!practice) removeRoomRecovery(localStorage,room,token); }
   game = state = undefined; room = me = ''; identities = {};
@@ -746,6 +757,8 @@ function bindHand() {
 }
 function updateEventEffects(initial = false) {
   const seq = state?.eventSeq || 0;
+  trumpReveal.sync(state, { initial: initial || seenEventSeq == null, scope: roomEpoch,
+    serverNow: Date.now() + serverClockOffset, motion: document.body.dataset.trumpMotion !== 'off' && !motionMedia.matches });
   const leader = state?.trick.length ? state.trick.find(entry => entry.player === winner(state.trick, state.trump, state.options.deckMode))?.card.id : null;
   tableMotion.sync(state, { initial: initial || seenEventSeq == null, serverNow: Date.now() + serverClockOffset, leader, emphasisScale: document.body.dataset.tableLayout === 'strip' ? COMPACT_LEADING_CARD_SCALE : LEADING_CARD_SCALE, reducedMotion: motionMedia.matches });
   seenEventSeq = seq;
@@ -817,7 +830,7 @@ function launch(host, restored = null) {
     onStatus(value) {
       if (!current()) return;
       networkReady = value === 'connected'; busy = !networkReady;
-      if (!networkReady) { selectedCard = null;pendingPlay=null; seenEventSeq = null; }
+      if (!networkReady) { selectedCard = null;pendingPlay=null; seenEventSeq = null; trumpReveal.finish(); }
       notify(networkReady ? '' : '房间服务连接恢复中，正在同步牌局与计时…'); render();
     },
     onData(msg) {
@@ -905,10 +918,10 @@ window.addEventListener('pagehide', () => {
 window.addEventListener('pageshow', event => {
   if (event.persisted) { startPresence(); restoreRoom(readRoomSession(sessionStorage)); }
 });
-let resizeTimer;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(state)render();},120);});
+let resizeTimer;window.addEventListener('resize',()=>{trumpReveal.finish();clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(state)render();},120);});
 for(const query of ['(max-width:380px)','(max-width:850px)']) matchMedia(query).addEventListener('change',()=>{if(state)render();});
 window.addEventListener('offline',()=>{
-  if(!practice) {networkReady=false;pendingPlay=null;selectedCard=null;seenEventSeq=null;transport?.wake();if(state){notify('网络已断开，正在恢复房间服务连接…');render();}}
+  if(!practice) {networkReady=false;pendingPlay=null;selectedCard=null;seenEventSeq=null;trumpReveal.finish();transport?.wake();if(state){notify('网络已断开，正在恢复房间服务连接…');render();}}
   presence?.wake();
 });
 window.addEventListener('online', () => { transport?.wake(); presence?.wake(); });

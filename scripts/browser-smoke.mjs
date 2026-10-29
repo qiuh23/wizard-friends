@@ -1,4 +1,4 @@
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import fs from 'node:fs';
 fs.mkdirSync('.local', { recursive: true });
 const base = process.env.GAME_URL || 'http://127.0.0.1:5173/';
@@ -107,7 +107,8 @@ await fallbackPage.locator('#quick-settings > summary').click();
 await fallbackPage.locator('#practice').click();
 await fallbackPage.locator('#start').click();
 await fallbackPage.locator('.hand .card').first().waitFor();
-await fallbackPage.locator('.trump-card').waitFor();
+await fallbackPage.locator('.table-trump').waitFor();
+await expect(fallbackPage.locator('.trump-card')).toHaveCount(0);
 if (await fallbackPage.locator('.trump-marker').count()) throw new Error('2D mode retains the old corner trump marker');
 await fallbackBrowser.close();
 console.log(JSON.stringify({ practice: '5-round game complete with fixed host-selected rules and WebGL', mobile: 'no overflow', fallback: '2D game starts without WebGL', errors }));
