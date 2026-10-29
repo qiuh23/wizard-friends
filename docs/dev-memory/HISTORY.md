@@ -214,4 +214,4 @@
 - 本地验证：语法检查、196/196 单测（新增五项覆盖正确版本、旧前端、旧 Worker／HTTP 错误、传播重试和缺失提交号）、前端构建、Worker 预演及 `git diff --check` 通过；两个工作流通过官方 actionlint v1.7.12。保留原有 Three.js 大分包提示。未重复与发布配置无关的本地浏览器回归，远端仍保留完整三客户端冒烟。
 - 授权与首次发布：用户通过最小 Workers OAuth 范围授权个人账户；实际确认子域为 qiuh23，账户此前只有 magical-athlete 的两个 Worker。新建 wizard-friends，初次手动部署版本 `394fd82c-9138-458d-b43f-be2dcab5f130` 成功，线上完整提交号及版本 2 健康响应核对通过。两个独立 Durable Objects 绑定随 Worker 创建。
 - 环境修正：本机便携 npm 的嵌套 npm 调用遇到 npm-prefix 路径错误，改用本机 Node 直接执行 Vite、build-info 和 Wrangler 完成首次部署；Cloudflare 构建环境使用标准 npm。原先考虑的 GitHub Actions 发布方案在用户指定个人账户后改为复用 Cloudflare 已有构建连接。
-- 交付边界：此条写入时个人补充入口可用，自动构建连接和远端 main 更新仍在进行，后续实际运行结果另补充，不以初次手动发布代替自动部署验收。
+- 远端与连接：个人 main 已更新到 `6823e90`；Cloudflare 设置已确认连接 `qiuh23/wizard-friends` 的 main，构建启用、包含全部路径、预览关闭、两个 npm 命令正确，复用已有构建授权且没有配置跨入口 relay。设置核验截图在忽略提交的 `output/playwright/cloudflare-auto-deploy.png`。本次记录推送用于触发首次自动构建，结果随后补充。

@@ -104,7 +104,7 @@
 
 <a id="d-012"></a>
 ## D-012 · 2026-10-29 · 个人仓库的 Cloudflare 补充入口与自动发布
-- 状态：补充入口已部署，自动构建连接待核实；来源：用户要求自动部署，随后明确仅修改自己的 `qiuh23/wizard-friends`，使用个人 Cloudflare 增加 README 补充入口，原入口后续再处理。本条取代 D-011 对个人入口的手动发布约定，实施证据见 [H-017](HISTORY.md#h-017)。
+- 状态：补充入口已部署，自动构建连接已保存，首次 Git 推送触发正在验收；来源：用户要求自动部署，随后明确仅修改自己的 `qiuh23/wizard-friends`，使用个人 Cloudflare 增加 README 补充入口，原入口后续再处理。本条取代 D-011 对个人入口的手动发布约定，实施证据见 [H-017](HISTORY.md#h-017)。
 - 个人账户的 `wizard-friends.qiuh23.workers.dev` 使用独立 Worker 和 Durable Objects，README 同时保留原入口，说明房间与返回记录不互通。`wrangler.jsonc` 固定个人账户，防止本地命令选错目标。
 - 使用 Cloudflare Workers Builds 已有的 qiuh23 GitHub 连接和构建授权，连接个人仓库 main；预览构建关闭。构建命令完成语法、单测、前端和 Worker 预演，再发布并检查线上完整提交号和版本 2 健康接口；失败如实报告。
 - 个人入口使用同域 API，构建不设置指向原入口的 `VITE_RELAY_URL`。GitHub 的既有完整联机冒烟继续独立运行，Cloudflare 构建本身的前置检查不宣称包含该浏览器回归。
