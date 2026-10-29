@@ -171,8 +171,8 @@ export class RoomRelay {
     const now = Date.now();
     this.authority.record.savedAt = now;
     const g = this.authority.game;
-    const activeRoom = publicRoom({ room, hostName: g.players[0]?.name, players: g.players.length,
-      round: g.round, maxRounds: g.maxRounds, phase: g.phase, spectators: 0 });
+    const activeRoom = g.phase === 'lobby' && !this.authority.hostOnline() ? null : publicRoom({ room, hostName: g.players[0]?.name, players: g.players.length,
+      round: g.round, maxRounds: g.phase === 'lobby' ? 0 : g.maxRounds, phase: g.phase, spectators: 0 });
     const next = this.authority.nextAlarm(now);
     const alarm = activeRoom || this.sockets().length ? Math.min(next ?? Infinity, now + 30000) : next;
     this.authority.record.alarmAt = alarm;
@@ -199,8 +199,7 @@ export class RoomRelay {
         me: info.playerId, isHost: info.host, serverNow: now, serverTime: now,
       } });
     }
-    const descriptor = publicRoom({ room, hostName: g.players[0]?.name, players: g.players.length,
-      round: g.round, maxRounds: g.maxRounds, phase: g.phase, spectators: spectatorCount });
+    const descriptor = activeRoom ? { ...activeRoom, spectators: spectatorCount } : null;
     await this.advertise(room, descriptor);
     // The directory expires stale entries at 90s. Healthy authoritative rooms
     // refresh their descriptor without requiring a browser-host heartbeat.

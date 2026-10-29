@@ -8,7 +8,8 @@ const text = (node, value) => { if (node.textContent !== value) node.textContent
 // Reuse the same section and room rows when the homepage mounts again. Only
 // public room metadata belongs here; joining and refreshing remain with callers.
 export class RoomDirectory {
-  constructor({ onWatch = () => {}, onRefresh = () => {} } = {}) {
+  constructor({ onJoin = () => {}, onWatch = () => {}, onRefresh = () => {} } = {}) {
+    this.onJoin = onJoin;
     this.onWatch = onWatch;
     this.onRefresh = onRefresh;
     this.status = 'loading';
@@ -20,14 +21,14 @@ export class RoomDirectory {
     this.root.setAttribute('aria-labelledby', 'room-directory-title');
     this.root.innerHTML = `
       <header class="room-directory-heading">
-        <h2 id="room-directory-title">正在进行的房间</h2>
+        <h2 id="room-directory-title">在线房间</h2>
         <div class="room-directory-tools">
           <button type="button" id="refresh-rooms">刷新</button>
         </div>
       </header>
       <p id="room-directory-status" class="room-directory-status" role="status" aria-live="polite" aria-atomic="true"></p>
-      <ul class="room-directory-list" aria-label="可观战的房间"></ul>
-      <p class="room-directory-empty" role="status" hidden>暂无正在进行的房间</p>`;
+      <ul class="room-directory-list" aria-label="可加入或观战的房间"></ul>
+      <p class="room-directory-empty" role="status" hidden>暂无在线房间</p>`;
     this.list = this.root.querySelector('.room-directory-list');
     this.message = this.root.querySelector('#room-directory-status');
     this.empty = this.root.querySelector('.room-directory-empty');
@@ -105,7 +106,10 @@ export class RoomDirectory {
         text(row.round, round ? `第 ${round}${maxRounds ? ` / ${maxRounds}` : ''} 轮` : '尚未发牌');
         text(row.players, `${Array.isArray(item.players) ? item.players.length : count(item.players)} 人牌局`);
         text(row.spectators, `${count(item.spectators)} 人观战`);
-        row.button.setAttribute('aria-label', `进入 ${host} 的房间 ${room} 观战`);
+        const join = item.phase === 'lobby' && count(item.players) < 6;
+        text(row.button, join ? '加入房间' : item.phase === 'lobby' ? '满员 · 进入观战' : '进入观战');
+        row.button.onclick = () => join ? this.onJoin(room) : this.onWatch(room);
+        row.button.setAttribute('aria-label', join ? `加入 ${host} 的房间 ${room}` : `进入 ${host} 的房间 ${room} 观战`);
       }
       // Keep existing rows in place even if discovery changes its sort order.
       // This preserves keyboard focus and the reader's position while watching.
@@ -127,9 +131,9 @@ export class RoomDirectory {
     this.message.hidden = !this.empty.hidden;
     this.list.hidden = size === 0;
     text(this.message, this.status === 'loading'
-      ? (size ? '正在刷新房间列表…' : '正在查找进行中的房间…')
+      ? (size ? '正在刷新房间列表…' : '正在查找在线房间…')
       : this.status === 'unavailable'
         ? (size ? '房间列表暂不可用，上次列表可能已变化。请稍后刷新。' : '房间列表暂不可用，请稍后刷新。')
-        : size ? `${size} 个房间正在进行牌局` : '房间列表已更新');
+        : size ? `${size} 个房间在线` : '房间列表已更新');
   }
 }

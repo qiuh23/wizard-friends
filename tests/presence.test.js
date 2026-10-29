@@ -9,6 +9,16 @@ test('directory whitelist cannot carry hands, chat or identity tokens', () => {
   for (const change of [{ phase: 'rules' }, { players: 7 }, { round: 0 }, { spectators: 51 }]) assert.equal(publicRoom({ ...room, ...change }), null);
   assert.deepEqual(publicRooms([room, room, { room: 'bad' }]), [room]);
 });
+
+test('directory accepts waiting rooms with one to six seats, without accepting malformed or finished rooms', () => {
+  const lobby = { ...room, phase: 'lobby', players: 1, round: 0, maxRounds: 0 };
+  for (const players of [1, 2, 3, 6]) assert.deepEqual(publicRoom({ ...lobby, players, token: 'private' }), { ...lobby, players });
+  for (const change of [{ players: 0 }, { players: 7 }, { round: 1 }, { maxRounds: 5 }, { phase: 'finished' }]) {
+    assert.equal(publicRoom({ ...lobby, ...change }), null);
+  }
+  assert.equal(publicRoom({ ...room, players: 2 }), null);
+  assert.deepEqual(publicRooms([lobby, room]), [room]);
+});
 test('presence reconnect reports unavailable instead of fabricated zero; stop closes socket', t => {
   t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] }); FakeSocket.instances = [];
   const values = [];

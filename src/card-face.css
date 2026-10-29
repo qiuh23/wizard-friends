@@ -10,15 +10,27 @@
 .trump-card-face > .corner:not(.bottom) { font-size:26px; }
 body[data-screen="game"].has-webgl .played .card,
 body[data-screen="game"].has-webgl .played .card * { visibility:hidden; }
-/* Meshes own their motion; the player name stays at its seat as an identity cue. */
-body[data-screen="game"].has-webgl .played.card-enter,
-body[data-screen="game"].has-webgl .played.collect-winner { animation:none; }
+/* Only the physical card moves; its identity label stays at the same seat.
+   Negative delays resume the shared timeline after a DOM redraw. */
+body[data-screen="game"] .played.card-enter,
+body[data-screen="game"] .played.collect-winner { animation:none; }
+body[data-screen="game"] .played.card-enter .card {
+  animation:table-card-enter 420ms ease-out both;
+  animation-delay:var(--entry-delay,0ms);
+}
+body[data-screen="game"] .played.collect-winner .card {
+  animation:table-card-enter 420ms ease-out both,table-card-collect 800ms ease-in-out forwards;
+  animation-delay:var(--entry-delay,0ms),var(--collect-delay,0ms);
+}
+@keyframes table-card-enter { from{translate:var(--from-x) var(--from-y);opacity:0;}to{translate:0 0;opacity:1;} }
+@keyframes table-card-collect { from{transform:translate(0,0) scale(1);opacity:1;}to{transform:translate(var(--winner-dx),var(--winner-dy)) scale(.35);opacity:0;} }
+body[data-screen="game"].has-webgl .played .card { animation:none; }
 @media(max-width:850px) {
   .trump-card-face > .corner:not(.bottom) { font-size:18px;padding:2px; }
   .trump-card-face > .corner small { font-size:9px; }
   body[data-screen="game"] .played .card > .corner:not(.bottom) { font-size:18px;padding:2px; }
 }
 @media(prefers-reduced-motion:reduce) {
-  body[data-screen="game"] .played.card-enter,
-  body[data-screen="game"] .played.collect-winner { animation:none; }
+  body[data-screen="game"] .played.card-enter .card,
+  body[data-screen="game"] .played.collect-winner .card { animation:none; }
 }

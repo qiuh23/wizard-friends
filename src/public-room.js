@@ -1,11 +1,12 @@
-const phases = new Set(['trump', 'bid', 'play', 'trickEnd', 'roundEnd']);
+const phases = new Set(['lobby', 'trump', 'bid', 'play', 'trickEnd', 'roundEnd']);
 export function publicRoom(value) {
+  const lobby = value?.phase === 'lobby';
   if (!value || typeof value.room !== 'string' || !/^[A-Z2-9]{8}$/.test(value.room) ||
       typeof value.hostName !== 'string' || !value.hostName.trim() || [...value.hostName].length > 16 ||
       /[\u0000-\u001f\u007f]/.test(value.hostName) ||
-      !Number.isSafeInteger(value.players) || value.players < 3 || value.players > 6 ||
-      !Number.isSafeInteger(value.round) || value.round < 1 || value.round > 20 ||
-      !Number.isSafeInteger(value.maxRounds) || value.maxRounds < value.round || value.maxRounds > 20 ||
+      !Number.isSafeInteger(value.players) || value.players < (lobby ? 1 : 3) || value.players > 6 ||
+      !Number.isSafeInteger(value.round) || (lobby ? value.round !== 0 : value.round < 1 || value.round > 20) ||
+      !Number.isSafeInteger(value.maxRounds) || (lobby ? value.maxRounds !== 0 : value.maxRounds < value.round || value.maxRounds > 20) ||
       !phases.has(value.phase) || !Number.isSafeInteger(value.spectators) || value.spectators < 0 || value.spectators > 50) return null;
   const { room, hostName, players, round, maxRounds, phase, spectators } = value;
   return { room, hostName: hostName.trim(), players, round, maxRounds, phase, spectators };

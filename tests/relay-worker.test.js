@@ -61,8 +61,27 @@ test('clients cannot route private snapshots, forge host identity, or publish di
   await s.message(host, { type: 'send', id: 'a', data: { hand: ['private snapshot'] } });
   assert.equal(a.sent.some(m => m.data?.hand), false);
   await s.message(a, { type: 'advertise', room: descriptor });
-  assert.equal(s.advertisements.every(entry => entry.descriptor === null), true);
+  assert.deepEqual(s.advertisements.at(-1).descriptor, {
+    ...descriptor, phase: 'lobby', round: 0, maxRounds: 0,
+    hostName: s.relay.authority.game.players[0].name, players: 3,
+  });
   assert.ok(s.ctx.store.has('authority'));
+});
+test('waiting room is advertised by the authority, hidden while its owner is away, and restored on return', async () => {
+  const s = setup(), host = s.add('host'); await s.hello(host, true);
+  assert.equal(s.advertisements.at(-1).descriptor.phase, 'lobby');
+  assert.equal(s.advertisements.at(-1).descriptor.players, 1);
+  await s.relay.webSocketClose(host);
+  assert.equal(s.advertisements.at(-1).descriptor, null);
+  const returning = s.add('returning'); await s.hello(returning, true);
+  assert.equal(s.advertisements.at(-1).descriptor.phase, 'lobby');
+  await s.message(returning, { type: 'send', data: { type: 'addbot' } });
+  await s.message(returning, { type: 'send', data: { type: 'addbot' } });
+  await s.message(returning, { type: 'send', data: { type: 'action', action: { type: 'start' } } });
+  assert.ok(['trump', 'bid'].includes(s.advertisements.at(-1).descriptor.phase));
+  assert.equal(s.advertisements.at(-1).descriptor.round, 1);
+  await s.message(returning, { type: 'close-room' });
+  assert.equal(s.advertisements.at(-1).descriptor, null);
 });
 test('host departure retains guests and their reconnect remains independent of host availability', async () => {
   const s = setup(), host = s.add('host'), guest = s.add('guest');
