@@ -73,6 +73,8 @@ GAME_URL=http://127.0.0.1:5173/ npm run test:layout
 
 个人补充入口通过 **Cloudflare Workers Builds** 连接 [`qiuh23/wizard-friends`](https://github.com/qiuh23/wizard-friends) 的 `main`，该分支更新后自动验证并发布到 `wizard-friends.qiuh23.workers.dev`。原来的游戏入口继续保留，原账户的发布方式不在此仓库中调整。
 
+**发布触发点是个人仓库的 `main` 更新。** 功能分支推送和未合并的 PR 不会更新这个游戏入口；PR 合并进入 `main` 后才会自动发布。判断是否发布完成时，将线上 [`build-info.json`](https://wizard-friends.qiuh23.workers.dev/build-info.json) 的 `revision` 与个人 `main` 的完整提交号比较，并确认 [`/api/health`](https://wizard-friends.qiuh23.workers.dev/api/health) 返回 `version: 2`。Cloudflare 的构建记录须同时显示成功，只有 GitHub 验证通过不代表已发布。
+
 Cloudflare 的 Git 构建设置为：
 
 - 仓库：`qiuh23/wizard-friends`；生产分支：`main`；根目录：`/`；预览分支构建关闭。

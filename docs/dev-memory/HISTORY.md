@@ -217,3 +217,10 @@
 - 远端与连接：个人 main 已更新到 `6823e90`；Cloudflare 设置已确认连接 `qiuh23/wizard-friends` 的 main，构建启用、包含全部路径、预览关闭、两个 npm 命令正确，复用已有构建授权且没有配置跨入口 relay。设置核验截图在忽略提交的 `output/playwright/cloudflare-auto-deploy.png`。本次记录推送用于触发首次自动构建，结果随后补充。
 - 自动部署验收：推送 `796c710` 实际触发 [Cloudflare 构建 1afa9b5a](https://dash.cloudflare.com/1304ab798d39e085d8355f1f4a75cf75/workers/services/view/wizard-friends/production/builds/1afa9b5a-c059-40c7-89a3-c0b887b4ebc3)，GitHub Workers Builds 检查返回 success，发布版本为 `39f58f5e-6fba-4777-9c4c-bf9e702acdcf`。从独立请求核对线上 `build-info.json` 为完整 `796c7107a71b85bb9ef6fb2809007896784ee57d`，API 为版本 2；新入口首页已实际打开，创建房间／加入房间／练习入口可见。
 - 远端验证：代码提交 `6823e90` 的 [GitHub Verify game 40812587835](https://github.com/qiuh23/wizard-friends/actions/runs/40812587835) 成功，覆盖 196 项单测、构建、Worker 预演及既有三客户端联机冒烟。此后的记录提交只更新文档，Cloudflare 仍按 main 推送自动发布。原仓库和原 Cloudflare 服务未被更新。
+
+<a id="h-019"></a>
+## H-019 · 2026-10-29 · 优先复核个人 Cloudflare 自动部署
+- 来源：用户反馈自动部署似乎没有运行，随后明确先完成自己的 Cloudflare，另一个入口暂不处理。沿用 [D-012](DECISIONS.md#d-012) 的个人仓库 main → Workers Builds 发布链路，不扩大到原账户。
+- 现场证据：Cloudflare 设置仍连接 `qiuh23/wizard-friends` 的 `main`，禁用构建开关关闭、监视路径 `*`、根目录 `/`、构建与部署命令正确，无跨入口 relay 构建变量。部署页显示 main 的 `05b17b1` 由自动构建 `f5694d32-3b5a-49eb-b81f-08f0bcfc7e0e` 发布为 `a6976142` 并承接 100% 流量；独立 HTTP 请求核对线上完整提交号与当前个人 main 一致，API 为版本 2。
+- 未上线改动的原因：个人 [PR #1](https://github.com/qiuh23/wizard-friends/pull/1) 仍开放、未合并，头提交为 `e4f12c3`，其 GitHub Verify 已成功；功能分支不是当前生产触发分支。未合并 PR 不能据此判定自动部署失败，也不为验收擅自合并该 PR。
+- 本次仅在 README 补充触发条件和版本核对入口；从个人 main 的独立工作树提交该记录，以真实 main 推送再次验收自动构建。语法、规则及界面代码不变，执行 Git 空白检查；本次推送的实际发布结果需以随后 Cloudflare 构建与线上完整提交号为准。
