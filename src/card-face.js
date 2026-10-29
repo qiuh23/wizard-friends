@@ -16,7 +16,7 @@ export function cardMark(card) {
 
 export function cardMarksHTML(card) {
   const mark = cardMark(card);
-  return `<span class="corner">${mark.value}<small>${mark.symbol}</small></span>`;
+  return `<span class="corner">${mark.value}<small>${mark.symbol}</small></span>${card.kind === 'number' ? `<span class="suit-mark" aria-hidden="true">${mark.symbol}</span>` : ''}`;
 }
 
 // Bake every mark into the physical face: no independently animated DOM numbers.
@@ -26,8 +26,14 @@ export function paintCardFace(ctx, image, card) {
   ctx.strokeStyle = mark.color; ctx.lineWidth = 8;
   ctx.strokeRect(4, 4, 312, 472);
   ctx.fillStyle = '#0b1518'; ctx.fillRect(10, 10, 146, 174);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#fff0cb'; ctx.font = 'bold 108px Georgia, serif';
   ctx.fillText(mark.value, 18, 116);
   ctx.fillStyle = mark.color; ctx.font = 'bold 40px sans-serif';
   ctx.fillText(mark.symbol, 18, 164);
+  if (card.kind === 'number') {
+    ctx.fillStyle = mark.color; ctx.beginPath(); ctx.arc(276, 44, 26, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#0b1518'; ctx.font = 'bold 34px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(mark.symbol, 276, 44);
+  }
 }

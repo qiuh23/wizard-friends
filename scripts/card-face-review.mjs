@@ -35,6 +35,9 @@ const record = fixture();
 async function openGame(width, height, webgl) {
   const context = await browser.newContext({ viewport: { width, height }, hasTouch: width < 851, reducedMotion: 'no-preference' });
   await context.addInitScript(({ record, webgl }) => {
+    // Each independent browser case starts a fresh turn, rather than reusing
+    // the deadline from the fixture created before all six cases.
+    record.game.turnDeadline = Date.now() + 30000;
     sessionStorage.setItem('wizard-room-session', JSON.stringify(record));
     localStorage.setItem('wizard-low-graphics', 'true');
     localStorage.setItem('wizard-trump-motion', 'false');
@@ -68,6 +71,9 @@ try {
       art: face.style.backgroundImage, mark: face.textContent, color: face.style.getPropertyValue('--card-color'),
     })));
     expect(sides).toHaveLength(2); expect(sides[0]).toEqual(sides[1]);
+    const trumpMarks = await page.locator('.trump-card .corner').evaluateAll(nodes => nodes.map(el=>getComputedStyle(el).visibility));
+    expect(trumpMarks.every(value=>value === (webgl ? 'hidden' : 'visible'))).toBe(true);
+    if (webgl && width === 390) await expect(page.locator('#notice')).toBeEmpty({timeout:6000});
     await page.screenshot({ path: `${out}/card-clarity-${webgl ? '3d' : '2d'}-${width}.png` });
     await page.locator('#cancel-card').click();
     const legal = page.locator('.hand .card.playable').first();
@@ -112,10 +118,12 @@ try {
     const ctx = face.map.image.getContext('2d');
     const whitePixels = ctx.getImageData(18, 30, 130, 95).data.filter((value, i) => i % 4 === 0 && value > 220).length;
     return { shared: face.map === reverse.map, unlit: face.isMeshBasicMaterial && !face.toneMapped,
-      border: [...ctx.getImageData(4, 240, 1, 1).data], oppositeBorder: [...ctx.getImageData(315, 240, 1, 1).data], whitePixels };
+      border: [...ctx.getImageData(4, 240, 1, 1).data], oppositeBorder: [...ctx.getImageData(315, 240, 1, 1).data],
+      suitMarker: [...ctx.getImageData(276, 24, 1, 1).data], whitePixels };
   });
   expect(texture.shared).toBe(true); expect(texture.unlit).toBe(true);
   expect(texture.border).toEqual([243, 207, 102, 255]); expect(texture.oppositeBorder).toEqual([243, 207, 102, 255]);
+  expect(texture.suitMarker).toEqual([243, 207, 102, 255]);
   expect(texture.whitePixels).toBeGreaterThan(500);
   for (const [side, angle] of [['front', 0], ['reverse', Math.PI]]) {
     await page.evaluate(angle => {

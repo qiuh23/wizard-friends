@@ -31,6 +31,11 @@ function fixture(count, round) {
 }
 const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'chrome', headless: true });
 const errors = [], checks = [];
+async function handControl(page, id) {
+  if (!await page.locator(id).isVisible()) await page.locator('#table-menu').click();
+  await page.locator(id).click();
+  if (await page.locator('#table-menu-panel').isVisible()) await page.locator('#table-menu').click();
+}
 async function screenshotStable(page, options) {
   // The retained low-power WebGL renderer draws at 20fps; let the canvas catch
   // the DOM anchor after a hand collapse, expansion or orientation change.
@@ -112,14 +117,14 @@ try {
     await expect(page.locator('#confirm-play')).toBeEnabled();
     await screenshotStable(page,{ path: `${out}/${prefix}-selected.png` });
     const selected = await page.locator('.hand .selected').getAttribute('data-card');
-    await page.locator('#hand-sort').click();
+    await handControl(page, '#hand-sort');
     await expect(page.locator(`.hand [data-card="${selected}"]`)).toHaveClass(/selected/);
     await expect(page.locator('.hand .card')).toHaveCount(20);
-    await page.locator('#hand-expand').click();
+    await handControl(page, '#hand-expand');
     await expect(page.locator('.hand-grid .card')).toHaveCount(20);
     await expect(page.locator(`.hand [data-card="${selected}"]`)).toHaveClass(/selected/);
     await screenshotStable(page,{ path: `${out}/${prefix}-expanded.png` });
-    await page.locator('#hand-expand').click();
+    await handControl(page, '#hand-expand');
     await page.locator('#cancel-card').click();
     await expect(page.locator('#confirm-play')).toBeDisabled();
     await page.locator('.hand .playable').first().click({ position: { x: 15, y: 45 } });
@@ -133,7 +138,7 @@ try {
     await expect(page.locator('.hand .card')).toHaveCount(round);
     await page.locator('.hand .playable').first().click({ position: { x: 15, y: 45 } });
     const id = await page.locator('.hand .selected').getAttribute('data-card');
-    await page.locator('#hand-sort').click();
+    await handControl(page, '#hand-sort');
     await expect(page.locator(`.hand [data-card="${id}"]`)).toHaveClass(/selected/);
     await page.locator('#cancel-card').click();
     await expect(page.locator('#confirm-play')).toBeDisabled();
@@ -184,13 +189,13 @@ try {
     const { context, page } = await openFixture(3,20,390,844);
     await page.locator('.hand .playable').first().click({position:{x:15,y:45}});
     const selected=await page.locator('.hand .selected').getAttribute('data-card');
-    await page.locator('#hand-collapse').click();
+    await handControl(page, '#hand-collapse');
     await expect(page.locator('body')).toHaveClass(/hand-collapsed/);
     const collapsed=await page.locator('.hand-section').boundingBox();
     expect(collapsed.height).toBeLessThanOrEqual(60);
     await expect(page.locator('#confirm-play')).toBeEnabled();
     await screenshotStable(page,{path:`${out}/mobile-390-collapsed.png`});
-    await page.locator('#hand-collapse').click();
+    await handControl(page, '#hand-collapse');
     await expect(page.locator(`.hand [data-card="${selected}"]`)).toHaveClass(/selected/);
     await page.setViewportSize({width:844,height:390});
     await expect(page.locator('.hand.desktop-fan')).toBeVisible();
