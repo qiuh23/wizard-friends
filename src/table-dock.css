@@ -1,0 +1,156 @@
+/* Anchor the conversation to its trigger in every room and viewport. */
+#room-chat.social-panel {
+  position:absolute;top:auto;left:0;right:auto;bottom:calc(100% + 8px);
+  width:min(340px,calc(100vw - 20px));height:min(300px,45dvh);
+  max-height:calc(100dvh - 100px);
+}
+body[data-screen="lobby"] #room-chat { left:auto;right:0;top:auto; }
+body[data-screen="game"] .chat-dock { left:355px; }
+body[data-screen="game"] #room-chat {
+  left:0;right:auto;top:auto;bottom:calc(100% + 8px);
+  width:min(360px,calc(100vw - 375px));height:222px;max-height:45dvh;
+}
+
+/* Keep prediction and tricks in view; the ledger holds cumulative statistics. */
+body[data-screen="game"] .player .player-total,
+body[data-screen="game"] .player .player-tricks,
+body[data-screen="game"] .lead-badge,
+body[data-screen="game"] .roundbar .lead-order,
+body[data-screen="game"] .roundbar span:nth-child(2),
+body[data-screen="game"] .own-summary,
+body[data-screen="game"] .own-status > strong small,
+body[data-screen="game"] .own-metrics > span:nth-child(3),
+body[data-screen="game"] .table-caption,
+body[data-screen="game"] .play-confirm .selection-name { display:none; }
+body[data-screen="game"] .roundbar { background:none;box-shadow:none;border-radius:0; }
+body[data-screen="game"] .player { width:138px;max-width:138px;padding:7px; }
+body[data-screen="game"] .own-status,
+body[data-screen="game"] .own-status.active {
+  width:250px;padding:8px;border:0;background:none;box-shadow:none;min-height:0;animation:none;
+  text-shadow:0 1px 3px #000,0 0 6px #000;
+}
+body.turn-arrival[data-screen="game"] .own-status.active { animation:none; }
+body[data-screen="game"] .own-status:before { display:none; }
+body[data-screen="game"] .own-metrics { justify-content:flex-start;gap:24px; }
+body[data-screen="game"] .own-metrics b { font-size:25px; }
+body[data-screen="game"] .action-panel,
+body[data-screen="game"] .action-panel.your-action {
+  border:0;background:none;box-shadow:none;backdrop-filter:none;padding:5px 10px;
+}
+body[data-screen="game"] .action-title h3 { font-size:15px; }
+body[data-screen="game"] .action-panel:not(.your-action) .win-reason { display:none; }
+body[data-screen="game"] #confirm-play { min-width:120px;font-size:16px; }
+
+/* The cards sit on the felt. Only the optional expanded grid needs a panel. */
+body[data-screen="game"] .hand-section:not(.expanded) {
+  padding:0;border:0;border-radius:0;background:none;box-shadow:none;overflow:visible;
+}
+body[data-screen="game"] .hand-section:not(.expanded) .hand-heading {
+  background:none;border:0;
+}
+@media(min-width:851px) and (min-height:541px) {
+  body[data-screen="game"]:not(.hand-expanded):not(.hand-collapsed) { --hand-height:var(--fan-height,216px); }
+  body[data-screen="game"] .hand-section:not(.expanded):not(.collapsed) {
+    left:355px;right:205px;transform:none;margin-inline:auto;
+    width:min(calc(100vw - 560px),calc(132px + (var(--hand-count,1) - 1)*54px));
+  }
+  body[data-screen="game"] .hand-section:not(.expanded) .hand-heading {
+    position:relative;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 560px);
+    justify-content:center;
+  }
+  body[data-screen="game"] .hand-section:not(.expanded) .hand-heading > span { display:none; }
+  body[data-screen="game"] .hand.desktop-fan,
+  body[data-screen="game"] .hand.desktop-fan.large-hand { overflow:visible; }
+}
+@media(max-width:850px) {
+  body[data-screen="game"][data-chat-open="true"] .hand-section { display:none; }
+  body[data-screen="game"] .chat-dock { left:10px; }
+  body[data-screen="game"] #room-chat {
+    left:0;right:auto;top:auto;bottom:calc(100% + 8px);
+    width:calc(100vw - 20px);height:min(260px,36dvh);
+    max-height:calc(100dvh - 80px - var(--chat-keyboard-offset,0px));
+  }
+  body[data-screen="game"] .hand-section:not(.expanded) .hand-heading > span { display:none; }
+  body[data-screen="game"] .player { width:96px;max-width:96px;padding:5px; }
+  body[data-screen="game"] .player .avatar { width:22px;height:22px; }
+  body[data-screen="game"] .player .prediction { gap:5px; }
+  body[data-screen="game"] .player .prediction b { font-size:17px; }
+  body[data-screen="game"] .own-status,
+  body[data-screen="game"]:has(.own-action) .own-status,
+  body[data-screen="game"]:not(:has(.own-action)) .own-status {
+    width:auto;padding:4px 6px;grid-template-columns:24px minmax(45px,.7fr) 2fr;gap:4px 7px;
+  }
+  body[data-screen="game"] .own-status .avatar { width:24px;height:24px;font-size:14px; }
+  body[data-screen="game"] .own-status > strong { font-size:12px; }
+  body[data-screen="game"] .own-metrics { gap:14px;justify-content:space-between; }
+  body[data-screen="game"] .own-metrics > span { font-size:11px; }
+  body[data-screen="game"] .own-metrics b { font-size:23px; }
+  body[data-screen="game"] .own-action { border:0;padding:0;min-height:26px;gap:5px; }
+  body[data-screen="game"] .own-action b { font-size:12px; }
+  body[data-screen="game"] .own-action small { font-size:11px;overflow:hidden;text-overflow:ellipsis; }
+  body[data-screen="game"] .own-action #turn-countdown { font-size:13px;padding:2px 6px;background:#18382bbb; }
+  body[data-screen="game"] .table .scene-host:after { background:none; }
+}
+@media(max-width:850px) and (orientation:portrait) {
+  body[data-screen="game"] .hand-section:not(.expanded):not(.collapsed) {
+    left:10px;right:10px;transform:none;margin-inline:auto;
+    width:min(calc(100vw - 20px),calc(84px + (var(--hand-count,1) - 1)*42px));
+  }
+  body[data-screen="game"] .hand-section:not(.expanded) .hand-heading {
+    position:relative;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 20px);
+  }
+  body[data-screen="game"] .hand.hand-strip { justify-content:safe center; }
+  body[data-screen="game"] .hand.hand-strip .card {
+    width:62px;min-width:62px;flex-basis:62px;height:93px;
+    transform:rotate(clamp(-5deg,var(--fan),5deg))!important;transform-origin:50% 85%;translate:0 var(--lift);
+  }
+  body[data-screen="game"] .hand.hand-strip .card.selected { translate:0 -8px; }
+  body[data-screen="game"] .hand.hand-strip .card:first-child { margin-left:0; }
+}
+@media(orientation:landscape) and (min-width:600px) and (max-height:540px) {
+  body[data-screen="game"] .chat-dock { left:10px; }
+  body[data-screen="game"] #room-chat {
+    left:0;right:auto;top:auto;bottom:calc(100% + 8px);width:228px;height:86px;
+  }
+  body[data-screen="game"][data-chat-open="true"] .action-panel {
+    left:226px;right:8px;width:auto;max-width:none;bottom:160px;
+  }
+  body[data-screen="game"] .hand-section:not(.expanded):not(.collapsed) {
+    left:226px;right:8px;transform:none;margin-inline:auto;
+    width:min(calc(100vw - 234px),calc(84px + (var(--hand-count,1) - 1)*42px));
+  }
+  body[data-screen="game"] .room-operations { top:max(5px,env(safe-area-inset-top));right:8px;gap:5px; }
+  body[data-screen="game"] .room-operations button { padding:5px 9px;border-radius:7px; }
+  body[data-screen="game"] .game-toolbar { left:8px;right:auto;top:max(5px,env(safe-area-inset-top))!important; }
+  body[data-screen="game"] .roundbar { top:8px;left:145px;right:205px;width:auto;max-width:none;min-height:0;padding:0;font-size:11px; }
+  body[data-screen="game"] .roundbar b { font-size:14px; }
+  body[data-screen="game"] .compact-trump { font-size:11px; }
+  body[data-screen="game"] .own-status,
+  body[data-screen="game"]:has(.own-action) .own-status,
+  body[data-screen="game"]:not(:has(.own-action)) .own-status {
+    left:8px;right:auto;bottom:60px;width:202px;grid-template-columns:24px 1fr;padding:4px;gap:4px 8px;
+  }
+  body[data-screen="game"] .own-status > strong { grid-row:1;grid-column:2; }
+  body[data-screen="game"] .own-metrics { grid-row:2;grid-column:1 / -1; }
+  body[data-screen="game"] .own-action { grid-row:3;grid-column:1 / -1; }
+  body[data-screen="game"] .own-action > span:first-child { display:block; }
+  body[data-screen="game"] .own-action b,
+  body[data-screen="game"] .own-action small { display:block;font-size:11px;line-height:1.4; }
+  body[data-screen="game"] .action-panel,
+  body[data-screen="game"][data-phase="trickEnd"] .action-panel {
+    left:226px;right:8px;bottom:160px;width:auto;max-width:none;max-height:110px;
+  }
+  body[data-screen="game"][data-phase="trickEnd"] .action-panel {
+    left:226px;right:8px;bottom:68px;width:auto;max-width:none;max-height:88px;gap:8px;
+  }
+  body[data-screen="game"][data-phase="trickEnd"] .hand-section { display:none; }
+  body[data-screen="game"][data-phase="trickEnd"] .action-title h3 { font-size:12px; }
+  body[data-screen="game"] .hand-heading { left:auto;right:230px;bottom:5px;gap:6px; }
+  body[data-screen="game"] .play-confirm { left:auto;right:8px;width:max-content;gap:6px; }
+  body[data-screen="game"][data-chat-open="true"] .own-status,
+  body[data-screen="game"][data-chat-open="true"]:has(.own-action) .own-status {
+    left:246px;right:8px;width:auto;
+  }
+}
+body[data-screen="game"]:has(.hand > .muted):not(.hand-expanded) { --hand-height:0px; }
+body[data-screen="game"] .hand-section:has(.hand > .muted) { display:none; }

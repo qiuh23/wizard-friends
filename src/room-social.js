@@ -23,6 +23,7 @@ export class RoomSocial {
     this.noticeRegion = document.createElement('div'); this.noticeRegion.className = 'chat-notices';
     this.noticeRegion.setAttribute('aria-live', 'polite'); this.noticeRegion.setAttribute('aria-label', '新聊天消息'); this.root.append(this.noticeRegion);
     this.chat = this.root.querySelector('#room-chat');
+    this.dock.append(this.chat);
     this.rename = this.root.querySelector('#rename-panel');
     this.list = this.root.querySelector('#chat-messages');
     this.input = this.root.querySelector('#chat-input');
@@ -32,7 +33,7 @@ export class RoomSocial {
     this.root.querySelector('#chat-form').onsubmit = event => {
       event.preventDefault();
       if (this.input.value.trim() && this.send({ type: 'chat', text: this.input.value })) this.input.value = '';
-      this.input.focus();
+      this.input.focus({ preventScroll: true });
     };
     this.root.querySelector('#rename-form').onsubmit = event => {
       event.preventDefault();
@@ -67,7 +68,7 @@ export class RoomSocial {
   openChat() {
     this.chat.hidden = false; this.rename.hidden = true; this.seen = this.latestChat || 0;
     this.notices.items = []; this.renderNotices(); this.list.scrollTop = this.list.scrollHeight;
-    this.input.focus(); this.refreshButton();
+    this.input.focus({ preventScroll: true }); this.refreshButton();
   }
   closeChat() { this.chat.hidden = true; this.refreshButton(); }
   renderNotices() {
@@ -124,7 +125,9 @@ export class RoomSocial {
       this.nameInput.focus(); this.nameInput.select(); this.refreshButton();
     };
     controls.prepend(this.renameButton);
-    this.dock.replaceChildren(this.chatButton);
+    const previousButton = this.dock.querySelector('#chat-toggle');
+    if (previousButton) previousButton.replaceWith(this.chatButton);
+    else this.dock.append(this.chatButton);
     if (!this.chat.hidden) this.seen = state.chatSeq || 0;
     const key = JSON.stringify(this.messages);
     if (key !== this.key) {

@@ -132,7 +132,7 @@ body[data-screen="lobby"] .has-rule-setup { overflow:visible; }
 
 /* The chat dock follows the reference game's lower controls and bounded bubbles. */
 .chat-dock { position:fixed;z-index:16;left:24px;bottom:max(12px,env(safe-area-inset-bottom)); }
-.chat-dock button { min-height:44px;min-width:60px;padding:8px 13px;background:#10291ff5;border:1px solid #c4a66e88;border-radius:9px;color:#f3ead6;font-size:13px; }
+.chat-dock > button { min-height:44px;min-width:60px;padding:8px 13px;background:#10291ff5;border:1px solid #c4a66e88;border-radius:9px;color:#f3ead6;font-size:13px; }
 body[data-screen="lobby"] .chat-dock { left:auto;right:18px; }
 #room-chat.social-panel { top:auto;left:24px;right:auto;bottom:calc(70px + var(--chat-keyboard-offset,0px));width:320px;height:min(300px,45dvh);max-height:calc(100dvh - 100px);display:flex;flex-direction:column;overflow:hidden; }
 #room-chat.social-panel[hidden] { display:none; }
@@ -150,8 +150,8 @@ body[data-screen="lobby"] .chat-notices { left:110px;bottom:66px;max-height:260p
 @keyframes chat-arrive { from{opacity:0;translate:0 8px;}to{opacity:1;translate:0 0;} }
 @media(max-width:850px) {
   .chat-dock { left:10px;bottom:calc(max(5px,env(safe-area-inset-bottom)) + var(--chat-keyboard-offset,0px)); }
-  .chat-dock button { height:49px; }
-  .chat-dock button { width:64px;min-width:64px;padding:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px; }
+  .chat-dock > button { height:49px; }
+  .chat-dock > button { width:64px;min-width:64px;padding:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px; }
   body[data-screen="game"] .play-confirm { left:80px; }
   .play-confirm .selection-name { min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis; }
   body[data-screen="game"] #room-chat { top:auto;left:10px;right:10px;bottom:calc(60px + var(--chat-keyboard-offset,0px));width:auto;height:min(260px,36dvh);max-height:calc(100dvh - 80px - var(--chat-keyboard-offset,0px)); }
