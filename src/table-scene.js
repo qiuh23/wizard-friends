@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { cardImage } from './card-art.js';
 import { trumpStyle } from './trump-style.js';
 import { paintCardFace } from './card-face.js';
+import { playedCardRect } from './table-layout.js';
 
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 export class TableScene {
@@ -332,8 +333,8 @@ export class TableScene {
   alignCardSeats() {
     if (!this.state || !this.host) return;
     const canvas = this.renderer.domElement.getBoundingClientRect();
-    const area = document.querySelector('.played-cards')?.getBoundingClientRect();
-    if (!canvas.width || !area) return;
+    const table = this.host.closest('.table');
+    if (!canvas.width || !table) return;
     const self = Math.max(0,this.state.players.findIndex(p=>p.id===this.viewer));
     // Upright faces must sit completely above the felt, including the lower
     // half. Re-project this raised center so the screen anchor stays exact.
@@ -345,12 +346,9 @@ export class TableScene {
     };
     for (const group of this.cards.values()) {
       const seat = (group.userData.player-self+this.state.players.length)%this.state.players.length;
-      const node = document.querySelector(`.played[data-play-seat="${seat}"]`);
+      const node = table.querySelector(`.played[data-play-seat="${seat}"]`);
       const face = node?.querySelector('.card'); if(!node || !face) continue;
-      const px = parseFloat(node.style.getPropertyValue('--play-x'))/100;
-      const py = parseFloat(node.style.getPropertyValue('--play-y'))/100;
-      const x = area.left + area.width*px;
-      const y = area.top + area.height*py - (node.offsetHeight-face.offsetHeight)/2;
+      const { x, y, width: cardWidth } = playedCardRect(node);
       const target = pointAt(x,y); if(!target) continue;
       group.userData.target.copy(target);
       // Faces remain physical meshes with thickness, tilted toward the viewer
@@ -364,12 +362,12 @@ export class TableScene {
       const edge = target.clone().add(new THREE.Vector3(1.1,0,0)).project(this.camera);
       const origin = target.clone().project(this.camera);
       const width = Math.abs(edge.x-origin.x)*canvas.width/2;
-      const scale = Math.max(.1,face.offsetWidth/Math.max(1,width));
+      const scale = Math.max(.1,cardWidth/Math.max(1,width));
       group.scale.set(scale,1,scale);
       group.userData.rotation=0;
-      group.userData.from = pointAt(x + parseFloat(node.style.getPropertyValue('--from-x')), y + parseFloat(node.style.getPropertyValue('--from-y'))) || target;
-      group.userData.collectTo = pointAt(x + parseFloat(node.style.getPropertyValue('--winner-dx')) * innerWidth / 100,
-        y + parseFloat(node.style.getPropertyValue('--winner-dy')) * innerHeight / 100) || target;
+      const offset = name => parseFloat(node.style.getPropertyValue(name)) || 0;
+      group.userData.from = pointAt(x + offset('--from-x'), y + offset('--from-y')) || target;
+      group.userData.collectTo = pointAt(x + offset('--winner-dx'), y + offset('--winner-dy')) || target;
       group.userData.baseScale = group.scale.clone();
       if (!this.motion) group.position.copy(target);
     }
