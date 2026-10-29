@@ -36,39 +36,17 @@ export function scheduleBar(ctx, bus, bar, when) {
 
 export class BackgroundMusic {
   constructor() {
-    this.enabled = true; this.volume = .25; this.bar = 0;
+    this.enabled = false; this.bar = 0;
     try {
-      this.enabled = localStorage.getItem('wizard-music-enabled') !== 'false';
-      const saved = localStorage.getItem('wizard-music-volume');
-      if (saved !== null && Number.isFinite(Number(saved))) this.volume = Math.max(0, Math.min(1, Number(saved)));
+      this.enabled = localStorage.getItem('wizard-music-enabled') === 'true';
     } catch {}
-    this.panel = document.createElement('section');
-    this.panel.id = 'music-panel'; this.panel.hidden = true;
-    this.panel.setAttribute('aria-label', '背景音乐');
-    this.panel.innerHTML = `<div class="music-heading"><span>烛光 · 预言</span><button id="music-close" aria-label="关闭音乐设置">×</button></div>
-      <button id="music-mute" type="button"></button>
-      <label for="music-volume">音量 <output id="music-volume-value"></output></label>
-      <input id="music-volume" type="range" min="0" max="100" step="1" aria-label="背景音乐音量">`;
-    document.body.append(this.panel);
-    this.slider = this.panel.querySelector('#music-volume');
-    this.slider.value = Math.round(this.volume * 100);
-    this.panel.querySelector('#music-close').onclick = () => { this.panel.hidden = true; this.update(); this.button?.focus(); };
-    this.panel.querySelector('#music-mute').onclick = () => {
-      this.enabled = this.failed ? true : !this.enabled; this.persist(); this.sync(); this.update();
-    };
-    this.slider.oninput = () => {
-      this.volume = Number(this.slider.value) / 100; this.persist(); this.setGain(); this.update();
-    };
     const unlock = event => {
       if (!event.isTrusted) return;
       this.unlocked = true;
       if (this.enabled && this.ctx?.state !== 'running') this.sync();
     };
     document.addEventListener('pointerdown', unlock, { passive: true });
-    document.addEventListener('keydown', event => {
-      if (event.key === 'Escape') { this.panel.hidden = true; this.update(); }
-      else unlock(event);
-    });
+    document.addEventListener('keydown', unlock);
     document.addEventListener('visibilitychange', () => this.sync());
     window.addEventListener('pagehide', () => { clearInterval(this.timer); this.ctx?.suspend().catch(() => {}); });
     window.addEventListener('pageshow', () => { if (this.ctx) this.sync(); });
@@ -77,7 +55,6 @@ export class BackgroundMusic {
   persist() {
     try {
       localStorage.setItem('wizard-music-enabled', String(this.enabled));
-      localStorage.setItem('wizard-music-volume', String(this.volume));
     } catch {}
   }
   build() {
@@ -110,7 +87,7 @@ export class BackgroundMusic {
   }
   setGain() {
     if (!this.master) return;
-    this.master.gain.setTargetAtTime(this.enabled && !document.hidden ? this.volume * 4 : 0, this.ctx.currentTime, .12);
+    this.master.gain.setTargetAtTime(this.enabled && !document.hidden ? 1 : 0, this.ctx.currentTime, .12);
   }
   async sync() {
     clearTimeout(this.pauseTimer);
@@ -143,19 +120,20 @@ export class BackgroundMusic {
   }
   update() {
     const status = this.failed ? 'unavailable' : !this.enabled ? 'muted' : this.ctx?.state === 'running' ? 'playing' : 'waiting';
-    this.panel.dataset.status = status;
-    this.panel.querySelector('#music-mute').textContent = this.failed ? '重试播放' : this.enabled ? '暂停音乐' : '播放音乐';
-    this.panel.querySelector('#music-volume-value').textContent = `${Math.round(this.volume * 100)}%`;
     if (this.button) {
-      this.button.textContent = !this.enabled ? '♫ 已静音' : '♫ 音乐';
-      this.button.setAttribute('aria-expanded', String(!this.panel.hidden));
+      this.button.dataset.status = status;
+      this.button.textContent = this.failed ? '♫ 重试音乐' : this.enabled ? '♫ 暂停音乐' : '♫ 播放音乐';
+      this.button.setAttribute('aria-pressed', String(this.enabled));
+      this.button.title = '点击直接暂停或播放；音量使用设备音量键调节';
     }
   }
   mount(target) {
     this.button = document.createElement('button');
     this.button.id = 'music-toggle'; this.button.className = 'text-button';
-    this.button.setAttribute('aria-controls', 'music-panel');
-    this.button.onclick = () => { this.panel.hidden = !this.panel.hidden; this.update(); };
+    this.button.type = 'button';
+    this.button.onclick = () => {
+      this.enabled = this.failed ? true : !this.enabled; this.persist(); this.sync(); this.update();
+    };
     target?.append(this.button); this.update();
   }
 }

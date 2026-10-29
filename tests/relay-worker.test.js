@@ -55,7 +55,7 @@ test('clients cannot route private snapshots, forge host identity, or publish di
   await s.hello(host, true); await s.hello(a, false, otherToken);
   await s.hello(b, false, '33333333-3333-4333-a333-333333333333');
   const hostId = host.sent.at(-1).data.me;
-  await s.message(a, { type: 'send', id: 'host', data: { type: 'action', actor: hostId, action: { type: 'beginVote' } } });
+  await s.message(a, { type: 'send', id: 'host', data: { type: 'action', actor: hostId, action: { type: 'start' } } });
   assert.equal(s.relay.authority.game.phase, 'lobby');
   assert.ok(a.sent.some(m => m.data?.type === 'error'));
   await s.message(host, { type: 'send', id: 'a', data: { hand: ['private snapshot'] } });

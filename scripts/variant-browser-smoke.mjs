@@ -31,13 +31,10 @@ if (process.argv.includes('--foresight-layout-only')) {
       const game = createGame(), me = 'layout-host';
       for (let i = 0; i < 4; i++) addPlayer(game, i ? `layout-bot-${i}` : me, `布局玩家${i + 1}`, i > 0);
       const options = { deckMode: 'mono', short: true, predictionMode: 'secret', strict: false, foresight: true };
-      act(game, me, { type: 'beginVote' });
+      act(game, me, { type: 'start', options }, () => .37);
       // Produce a real round-five save through the public engine operations.
       for (let step = 0; step < 1000 && !(game.round === 5 && game.phase === 'bid'); step++) {
-        if (game.phase === 'rules') {
-          act(game, me, { type: 'vote', choices: Object.fromEntries(Object.keys(game.vote.pending).map(key => [key, options[key]])) });
-          act(game, me, { type: 'start' }, () => .37);
-        } else if (game.phase === 'bid') {
+        if (game.phase === 'bid') {
           const player = game.players.find(player => viewFor(game, player.id).canBid);
           act(game, player.id, { type: 'bid', value: 0 });
         } else if (game.phase === 'play') {
@@ -92,23 +89,12 @@ async function checkVariantGame() {
     expect(new Set(names).size).toBe(names.length);
     expect(names).toHaveLength(3);
   }
-  await page.locator('#begin-vote').click();
-  expect(await page.locator('.vote-members span').count()).toBe(1);
-  expect(await page.locator('#addbot, [data-remove]').count()).toBe(0);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  const scrollable = await page.locator('.rules-vote').evaluate(panel => {
-    const previous = panel.scrollTop;
-    panel.scrollTop = panel.scrollHeight;
-    return panel.scrollHeight > panel.clientHeight && panel.scrollTop > previous;
-  });
-  expect(scrollable).toBe(true);
-  await page.screenshot({ path: '.local/variants-vote-mobile.png', fullPage: true });
-  for (const [key, value] of Object.entries({ deckMode: 'mono', predictionMode: 'secret', strict: 'true', foresight: 'true', short: 'true' })) {
+  await expect(page.locator('.rules-setup')).toBeVisible();
+  for (const [key, value] of Object.entries({ deckMode: 'mono', predictionMode: 'secret', foresight: 'true', short: 'true' })) {
     await page.locator(`input[name="${key}"][value="${value}"]`).check();
   }
-  await page.locator('#submit-vote').click();
-  await expect(page.locator('.vote-result')).toContainText('单色牌库 · 秘密数字 · 先见之明 · 快速局');
-  await expect(page.locator('.vote-result')).not.toContainText('加减预估');
+  await expect(page.locator('input[name="strict"][value="true"]')).toBeDisabled();
+  await page.screenshot({ path: '.local/variants-setup-mobile.png', fullPage: true });
   await page.locator('#start').click();
   await expect(page.locator('.concealed-hand')).toContainText('4 张手牌暂时保密');
   expect(await page.locator('.hand .card').count()).toBe(0);
@@ -135,46 +121,8 @@ async function checkVariantGame() {
   await expect(page.locator('.own-status')).toBeVisible();
   await page.setViewportSize({ width: 1440, height: 1000 });
   const rounds = new Map();
-  const roundChoices = {
-    2: { predictionMode: 'hidden', strict: 'true', foresight: 'true' },
-    3: { predictionMode: 'public', strict: 'true', foresight: 'false' },
-    4: { predictionMode: 'secret', strict: 'false', foresight: 'false' },
-    5: { predictionMode: 'secret', strict: 'false', foresight: 'true' },
-  };
-  const votedRounds = [1];
   for (let step = 0; step < 1200; step++) {
-    if (await page.locator('#vote-form').count()) {
-      await expect(page.locator('.vote-groups fieldset')).toHaveCount(3);
-      await expect(page.locator('input[name="deckMode"], input[name="short"]')).toHaveCount(0);
-      const nextRound = await page.evaluate(() => JSON.parse(sessionStorage.getItem('wizard-room-session')).game.vote.targetRound);
-      const choices = roundChoices[nextRound];
-      expect(choices).toBeTruthy();
-      if (nextRound === 2) {
-        await page.setViewportSize({ width: 390, height: 844 });
-        await page.screenshot({ path: '.local/variants-round2-vote-mobile.png', fullPage: true });
-      }
-      for (const [key, value] of Object.entries(choices)) await page.locator(`input[name="${key}"][value="${value}"]`).check();
-      await page.locator('#submit-vote').click();
-      await page.locator('#start').click();
-      votedRounds.push(nextRound);
-      const options = await page.evaluate(() => JSON.parse(sessionStorage.getItem('wizard-room-session')).game.options);
-      expect(options).toMatchObject({ deckMode: 'mono', short: true, predictionMode: choices.predictionMode,
-        strict: choices.predictionMode === 'public' && choices.strict === 'true', foresight: choices.foresight === 'true' });
-      if (choices.foresight === 'true') {
-        await expect(page.locator('.concealed-hand')).toContainText(`${nextRound + 3} 张手牌暂时保密`);
-        await expect(page.locator('.hand .card')).toHaveCount(0);
-        await expect(page.locator('.foresight-hands .card')).toHaveCount((nextRound + 3) * 2);
-        if (nextRound === 5) await expectForesightEdges(page);
-      } else {
-        await expect(page.locator('.concealed-hand, .foresight-hands')).toHaveCount(0);
-        await expect(page.locator('.hand .card')).toHaveCount(nextRound + 3);
-      }
-      if (nextRound === 2) {
-        await page.screenshot({ path: '.local/variants-round2-foresight-mobile.png', fullPage: true });
-        await page.setViewportSize({ width: 1440, height: 1000 });
-      }
-      continue;
-    }
+    expect(await page.locator('#rules-form').count()).toBe(0);
     const round = Number(await page.locator('.roundbar b').textContent());
     const caption = await page.locator('.table-caption').textContent();
     const maxCards = Number(caption.match(/\/\s*(\d+)\s*墩/)[1]);
@@ -190,16 +138,16 @@ async function checkVariantGame() {
     else await page.waitForTimeout(180);
   }
   await expect(page.locator('#rematch')).toHaveCount(1);
-  expect(votedRounds).toEqual([1, 2, 3, 4, 5]);
+  const history = await page.evaluate(() => JSON.parse(sessionStorage.getItem('wizard-room-session')).game.history);
+  expect(history.every(h => h.options.predictionMode === 'secret' && h.options.foresight && h.options.deckMode === 'mono')).toBe(true);
+  await page.locator('#table-scores').click();
   expect([...rounds.values()]).toEqual([4, 5, 6, 7, 8]);
-  expect(await page.locator('.history tbody tr').count()).toBe(5);
+  expect(await page.locator('.score-ledger tbody tr').count()).toBe(5);
   await page.screenshot({ path: '.local/variants-mono-complete.png', fullPage: true });
   await page.locator('.close-scores').click();
   await page.locator('#rematch').click();
   await expect(page.locator('.my-seat .seat-name b')).toHaveText(finalName);
-  await page.locator('#begin-vote').click();
-  await expect(page.locator('.vote-count')).toHaveText('0 / 1 已提交');
-  await page.locator('#cancel-vote').click();
+  await expect(page.locator('#rules-form')).toBeVisible();
   await expect(page.locator('#addbot')).toBeVisible();
   await context.close();
 }
@@ -247,8 +195,6 @@ try {
   await page.getByRole('button', { name: 'WebGL 不可用，已自动使用二维界面' }).waitFor();
   await page.locator('#quick-settings > summary').click();
   await page.locator('#practice').click();
-  await page.locator('#begin-vote').click();
-  await page.locator('#submit-vote').click();
   await page.locator('#start').click();
   await expect(page.locator('.trump-card')).toBeVisible();
   expect(await page.locator('.trump-marker').count()).toBe(0);
@@ -271,6 +217,6 @@ try {
 }
 expect(errors).toEqual([]);
 console.log(JSON.stringify({
-  ...(!motionOnly && { names: 'random, unique, refreshed identity preserved', vote: 'mobile scroll, frozen seats, cancel, rematch',
+  ...(!motionOnly && { names: 'random, unique, refreshed identity preserved', rules: 'host setup, whole-game invariance, rematch',
     variants: 'mono fixed for five rounds of 4–8 cards; secret/hidden/public, strict and foresight changed between rounds' }),
   reducedMotion: '3D and 2D default static; explicit animation toggle, pause and refresh persistence', errors }));

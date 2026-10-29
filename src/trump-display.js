@@ -1,19 +1,7 @@
 import { cardImage } from './card-art.js';
+import { cardMark, cardMarksHTML } from './card-face.js';
 import { SUIT_NAMES } from './game.js';
 import { trumpStyle } from './trump-style.js';
-
-// An original card back, shared by the CSS fallback and the physical WebGL card.
-export const CARD_BACK_IMAGE = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="320" height="480" viewBox="0 0 320 480">
-<defs><linearGradient id="back" x2="1" y2="1"><stop stop-color="#27383c"/><stop offset="1" stop-color="#131c29"/></linearGradient></defs>
-<rect x="2" y="2" width="316" height="476" rx="14" fill="#171d22" stroke="#d4be87" stroke-width="4"/>
-<rect x="13" y="13" width="294" height="454" rx="8" fill="url(#back)" stroke="#b9a273" stroke-width="2"/>
-<rect x="25" y="25" width="270" height="430" rx="3" fill="none" stroke="#b9a273" opacity=".45"/>
-<g fill="none" stroke="#cdb57c"><path d="M160 65 267 240 160 415 53 240Z"/><path d="m160 94 88 146-88 146-88-146Z" opacity=".4"/>
-<circle cx="160" cy="240" r="73"/><circle cx="160" cy="240" r="59" opacity=".5"/>
-<path d="M160 137v206M57 240h206" opacity=".35"/></g>
-<path d="m160 180 15 44 45 16-45 16-15 44-15-44-45-16 45-16Z" fill="#d3bc86"/>
-<circle cx="160" cy="240" r="10" fill="#1b2832"/>
-<g fill="#d3bc86"><path d="m48 47 5 10-5 10-5-10Zm224 0 5 10-5 10-5-10ZM48 413l5 10-5 10-5-10Zm224 0 5 10-5 10-5-10Z"/></g></svg>`)}`;
 
 export function trumpPresentation(state) {
   const appearance = trumpStyle(state);
@@ -41,11 +29,13 @@ export function renderTrumpDisplay(table, state) {
     card.setAttribute('aria-label', `翻开的主牌：${display.cardLabel}`);
     const rotor = document.createElement('div');
     rotor.className = 'trump-card-rotor';
-    for (const [side, src] of [['front', cardImage(display.card)], ['back', CARD_BACK_IMAGE]]) {
-      const face = document.createElement('img');
-      face.className = `trump-card-${side}`;
-      face.src = src;
-      face.alt = '';
+    for (const side of ['front', 'back']) {
+      const face = document.createElement('div');
+      face.className = `card trump-card-face trump-card-${side}`;
+      face.style.backgroundImage = `url('${cardImage(display.card)}')`;
+      face.style.setProperty('--card-color', cardMark(display.card).color);
+      face.innerHTML = cardMarksHTML(display.card);
+      face.setAttribute('aria-hidden', 'true');
       rotor.append(face);
     }
     card.append(rotor);

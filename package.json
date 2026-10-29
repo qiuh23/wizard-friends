@@ -7,6 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build && node scripts/build-info.mjs",
     "test:layout": "node scripts/layout-review.mjs",
+    "test:cards": "node scripts/card-face-review.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --test tests/*.test.js",
     "check": "node scripts/check-syntax.mjs",

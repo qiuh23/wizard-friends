@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, addPlayer, act, spectatorView, viewFor, botAction } from '../src/game.js';
-import { DEFAULT_OPTIONS } from '../src/rules-vote.js';
+import { DEFAULT_OPTIONS } from '../src/rules-options.js';
 
 function game(options = {}) {
   const g = createGame();
@@ -66,27 +66,21 @@ test('first-round foresight never exposes any player hand to spectators', () => 
   }
 });
 
-test('spectator voting progress excludes private ballots and choices, even on a second sanitization', () => {
+test('spectator discards legacy private ballots even on a second sanitization', () => {
   const g = createGame();
   for (const id of ['host', 'guest', 'third']) addPlayer(g, id, id);
-  act(g, 'host', { type: 'beginVote' });
-  act(g, 'host', { type: 'vote', choices: { ...DEFAULT_OPTIONS, predictionMode: 'secret' } });
-  g.vote.token = 'VOTE_PRIVATE';
+  g.vote = { ballots: { host: { predictionMode: 'secret', token: 'VOTE_PRIVATE' } } };
   const view = spectatorView(g);
-  assert.equal(view.phase, 'rules'); assert.deepEqual(view.vote.submitted, ['host']);
-  assert.equal(view.vote.targetRound, 1);
-  assert.equal(view.vote.ballots, undefined); assert.equal(view.vote.ownChoices, null);
-  assert.deepEqual(view.vote.resolved, {});
+  assert.equal(view.phase, 'lobby'); assert.equal(view.vote, undefined);
   assert.ok(!JSON.stringify(view).includes('VOTE_PRIVATE'));
   assert.deepEqual(spectatorView(view), view);
 });
 
 for (const deckMode of ['standard', 'mono']) for (const predictionMode of ['hidden', 'secret']) {
-  test(`${deckMode} later-round spectator keeps settled history and vote progress but sees no foresight hands or locked ${predictionMode} bids`, () => {
+  test(`${deckMode} later-round spectator keeps settled history and fixed options but sees no foresight hands or locked ${predictionMode} bids`, () => {
     const g = createGame();
     for (const id of ['host', 'guest', 'third']) addPlayer(g, id, id);
-    act(g, 'host', { type: 'beginVote' });
-    for (const p of g.players) act(g, p.id, { type: 'vote', choices: { ...DEFAULT_OPTIONS, deckMode, predictionMode: 'secret' } });
+    act(g, 'host', { type: 'configure', options: { ...DEFAULT_OPTIONS, deckMode, predictionMode, foresight: true } });
     act(g, 'host', { type: 'start' }, () => .5);
     let steps = 0;
     while (g.phase !== 'roundEnd' && steps++ < 1000) {
@@ -104,19 +98,9 @@ for (const deckMode of ['standard', 'mono']) for (const predictionMode of ['hidd
     act(g, 'host', { type: 'next' });
     let visible = spectatorView(g);
     assert.deepEqual(visible.history, settled.history);
-    assert.deepEqual(visible.players.map(p => p.bid), settled.players.map(p => p.bid));
-    assert.equal(visible.history[0].options.predictionMode, 'secret');
-    assert.equal(visible.vote.targetRound, 2);
-    assert.deepEqual(visible.vote.resolved, { deckMode, short: false });
-    const choices = { predictionMode, strict: true, foresight: true };
-    act(g, 'guest', { type: 'vote', choices });
-    visible = spectatorView(g);
-    assert.deepEqual(visible.vote.submitted, ['guest']);
-    assert.equal(visible.vote.ownChoices, null);
-    assert.equal(visible.vote.ballots, undefined);
-    for (const p of g.players.filter(p => p.id !== 'guest')) act(g, p.id, { type: 'vote', choices });
-    assert.deepEqual(spectatorView(spectatorView(g)), spectatorView(g));
-    act(g, 'host', { type: 'start' }, () => .5);
+    assert.equal(visible.history[0].options.predictionMode, predictionMode);
+    assert.equal(visible.vote, undefined);
+    assert.deepEqual(visible.options, g.options);
     if (g.phase === 'trump') act(g, g.players[g.dealer].id, { type: 'trump', suit: 'blue' });
     assert.equal(viewFor(g, 'guest').foresightActive, true);
     assert.ok(viewFor(g, 'guest').players.filter(p => p.id !== 'guest').every(p => p.hand.length === g.cardsPerRound));

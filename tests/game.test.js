@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { deck, shuffled, winner, legalCards, leadSuit, points, createGame, addPlayer, act, viewFor, allowedBids, botAction, normalizeGame, TURN_MS } from '../src/game.js';
-import { DEFAULT_OPTIONS } from '../src/rules-vote.js';
+import { DEFAULT_OPTIONS } from '../src/rules-options.js';
 const n = (suit, rank) => ({ id: `${suit}-${rank}`, kind: 'number', suit, rank });
 const w = { id: 'wizard-0', kind: 'wizard' }, j = { id: 'jester-0', kind: 'jester' };
 const trick = (...cards) => cards.map((card, player) => ({ player, card }));
@@ -10,8 +10,7 @@ test('30-second turns are host-authoritative, survive social actions, and clear 
   t.mock.method(Date, 'now', () => now);
   const g = createGame();
   for (let i = 0; i < 3; i++) addPlayer(g, `p${i}`, `玩家${i}`);
-  act(g, 'p0', { type: 'beginVote' });
-  for (const p of g.players) act(g, p.id, { type: 'vote', choices: { ...DEFAULT_OPTIONS, short: true } });
+  act(g, 'p0', { type: 'configure', options: { ...DEFAULT_OPTIONS, short: true } });
   act(g, 'p0', { type: 'start' }, () => .5);
   if (g.phase === 'trump') act(g, 'p0', { type: 'trump', suit: 'red' });
   while (g.phase === 'bid') act(g, g.players[g.turn].id, { type: 'bid', value: 0 });
@@ -88,8 +87,7 @@ function setup(count = 3) {
   return g;
 }
 function start(g, options = {}, random = Math.random) {
-  act(g, 'p0', { type: 'beginVote' });
-  act(g, 'p0', { type: 'vote', choices: { ...DEFAULT_OPTIONS, ...options } });
+  act(g, 'p0', { type: 'configure', options: { ...DEFAULT_OPTIONS, ...options } });
   act(g, 'p0', { type: 'start' }, random);
   g.players[0].bot = true;
 }
@@ -157,8 +155,6 @@ for (const count of [3, 4, 5, 6]) for (const strict of [false, true]) {
       if (g.phase === 'roundEnd') {
         g.players[0].bot = false;
         act(g, 'p0', { type: 'next' });
-        act(g, 'p0', { type: 'vote', choices: { predictionMode: 'public', strict, foresight: false } });
-        act(g, 'p0', { type: 'start' });
         g.players[0].bot = true;
       } else if (g.phase === 'trickEnd') act(g, 'p0', { type: 'next' });
       else act(g, g.players[g.turn].id, botAction(g));

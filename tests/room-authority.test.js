@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RoomAuthority, NORMAL_RETENTION_MS, PAUSED_RETENTION_MS, CONTINUATION_MS, RESULTS_MS, RECONNECT_GRACE_MS } from '../worker/room-authority.js';
-import { DEFAULT_OPTIONS } from '../src/rules-vote.js';
+import { DEFAULT_OPTIONS } from '../src/rules-options.js';
 
 function setup() {
   let now = 100000;
@@ -12,8 +12,7 @@ function setup() {
   const send = (who, message) => room.handle(who, message, now);
   const advance = ms => { now += ms; room.tick(now); };
   const start = () => {
-    send(host, { type: 'action', action: { type: 'beginVote' } });
-    for (const who of [host, a, b]) send(who, { type: 'action', action: { type: 'vote', choices: { ...DEFAULT_OPTIONS, short: true } } });
+    send(host, { type: 'action', action: { type: 'configure', options: { ...DEFAULT_OPTIONS, short: true } } });
     send(host, { type: 'action', action: { type: 'start' } });
     if (room.game.phase === 'trump') send([host, a, b].find(i => i.id === room.game.players[room.game.turn].id), { type: 'action', action: { type: 'trump', suit: 'blue' } });
     while (room.game.phase === 'bid') send([host, a, b].find(i => i.id === room.game.players[room.game.turn].id), { type: 'action', action: { type: 'bid', value: 0 } });
@@ -162,15 +161,14 @@ test('paused AI task resumes its exact remaining delay instead of playing during
   s.advance(1); assert.equal(s.room.game.trick.length, 1);
 });
 
-test('pending per-round vote survives persistence with its private ballots and public progress intact', () => {
-  const s = setup(); s.send(s.host, { type: 'action', action: { type: 'beginVote' } });
-  s.send(s.a, { type: 'action', action: { type: 'vote', choices: DEFAULT_OPTIONS } });
+test('host options survive authority persistence and guests cannot edit them', () => {
+  const s = setup(), options = { ...DEFAULT_OPTIONS, predictionMode: 'secret', foresight: true };
+  s.send(s.host, { type: 'action', action: { type: 'configure', options } });
   const resumed = new RoomAuthority(structuredClone(s.room.record), s.now());
-  assert.deepEqual(resumed.game.vote.ballots[s.a.id], DEFAULT_OPTIONS);
-  assert.deepEqual(resumed.view(s.host).vote.submitted, [s.a.id]);
-  assert.equal(resumed.view(s.host).vote.ownChoices, null);
-  assert.deepEqual(resumed.view(s.a).vote.ownChoices, DEFAULT_OPTIONS);
-  assert.equal(JSON.stringify(resumed.view({ id: 'observer', spectator: true })).includes('ballots'), false);
+  assert.deepEqual(resumed.game.options, options);
+  assert.deepEqual(resumed.view(s.a).options, options);
+  assert.throws(() => resumed.handle(s.a, { type: 'action', action: { type: 'configure', options: DEFAULT_OPTIONS } }, s.now()), /房主/);
+  assert.equal(resumed.view(s.host).vote, undefined);
 });
 
 test('every online human result confirmation closes a completed continuation before the upper deadline', () => {
@@ -214,4 +212,22 @@ test('a system bot handoff also freezes a previously disconnected next seat budg
   assert.equal(s.room.record.frozen.remaining, 30450);
   s.advance(3000); s.room.join('a-hash', {}, s.now());
   assert.equal(s.room.game.turnDeadline - s.now(), 30450);
+});
+
+test('trick results hold for five seconds and pausing preserves the remaining review instead of skipping it', () => {
+  const s = setup(); s.start();
+  Object.assign(s.room.game, { round: 2, cardsPerRound: 2, completedTricks: 0, turn: 0, trump: null });
+  s.room.game.players.forEach((p, i) => { p.hand = [1, 2].map(n => ({ id: `blue-${i * 2 + n}`, kind: 'number', suit: 'blue', rank: i * 2 + n })); });
+  for (const who of [s.host, s.a, s.b]) s.send(who, { type: 'action', action: { type: 'play', card: s.room.game.players.find(p => p.id === who.id).hand[0].id } });
+  assert.equal(s.room.game.phase, 'trickEnd');
+  assert.equal(s.room.view(s.a, 0, s.now()).lifecycle.reviewRemainingMs, 5000);
+  assert.throws(() => s.send(s.host, { type: 'action', action: { type: 'next' } }), /看完/);
+  s.advance(4000); assert.equal(s.room.game.phase, 'trickEnd');
+  s.send(s.host, { type: 'pause' }); s.advance(60000);
+  assert.equal(s.room.view(s.a, 0, s.now()).lifecycle.reviewRemainingMs, 1000);
+  s.send(s.a, { type: 'action', action: { type: 'chat', text: '看看胜因' } });
+  s.send(s.host, { type: 'resume' }); s.advance(999);
+  assert.equal(s.room.game.phase, 'trickEnd'); s.advance(1);
+  assert.equal(s.room.game.phase, 'play'); assert.equal(s.room.game.turn, 2);
+  assert.equal(s.room.game.turnDeadline, s.now() + 30450);
 });

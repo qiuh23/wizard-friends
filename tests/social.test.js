@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, addPlayer, act, viewFor } from '../src/game.js';
 import { trumpStyle, TRUMP_COLORS } from '../src/trump-style.js';
-import { DEFAULT_OPTIONS } from '../src/rules-vote.js';
+import { DEFAULT_OPTIONS } from '../src/rules-options.js';
 function room() {
   const game = createGame();
   addPlayer(game, 'host', '房主');
@@ -11,8 +11,7 @@ function room() {
   return game;
 }
 function start(game) {
-  act(game, 'host', { type: 'beginVote' });
-  for (const id of ['host', 'guest']) act(game, id, { type: 'vote', choices: { ...DEFAULT_OPTIONS, short: true } });
+  act(game, 'host', { type: 'configure', options: { ...DEFAULT_OPTIONS, short: true } });
   act(game, 'host', { type: 'start' });
 }
 test('rename is authenticated, self-only, validated, and independent of turn', () => {

@@ -47,8 +47,8 @@ test('host sends validated actions to authority and never receives raw guest rou
   assert.equal(s.statuses.at(-1), 'connected');
   ws.receive({ type: 'joined', id: 'one' });
   assert.deepEqual(s.inbound, []);
-  assert.equal(s.transport.send({ type: 'action', action: { type: 'beginVote' } }), true);
-  assert.deepEqual(ws.sent.at(-1), { type: 'send', data: { type: 'action', action: { type: 'beginVote' } } });
+  assert.equal(s.transport.send({ type: 'action', action: { type: 'start' } }), true);
+  assert.deepEqual(ws.sent.at(-1), { type: 'send', data: { type: 'action', action: { type: 'start' } } });
 });
 test('host reconnect drops migrated full snapshot and only service publishes metadata', t => {
   const s = setup(t, { host: true, snapshot: { secret: true }, identities: { token: 'seat' } });

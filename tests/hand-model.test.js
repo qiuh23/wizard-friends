@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { relativeSeat, seatPosition, targetStatus, isSwipe, playBlockedReason, sortCards, desktopFan, compactPlayedPosition } from '../src/hand-model.js';
+import { landscapeSeatPosition, relativeSeat, seatPosition, targetStatus, isSwipe, playBlockedReason, sortCards, desktopFan, compactPlayedPosition } from '../src/hand-model.js';
 import { savePractice, readPractice, PRACTICE_SAVE_KEY, PRACTICE_KEEP_MS } from '../src/practice-save.js';
 test('3–6 seats keep the viewer below without changing action indices', () => {
   for (let n = 3; n <= 6; n++) for (let self = 0; self < n; self++) {
@@ -55,4 +55,16 @@ test('compact played slots keep real seat identity and use two columns for six c
  }
  const six=Array.from({length:6},(_,i)=>compactPlayedPosition(i,0,6,390));
  assert.equal(new Set(six.map(p=>p.x)).size,2);
+});
+
+test('all screen layouts keep successive seats in a physical clockwise cycle for every viewer', () => {
+  for (const count of [3,4,5,6]) for (let self = 0; self < count; self++) {
+    for (const position of [seatPosition, landscapeSeatPosition]) {
+      const ring = Array.from({length:count}, (_, offset) => position((self + offset) % count, self, count));
+      const area = ring.reduce((sum, a, i) => { const b = ring[(i + 1) % count]; return sum + a.x*b.y - b.x*a.y; }, 0);
+      assert.ok(area > 0, 'screen coordinates trace clockwise');
+      assert.equal(ring[0].seat, 0);
+      assert.ok(ring[1].x < ring.at(-1).x, 'next player is on the clockwise left side');
+    }
+  }
 });

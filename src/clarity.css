@@ -103,7 +103,7 @@ body[data-screen="game"].has-webgl .played.winner > small {
 }
 body[data-screen="game"] .played.winner .played-value { color: #3c2709; font-weight: 700; }
 .table-menu-panel button, .close-scores { min-height: 44px; font-size: 15px; }
-.table-menu-panel, #music-panel { max-height: calc(100dvh - 80px - env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; }
+.table-menu-panel { max-height: calc(100dvh - 80px - env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; }
 .table-menu-panel > p { font-size: 14px; color: #ddd3b9; }
 .scoreboard .section-label { font-size: 16px; color: #f1d9a6; }
 .score-row { font-size: 15px; }
@@ -120,9 +120,6 @@ body[data-screen="game"] .played.winner .played-value { color: #3c2709; font-wei
 #chat-messages b { font-size: 13px; color: #e2c78d; }
 .social-panel form input, .social-panel form button { font-size: 15px; min-height: 44px; }
 .social-heading button { min-width: 44px; min-height: 44px; }
-.music-heading, #music-mute, #music-panel label { font-size: 15px; }
-#music-mute, #music-close { min-height: 44px; }
-#music-volume { height: 28px; }
 .notice { font-size: 14px; padding: 13px 18px; }
 .modal p, .modal li { color: #e1e6dc; font-size: 15px; }
 @media(max-width:700px) {

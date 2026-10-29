@@ -1,13 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, addPlayer, act, viewFor, botAction, winner, monoDeck, allowedBids, normalizeGame } from '../src/game.js';
-import { DEFAULT_OPTIONS } from '../src/rules-vote.js';
+import { DEFAULT_OPTIONS } from '../src/rules-options.js';
 
 function start(options = {}, count = 3) {
   const g = createGame();
   for (let i = 0; i < count; i++) addPlayer(g, `p${i}`, `玩家${i}`, i > 0);
-  act(g, 'p0', { type: 'beginVote' });
-  act(g, 'p0', { type: 'vote', choices: { ...DEFAULT_OPTIONS, ...options } });
+  act(g, 'p0', { type: 'configure', options: { ...DEFAULT_OPTIONS, ...options } });
   act(g, 'p0', { type: 'start' }, () => 0.5);
   g.players[0].bot = true;
   return g;
@@ -16,14 +15,8 @@ function enterBid(g) {
   if (g.phase === 'trump') act(g, g.players[g.turn].id, { type: 'trump', suit: 'red' });
   assert.equal(g.phase, 'bid');
 }
-function advanceRound(g, options = {}) {
-  const nextOptions = { ...g.options, ...options };
-  g.players[0].bot = false;
-  act(g, 'p0', { type: 'next' });
-  const choices = Object.fromEntries(Object.keys(g.vote.pending).map(key => [key, nextOptions[key]]));
-  act(g, 'p0', { type: 'vote', choices });
-  act(g, 'p0', { type: 'start' }, () => 0.37);
-  g.players[0].bot = true;
+function advanceRound(g) {
+  act(g, 'p0', { type: 'next' }, () => 0.37);
 }
 function step(g) {
   if (g.phase === 'roundEnd') return advanceRound(g);
@@ -190,19 +183,19 @@ test('restoring legacy snapshot supplies defaults without restarting or altering
   assert.deepEqual(legacy.options, { ...DEFAULT_OPTIONS, strict: true });
   assert.equal(legacy.cardsPerRound, legacy.round);
   const { options, cardsPerRound, rulesVersion, ...restored } = legacy;
-  assert.equal(rulesVersion, 2);
+  assert.equal(rulesVersion, 3);
   const { options: oldOptions, ...original } = before;
   assert.deepEqual(restored, original);
   assert.notEqual(legacy.phase, 'rules');
   while (legacy.phase !== 'roundEnd') step(legacy);
   legacy.players[0].bot = false;
   act(legacy, 'p0', { type: 'next' });
-  assert.equal(legacy.phase, 'rules');
-  assert.equal(legacy.vote.targetRound, 2);
-  assert.deepEqual(Object.keys(legacy.vote.pending).sort(), ['foresight', 'predictionMode', 'strict']);
+  assert.ok(['trump', 'bid'].includes(legacy.phase));
+  assert.equal(legacy.round, 2);
+  assert.equal(legacy.vote, undefined);
 });
 
-test('legacy later-round foresight stays inactive on restore while current per-round selection remains active', () => {
+test('legacy later-round foresight stays inactive on restore while current whole-game selection remains active', () => {
   const current = start({ deckMode: 'mono', foresight: true });
   while (current.phase !== 'roundEnd') step(current);
   advanceRound(current);
@@ -212,7 +205,7 @@ test('legacy later-round foresight stays inactive on restore while current per-r
   delete legacy.rulesVersion;
   const hand = structuredClone(legacy.players[0].hand);
   normalizeGame(legacy);
-  assert.equal(legacy.rulesVersion, 2);
+  assert.equal(legacy.rulesVersion, 3);
   assert.equal(legacy.options.foresight, false);
   assert.deepEqual(viewFor(legacy, 'p0').players[0].hand, hand);
   assert.equal(viewFor(legacy, 'p0').foresightActive, false);
@@ -220,51 +213,7 @@ test('legacy later-round foresight stays inactive on restore while current per-r
   assert.equal(current.options.foresight, true);
   assert.equal(viewFor(current, 'p0').players[0].hand, undefined);
   while (legacy.phase !== 'roundEnd') step(legacy);
-  advanceRound(legacy, { foresight: true });
+  advanceRound(legacy);
   assert.equal(legacy.round, 3);
-  assert.equal(viewFor(legacy, 'p0').foresightActive, true);
+  assert.equal(viewFor(legacy, 'p0').foresightActive, false);
 });
-
-for (const deckMode of ['standard', 'mono']) for (const predictionMode of ['hidden', 'secret']) {
-  test(`${deckMode} switches public to ${predictionMode} on round two with foresight and switches it off on round three`, () => {
-    const g = start({ deckMode, short: true, strict: true, foresight: false });
-    while (g.phase !== 'roundEnd') step(g);
-    const firstOptions = { ...g.options };
-    advanceRound(g, { predictionMode, strict: true, foresight: true });
-    enterBid(g);
-    assert.equal(g.round, 2);
-    assert.equal(g.options.strict, false);
-    assert.equal(g.cardsPerRound, deckMode === 'mono' ? 5 : 2);
-    const ownCards = g.players[0].hand.map(c => c.id);
-    let visible = JSON.parse(JSON.stringify(viewFor(g, 'p0')));
-    assert.equal(visible.foresightActive, true);
-    assert.equal(visible.players[0].hand, undefined);
-    assert.ok(visible.players.slice(1).every(p => p.hand.length === g.cardsPerRound));
-    for (const id of ownCards) assert.ok(!JSON.stringify(visible).includes(`"id":"${id}"`));
-    act(g, 'p1', { type: 'bid', value: 2 });
-    visible = JSON.parse(JSON.stringify(viewFor(g, 'p0')));
-    assert.equal(visible.players[1].bid, null);
-    assert.equal(visible.players[1].bidSubmitted, true);
-    assert.ok(!visible.log.some(line => line.includes('预言 2 墩')));
-    while (g.phase === 'bid') step(g);
-    visible = JSON.parse(JSON.stringify(viewFor(g, 'p0')));
-    assert.equal(visible.foresightActive, false);
-    assert.deepEqual(visible.players[0].hand.map(c => c.id), ownCards);
-    assert.ok(visible.players.slice(1).every(p => !('hand' in p)));
-    assert.equal(visible.players[1].bid, predictionMode === 'secret' ? null : 2);
-    while (g.phase !== 'roundEnd') step(g);
-    assert.deepEqual(g.history[0].options, firstOptions);
-    assert.equal(g.history[1].options.predictionMode, predictionMode);
-    assert.equal(g.history[1].options.foresight, true);
-    advanceRound(g, { predictionMode: 'public', strict: true, foresight: false });
-    enterBid(g);
-    visible = viewFor(g, 'p0');
-    assert.equal(g.round, 3);
-    assert.equal(g.dealer, 2);
-    assert.equal(g.options.strict, true);
-    assert.equal(visible.foresightActive, false);
-    assert.ok(visible.players[0].hand.length > 0);
-    assert.ok(visible.players.slice(1).every(p => !('hand' in p)));
-    assert.equal(g.players.filter(p => viewFor(g, p.id).canBid).length, 1);
-  });
-}

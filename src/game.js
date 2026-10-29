@@ -1,6 +1,6 @@
 import { createRandomStream, validRandomStream, shuffle } from './random.js';
 import { resolveName, validateName } from './player-names.js';
-import { DEFAULT_OPTIONS, RULE_CHOICES, normalizeOptions, beginVote, submitVote, voteView } from './rules-vote.js';
+import { DEFAULT_OPTIONS, RULE_CHOICES, normalizeOptions, validateOptions } from './rules-options.js';
 
 export const SUITS = ['blue', 'red', 'green', 'yellow'];
 export const SUIT_NAMES = { blue: '蓝 · 冰霜', red: '红 · 烈焰', green: '绿 · 森林', yellow: '黄 · 星辰' };
@@ -50,7 +50,7 @@ export function winner(trick, trump, deckMode = 'standard') {
 export const points = (bid, won) => bid === won ? 20 + won * 10 : -10 * Math.abs(bid - won);
 export function createGame() {
   return {
-    phase: 'lobby', players: [], round: 0, cardsPerRound: 0, dealer: 0, turn: 0, rulesVersion: 2,
+    phase: 'lobby', players: [], round: 0, cardsPerRound: 0, dealer: 0, turn: 0, rulesVersion: 3,
     trump: null, reveal: null, trick: [], history: [], log: [], options: { ...DEFAULT_OPTIONS },
     randomState: createRandomStream(), events: [], eventSeq: 0, playedCards: [],
   };
@@ -63,10 +63,16 @@ export function normalizeGame(g) {
   // Before per-round voting, foresight applied only to round one even when its option stayed true.
   if ((g.rulesVersion ?? 1) < 2) {
     if (g.round > 1) g.options.foresight = false;
-    g.rulesVersion = 2;
   }
   g.cardsPerRound ??= g.round + (g.options.deckMode === 'mono' && g.round ? 3 : 0);
-  if (g.vote) g.vote.targetRound ??= g.round + 1;
+  // Retire old rule ballots without dealing again or discarding settled scores.
+  if (g.phase === 'rules') {
+    if (!g.round) g.options = normalizeOptions({ ...g.options, ...g.vote?.resolved });
+    g.phase = g.round ? 'roundEnd' : 'lobby';
+  }
+  delete g.vote;
+  g.rulesVersion = 3;
+  g.players.forEach(p => { p.matchWins = Number.isSafeInteger(p.matchWins) && p.matchWins >= 0 ? p.matchWins : 0; });
   return g;
 }
 export function addPlayer(g, id, name, bot = false, automatic = false) {
@@ -74,7 +80,7 @@ export function addPlayer(g, id, name, bot = false, automatic = false) {
   if (g.players.some(p => p.id === id)) throw new Error('玩家已在房间。');
   if (!automatic) validateName(name);
   const resolved = resolveName(name, g.players.map(p => p.name), { automatic });
-  g.players.push({ id, name: resolved, automaticName: automatic, bot, ...(bot ? { botDifficulty: 'smart' } : {}), score: 0, bid: null, won: 0, hand: [], online: true });
+  g.players.push({ id, name: resolved, automaticName: automatic, bot, ...(bot ? { botDifficulty: 'smart' } : {}), score: 0, matchWins: 0, bid: null, won: 0, hand: [], online: true });
 }
 function deal(g, random) {
   g.round++;
@@ -116,15 +122,8 @@ function canBid(g, id) {
 function foresightActive(g) {
   return !!g.options.foresight && ['trump', 'bid'].includes(g.phase);
 }
-function openRules(g) {
-  if (g.players.length < 3 || g.players.length > 6 ||
-      g.players.some(p => !p.online) || !g.players.some(p => !p.bot)) {
-    throw new Error('需要 3–6 位在线玩家，由房主发起规则投票。');
-  }
-  g.vote = { ...beginVote(g.players, g.round ? g.options : undefined), targetRound: g.round + 1 };
-  g.phase = 'rules';
-}
 export const TURN_MS = 30000;
+export const TRICK_REVIEW_MS = 5000;
 export function act(g, actor, action, random, now = Date.now()) {
   const phase = g.phase, turn = g.turn;
   if (g.paused === true && !['chat', 'rename'].includes(action?.type)) throw Error('房主已暂停牌局。');
@@ -145,6 +144,7 @@ export function act(g, actor, action, random, now = Date.now()) {
 }
 function applyAction(g, actor, action, randomSource, timedOut = false, now = Date.now()) {
   if (!action || typeof action !== 'object') throw new Error('无效操作。');
+  if (['beginVote', 'vote', 'cancelVote'].includes(action.type)) throw new Error('规则已改为房主在开局前选择，请刷新页面。');
   if (action.type === 'chat' || action.type === 'rename') {
     const member = g.players.find(p => p.id === actor && p.online && !p.bot);
     if (!member) throw new Error('只有已入座的在线玩家可以操作。');
@@ -162,7 +162,7 @@ function applyAction(g, actor, action, randomSource, timedOut = false, now = Dat
     return;
   }
   const host = g.players[0];
-  if (['beginVote', 'cancelVote', 'start', 'rematch', 'next', 'timeout'].includes(action.type) &&
+  if (['configure', 'start', 'rematch', 'next', 'timeout'].includes(action.type) &&
       (actor !== host?.id || !host.online)) throw new Error('等待房主操作。');
   if (action.type === 'timeout') {
     if (g.phase !== 'play' || !Number.isFinite(g.turnDeadline) || now < g.turnDeadline) throw new Error('尚未到出牌超时时间。');
@@ -175,47 +175,39 @@ function applyAction(g, actor, action, randomSource, timedOut = false, now = Dat
     g.log.push(`${player.name} 超时，已自动出牌。`);
     return;
   }
-  if (action.type === 'beginVote') {
-    if (g.phase !== 'lobby') throw new Error('请在大厅发起首轮规则投票。');
-    openRules(g);
-    return;
-  }
-  if (action.type === 'vote' && g.phase === 'rules') {
-    submitVote(g.vote, g.players, actor, action.choices);
-    return;
-  }
-  if (action.type === 'cancelVote') {
-    if (g.phase !== 'rules') throw new Error('当前没有规则投票。');
-    delete g.vote;
-    g.phase = g.round ? 'roundEnd' : 'lobby';
+  if (action.type === 'configure') {
+    if (g.phase !== 'lobby') throw new Error('整局规则只能在游戏开始前选择。');
+    g.options = validateOptions(action.options, g.players.length);
     return;
   }
   if (action.type === 'start') {
-    if (g.phase !== 'rules' || !g.vote || Object.keys(g.vote.pending).length ||
-        g.players.some(p => !p.online)) throw new Error('等待全员在线并完成规则投票。');
-    g.options = normalizeOptions(g.vote.resolved);
-    if (g.round === 0) {
-      g.maxRounds = g.options.short ? 5 : g.options.deckMode === 'mono' ? 12 : Math.floor(60 / g.players.length);
-      if (g.options.deckMode === 'mono') {
-        const suits = shuffled(SUITS, randomSource());
-        g.players.forEach((p, index) => { p.monoSuit = suits[index]; });
-      }
-    } else g.dealer = (g.dealer + 1) % g.players.length;
-    delete g.vote;
+    if (g.phase !== 'lobby' || g.players.length < 3 || g.players.length > 6 ||
+        g.players.some(p => !p.online) || !g.players.some(p => !p.bot)) throw new Error('需要 3–6 位在线玩家，由房主开始游戏。');
+    const options = validateOptions(Object.hasOwn(action, 'options') ? action.options : g.options, g.players.length);
+    g.options = options;
+    g.maxRounds = options.short ? 5 : options.deckMode === 'mono' ? 12 : Math.floor(60 / g.players.length);
+    if (options.deckMode === 'mono') {
+      const suits = shuffled(SUITS, randomSource());
+      g.players.forEach((p, index) => { p.monoSuit = suits[index]; });
+    }
     deal(g, randomSource());
     return;
   }
   if (action.type === 'rematch') {
     if (g.phase !== 'finished') throw new Error('本局结束后才能再来一局。');
     const players = g.players.map(({ monoSuit, ...p }) => ({ ...p, score: 0, bid: null, won: 0, hand: [] }));
-    const { chat, chatSeq, eventSeq = 0 } = g;
+    const { chat, chatSeq, eventSeq = 0, options } = g;
     for (const key of Object.keys(g)) delete g[key];
-    Object.assign(g, createGame(), { players, eventSeq }, chat ? { chat, chatSeq } : {});
+    Object.assign(g, createGame(), { players, eventSeq, options }, chat ? { chat, chatSeq } : {});
     return;
   }
   if (action.type === 'next') {
     if (!['trickEnd', 'roundEnd'].includes(g.phase)) throw new Error('等待房主继续。');
-    if (g.phase === 'roundEnd') openRules(g);
+    if (g.phase === 'roundEnd') {
+      if (g.players.some(p => !p.online)) throw new Error('等待所有玩家重连后开始下一轮。');
+      g.dealer = (g.dealer + 1) % g.players.length;
+      deal(g, randomSource());
+    }
     else { g.trick = []; g.turn = g.lastWinner; g.phase = 'play'; }
     return;
   }
@@ -263,6 +255,10 @@ function applyAction(g, actor, action, randomSource, timedOut = false, now = Dat
         });
         g.history.push({ round: g.round, cardsPerRound: g.cardsPerRound ?? g.round, options: { ...g.options }, result });
         g.phase = g.round === g.maxRounds ? 'finished' : 'roundEnd';
+        if (g.phase === 'finished') {
+          const highScore = Math.max(...g.players.map(x => x.score));
+          g.players.filter(x => x.score === highScore).forEach(x => { x.matchWins = (x.matchWins ?? 0) + 1; });
+        }
         if (g.options.predictionMode === 'secret') g.log.push(...g.players.map(x => `${x.name} 预言 ${x.bid} 墩。`));
       }
     }
@@ -316,20 +312,8 @@ function publicOptions(source) {
   return normalizeOptions(Object.fromEntries(Object.entries(RULE_CHOICES)
     .filter(([key, values]) => values.includes(source?.[key])).map(([key]) => [key, source[key]])));
 }
-function publicVote(vote, id) {
-  const visible = voteView(vote, id);
-  if (!visible) return null;
-  const choices = source => Object.fromEntries(Object.entries(RULE_CHOICES)
-    .filter(([key, values]) => values.includes(source?.[key])).map(([key]) => [key, source[key]]));
-  return { ...visible,
-    pending: Object.fromEntries(Object.entries(RULE_CHOICES).filter(([key]) => Array.isArray(visible.pending?.[key]))
-      .map(([key, values]) => [key, visible.pending[key].filter(value => values.includes(value))])),
-    resolved: choices(visible.resolved),
-    ownChoices: visible.ownChoices ? choices(visible.ownChoices) : null,
-  };
-}
 export function viewFor(g, id) {
-  const { vote, players } = g;
+  const { players } = g;
   // Never spread authority state here: random keys, deck state, identity maps and lifecycle
   // implementation fields are private even if added by a future engine/controller version.
   const fields = ['phase', 'round', 'cardsPerRound', 'dealer', 'turn', 'rulesVersion', 'trump',
@@ -355,11 +339,10 @@ export function viewFor(g, id) {
     ...(g.publicEventSeq != null ? { publicEventSeq: g.publicEventSeq } : {}),
     events: publicGameEvents(g), eventSeq: g.eventSeq ?? 0,
     playedCards: (g.playedCards ?? []).map(({ player, card }) => ({ player, card: safeCard(card) })),
-    vote: publicVote(vote, id),
     foresightActive: foresight,
     cardsPerRound: g.cardsPerRound ?? g.round,
     players: players.map(p => {
-      const publicPlayer = Object.fromEntries(['id', 'name', 'automaticName', 'bot', 'botDifficulty', 'score', 'won', 'online', 'monoSuit']
+      const publicPlayer = Object.fromEntries(['id', 'name', 'automaticName', 'bot', 'botDifficulty', 'score', 'matchWins', 'won', 'online', 'monoSuit']
         .filter(key => Object.hasOwn(p, key)).map(key => [key, p[key]]));
       const showHand = seated && (foresight ? p.id !== id : p.id === id);
       return { ...publicPlayer, bid: hiddenBids && p.id !== id ? null : p.bid,
@@ -374,18 +357,8 @@ export function viewFor(g, id) {
 export function spectatorView(g) {
   const options = publicOptions(g.options);
   const players = g.players.map(player => ({ ...player, hand: Array.isArray(player.hand) ? player.hand : [] }));
-  const sourceVote = g.vote;
-  const vote = sourceVote ? {
-    round: sourceVote.round,
-    targetRound: sourceVote.targetRound,
-    pending: Object.fromEntries(Object.entries(RULE_CHOICES).filter(([key]) => Array.isArray(sourceVote.pending?.[key]))
-      .map(([key, values]) => [key, sourceVote.pending[key].filter(value => values.includes(value))])),
-    resolved: Object.fromEntries(Object.entries(RULE_CHOICES).filter(([key, values]) => values.includes(sourceVote.resolved?.[key]))
-      .map(([key]) => [key, sourceVote.resolved[key]])),
-    ballots: {},
-  } : null;
   // A Symbol cannot match a player seat, even if a caller supplies an existing spectator ID.
-  const visible = viewFor({ ...g, options, players, vote }, Symbol('spectator'));
+  const visible = viewFor({ ...g, options, players }, Symbol('spectator'));
   const hiddenBids = options.predictionMode === 'secret' ? ['trump', 'bid', 'play', 'trickEnd'].includes(g.phase) :
     options.predictionMode === 'hidden' && ['trump', 'bid'].includes(g.phase);
   const number = (value, fallback = 0) => Number.isFinite(value) ? value : fallback;
@@ -406,7 +379,7 @@ export function spectatorView(g) {
     turnDeadline: Number.isFinite(visible.turnDeadline) ? visible.turnDeadline : null,
     players: visible.players.map((player, index) => ({
       id: typeof player.id === 'string' ? player.id : '', name: typeof player.name === 'string' ? player.name : '', automaticName: player.automaticName === true,
-      bot: player.bot === true, ...(player.bot ? { botDifficulty: player.botDifficulty === 'simple' ? 'simple' : 'smart' } : {}), online: player.online === true, score: number(player.score), won: number(player.won),
+      bot: player.bot === true, ...(player.bot ? { botDifficulty: player.botDifficulty === 'simple' ? 'simple' : 'smart' } : {}), online: player.online === true, score: number(player.score), won: number(player.won), matchWins: number(player.matchWins),
       bid: hiddenBids || !Number.isInteger(player.bid) ? null : player.bid,
       bidSubmitted: g.players[index].bidSubmitted === true || g.players[index].bid != null,
       count: Array.isArray(g.players[index].hand) ? g.players[index].hand.length : Math.max(0, number(g.players[index].count)),
@@ -436,13 +409,6 @@ export function spectatorView(g) {
     events: publicGameEvents(visible), eventSeq: number(visible.eventSeq),
     playedCards: (visible.playedCards ?? []).map(({ player, card: played }) => ({ player, card: card(played) })),
     spectatorCount: Math.max(0, Math.min(50, Math.floor(number(visible.spectatorCount)))),
-    vote: vote ? {
-      round: number(vote.round), targetRound: number(vote.targetRound, number(visible.round) + 1),
-      pending: vote.pending, resolved: vote.resolved,
-      submitted: (Array.isArray(sourceVote.submitted) ? sourceVote.submitted : Object.keys(sourceVote.ballots || {}))
-        .filter(id => players.some(player => player.id === id)),
-      ownChoices: null, complete: Object.keys(vote.pending).length === 0,
-    } : null,
     spectator: true, foresightActive: false, canBid: false, legal: [], bids: [],
   };
 }

@@ -1,14 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, addPlayer, act, spectatorView } from '../src/game.js';
-import { DEFAULT_OPTIONS } from '../src/rules-vote.js';
+import { DEFAULT_OPTIONS } from '../src/rules-options.js';
 import { applyPublicAction, appendPublicEvent } from '../src/spectator-events.js';
 
 function start(predictionMode = 'public') {
   const game = createGame();
   for (let i = 0; i < 3; i++) addPlayer(game, `p${i}`, `玩家${i}`, i > 0);
-  act(game, 'p0', { type: 'beginVote' });
-  act(game, 'p0', { type: 'vote', choices: { ...DEFAULT_OPTIONS, predictionMode, short: true } });
+  act(game, 'p0', { type: 'configure', options: { ...DEFAULT_OPTIONS, predictionMode, short: true } });
   act(game, 'p0', { type: 'start' }, () => .5);
   game.players.forEach(player => { player.bot = false; });
   if (game.phase === 'trump') applyPublicAction(game, game.players[game.turn].id, { type: 'trump', suit: 'blue' });
@@ -42,12 +41,11 @@ test('public card plays, winning seat and round scoring are retained for a late 
   assert.ok(events.some(event => event.startsWith('第 1 轮结算：')));
 });
 
-test('public events distinguish first and later round votes from starting a new trick', () => {
+test('public events distinguish whole-game setup and successive rounds from starting a new trick', () => {
   const game = createGame();
   for (let i = 0; i < 3; i++) addPlayer(game, `p${i}`, `玩家${i}`);
-  applyPublicAction(game, 'p0', { type: 'beginVote' });
-  assert.equal(game.publicEvents.at(-1).text, '房主发起第 1 轮规则投票');
-  for (const p of game.players) applyPublicAction(game, p.id, { type: 'vote', choices: { ...DEFAULT_OPTIONS, predictionMode: 'secret' } });
+  applyPublicAction(game, 'p0', { type: 'configure', options: { ...DEFAULT_OPTIONS, predictionMode: 'secret' } });
+  assert.equal(game.publicEvents.at(-1).text, '房主更新了整局规则');
   applyPublicAction(game, 'p0', { type: 'start' });
   if (game.phase === 'trump') applyPublicAction(game, game.players[game.dealer].id, { type: 'trump', suit: 'blue' });
   for (const p of game.players) applyPublicAction(game, p.id, { type: 'bid', value: 0 });
@@ -59,13 +57,8 @@ test('public events distinguish first and later round votes from starting a new 
   const scoringEvents = game.publicEvents.filter(event => event.text.startsWith('第 1 轮结算：'));
   assert.equal(scoringEvents.length, 1);
   applyPublicAction(game, 'p0', { type: 'next' });
-  assert.equal(game.phase, 'rules');
-  assert.equal(game.round, 1);
-  assert.equal(game.publicEvents.at(-1).text, '房主发起第 2 轮规则投票');
   assert.deepEqual(game.publicEvents.filter(event => event.text.startsWith('第 1 轮结算：')), scoringEvents);
   assert.ok(!game.publicEvents.some(event => event.text.startsWith('下一墩开始')));
-  for (const p of game.players) applyPublicAction(game, p.id, { type: 'vote', choices: { predictionMode: 'secret', strict: false, foresight: true } });
-  applyPublicAction(game, 'p0', { type: 'start' });
   assert.equal(game.publicEvents.at(-1).text, '第 2 轮开始，每人 2 张牌');
   assert.equal(game.round, 2);
 });

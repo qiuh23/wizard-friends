@@ -1,6 +1,6 @@
 /* Material tokens: quiet felt, readable parchment, brass for goals, ice for selection. */
 :root { --table-felt:#08231c;--table-panel:#10291f;--table-brass:#c4a66e;--table-parchment:#f3ead6;--table-selection:#8ce1ed;--table-danger:#e9aa9c; }
-/* The table remains decorative; all identity, numbers and actions are real DOM. */
+/* Controls and player identity use DOM; physical card numbers share its texture. */
 body[data-screen="game"] { --hand-height: 168px; --hand-bottom: 64px; background:#071d18; }
 body[data-screen="game"] .table { background:radial-gradient(ellipse at 50% 40%,#183d32,#08231c 78%); }
 body[data-screen="game"] button, .room-operations button { min-height:44px; min-width:44px; }
@@ -179,9 +179,9 @@ body[data-screen="game"] .hand.hand-grid .card,body[data-screen="game"] .hand.ha
  body[data-screen="game"] .selected-preview .card {width:54px;height:81px;}
  body[data-screen="game"] .selected-preview > span,body[data-screen="game"] .selected-preview > small{font-size:9px;padding:2px;}
 }
-body[data-screen="game"] .played.collect-winner { animation:collect-to-seat 1.4s ease-in-out forwards; }
+body[data-screen="game"] .played.collect-winner { animation:collect-to-seat 5s ease-in-out forwards; }
 body[data-screen="game"] .played.collect-winner .card { animation:none; }
-@keyframes collect-to-seat { 0%,48%{translate:0 0;opacity:1;}85%,100%{translate:var(--winner-dx) var(--winner-dy);scale:.35;opacity:0;} }
+@keyframes collect-to-seat { 0%,84%{translate:0 0;opacity:1;}100%{translate:var(--winner-dx) var(--winner-dy);scale:.35;opacity:0;} }
 /* In WebGL the face is a real Three.js mesh at this DOM anchor; fallback remains HTML. */
 body[data-screen="game"].has-webgl .played .card { visibility:hidden; }
 body[data-screen="game"] .table .scene-host:after { background:linear-gradient(#08251c66,transparent 35%,#08251c33); }
@@ -251,9 +251,10 @@ body[data-screen="game"] .player .prediction .target-secret b {font-size:12px;fo
 /* Compact public metrics stay on one line; unknown targets use neutral text. */
 body[data-screen="game"] .player .prediction > span {flex-direction:row;justify-content:center;align-items:baseline;gap:3px;}
 body[data-screen="game"] .player .prediction .target-secret {flex-direction:column;gap:0;align-items:center;}
-body[data-screen="game"] .played > small {white-space:normal;}
+body[data-screen="game"] .played > small {display:inline-flex;align-items:center;justify-content:center;gap:3px;white-space:nowrap;}
 .played-name,.played-state {display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.25;}
-.played-state {min-height:15px;}
+.played-name {flex:0 1 auto;min-width:0;}
+.played-state {flex:0 0 auto;min-height:0;}
 @media(max-width:850px) {
  body[data-screen="game"]:has(.own-action) .own-status {bottom:calc(var(--hand-height) + 62px);row-gap:4px;}
  .own-action {grid-column:1 / -1;display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:5px;border-top:1px solid #c4a66e55;min-height:30px;}
@@ -264,7 +265,7 @@ body[data-screen="game"] .played > small {white-space:normal;}
  body[data-screen="game"]:has(.own-action) .action-panel {display:none;}
  body[data-screen="game"]:has(.own-action) .opponents {bottom:calc(var(--hand-height) + 155px);}
  body[data-screen="game"]:has(.own-action) .played-cards,body[data-screen="game"].has-webgl:has(.own-action) .played-cards,body[data-screen="game"]:not(.has-webgl):has(.own-action) .played-cards {bottom:calc(var(--hand-height) + 155px);}
- body[data-screen="game"] .played > small,body[data-screen="game"].has-webgl .played > small {width:clamp(56px,calc(20vw - 6px),80px);max-width:none;font-size:12px;padding:3px 2px;white-space:normal;}
+ body[data-screen="game"] .played > small,body[data-screen="game"].has-webgl .played > small {width:clamp(56px,calc(20vw - 6px),80px);max-width:none;font-size:12px;padding:3px 2px;white-space:nowrap;}
  .played-name,.played-state {font-size:12px;}
  body[data-screen="game"].hand-expanded:has(.own-action) .opponents,body[data-screen="game"].hand-expanded:has(.own-action) .played-cards,body[data-screen="game"].hand-expanded.has-webgl:has(.own-action) .played-cards {bottom:313px;}
 }
@@ -326,10 +327,6 @@ body[data-screen="game"] .played > small {white-space:normal;}
  body[data-screen="game"] .trump-display .table-trump {left:0;top:35px;}
  body[data-screen="game"] .selected-preview {left:15px;right:auto;bottom:172px;width:90px;}
 }
-/* Readable corner overlays share the same face anchor as the physical card. */
-body[data-screen="game"].has-webgl .played .card {transform:none;}
-body[data-screen="game"].has-webgl .played .card > .corner:not(.bottom) {visibility:visible;top:2px;left:2px;padding:2px 3px;color:#fff0cb;background:#0b1518ee;border-radius:3px;font-size:18px;line-height:1;}
-body[data-screen="game"].has-webgl .played .card > .corner:not(.bottom) small {font-size:10px;margin-top:2px;}
 @media(max-width:850px) and (orientation:portrait) {
  body[data-screen="game"] .trump-display .table-trump,body[data-screen="game"] .trump-display:has(.trump-neutral-sigil) .table-trump {position:fixed;left:10px;top:8px;transform:none;width:140px;max-width:140px;min-height:44px;padding:4px 7px;font-size:12px;border-radius:7px;}
  body[data-screen="game"] .trump-neutral-sigil {display:none;}

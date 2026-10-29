@@ -1,4 +1,4 @@
-import { createGame, normalizeGame, addPlayer, act, botAction, viewFor, spectatorView, SUIT_NAMES, TURN_MS } from '../src/game.js';
+import { createGame, normalizeGame, addPlayer, act, botAction, viewFor, spectatorView, SUIT_NAMES, TURN_MS, TRICK_REVIEW_MS } from '../src/game.js';
 import { appendPublicEvent } from '../src/spectator-events.js';
 
 export const NORMAL_RETENTION_MS = 30 * 60 * 1000;
@@ -87,8 +87,9 @@ export class RoomAuthority {
   }
   execute(actor, action, now, system = false) {
     if (!system && ['timeout'].includes(action?.type)) throw new Error('自动出牌仅由房间服务执行。');
-    if (this.life.closeAfterRound && ['beginVote', 'start', 'rematch'].includes(action?.type)) throw new Error('续赛仅完成当前轮，结果确认后关闭。');
+    if (this.life.closeAfterRound && ['configure', 'start', 'rematch'].includes(action?.type)) throw new Error('续赛仅完成当前轮，结果确认后关闭。');
     if (this.life.closeAfterRound && action?.type === 'next' && this.game.phase !== 'trickEnd') throw new Error('当前轮结束后关闭房间。');
+    if (!system && action?.type === 'next' && this.game.phase === 'trickEnd' && now < (this.record.task?.at ?? now)) throw new Error('请先看完本墩结算，稍后会自动继续。');
     const before = spectatorView(this.game);
     const frozenDeadline = this.game.turnDeadline;
     const phase = this.game.phase, turn = this.game.turn;
@@ -124,12 +125,10 @@ export class RoomAuthority {
     else if (action.type === 'trump') append(`${name} 选择主牌：${SUIT_NAMES[after.trump]?.split(' · ')[0]}`);
     else if (action.type === 'rename') append(`${before.players.find(p => p.id === actor)?.name || '玩家'} 改名为 ${name}`);
     else if (action.type === 'chat') append(`${name} 发送消息：${action.text.trim()}`);
-    else if (action.type === 'beginVote') append(`房主发起第 ${after.vote.targetRound} 轮规则投票`);
-    else if (action.type === 'vote') append(`${name} 已提交规则投票`);
-    else if (action.type === 'cancelVote') append('房主取消规则投票');
+    else if (action.type === 'configure') append('房主更新了整局规则');
     else if (action.type === 'rematch') append('房主开启新的一局');
     if (after.round > before.round) append(`第 ${after.round} 轮开始，每人 ${after.cardsPerRound} 张牌`);
-    else if (action.type === 'next') append(after.phase === 'rules' ? `房主发起第 ${after.vote.targetRound} 轮规则投票` : `下一墩开始，${after.players[after.turn]?.name} 先出牌`);
+    else if (action.type === 'next') append(`下一墩开始，${after.players[after.turn]?.name} 先出牌`);
     if (after.completedTricks > (before.completedTricks || 0) && after.lastWinner != null) append(`${after.players[after.lastWinner]?.name} 赢下第 ${after.completedTricks} 墩`);
     if (after.history.length > before.history.length) append(`第 ${after.round} 轮结算：${after.history.at(-1).result.map(result => `${after.players.find(p => p.id === result.id)?.name} ${result.delta >= 0 ? '+' : ''}${result.delta} 分`).join('，')}`);
   }
@@ -235,7 +234,7 @@ export class RoomAuthority {
     const next = this.automaticAction(now);
     if (!next) { this.record.task = null; return; }
     const signature = `${this.game.phase}:${this.game.round}:${this.game.turn}:${this.game.trick.length}:${next.actor}`;
-    if (this.record.task?.signature !== signature) this.record.task = { signature, at: now + (this.game.phase === 'trickEnd' ? 1500 : 750) };
+    if (this.record.task?.signature !== signature) this.record.task = { signature, at: now + (this.game.phase === 'trickEnd' ? TRICK_REVIEW_MS : 750) };
   }
   tick(now = Date.now()) {
     this.expire(now);
@@ -279,6 +278,8 @@ export class RoomAuthority {
       closeAfterRound: this.life.closeAfterRound, resultsDeadline: this.life.resultsDeadline,
       resultsConfirmed: [...this.life.resultsConfirmed],
       remainingMs: this.record.frozen?.remaining ?? (Number.isFinite(this.game.turnDeadline) ? Math.max(0, this.game.turnDeadline - now) : null),
+      nextTrickAt: this.game.phase === 'trickEnd' ? this.record.task?.at ?? null : null,
+      reviewRemainingMs: this.game.phase === 'trickEnd' ? this.record.frozen?.taskRemaining ?? Math.max(0, (this.record.task?.at ?? now) - now) : null,
       reconnecting: this.held(now) && !this.life.paused && !this.life.continuationVote,
       closed: this.closed,
     };

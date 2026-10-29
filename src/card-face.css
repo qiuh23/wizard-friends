@@ -1,0 +1,24 @@
+/* Color and contrast reinforce the original art without adding color words. */
+.card > .corner:not(.bottom) {
+  visibility:visible;position:absolute;left:3px;top:3px;z-index:3;
+  padding:3px 4px;border-radius:3px;background:#0b1518f5;color:#fff0cb;
+  font:700 23px/1 Georgia,serif;text-align:left;white-space:nowrap;
+}
+.card > .corner small { color:var(--card-color);font:700 10px/1.2 sans-serif;margin-top:3px; }
+.card:after { content:'';position:absolute;inset:0;z-index:2;border:2px solid var(--card-color);border-radius:inherit;pointer-events:none; }
+.trump-card-face { margin:0;border:0;box-shadow:none; }
+.trump-card-face > .corner:not(.bottom) { font-size:26px; }
+body[data-screen="game"].has-webgl .played .card,
+body[data-screen="game"].has-webgl .played .card * { visibility:hidden; }
+/* Meshes own their motion; the player name stays at its seat as an identity cue. */
+body[data-screen="game"].has-webgl .played.card-enter,
+body[data-screen="game"].has-webgl .played.collect-winner { animation:none; }
+@media(max-width:850px) {
+  .trump-card-face > .corner:not(.bottom) { font-size:18px;padding:2px; }
+  .trump-card-face > .corner small { font-size:9px; }
+  body[data-screen="game"] .played .card > .corner:not(.bottom) { font-size:18px;padding:2px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  body[data-screen="game"] .played.card-enter,
+  body[data-screen="game"] .played.collect-winner { animation:none; }
+}
