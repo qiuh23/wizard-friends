@@ -72,7 +72,8 @@ try {
     })));
     expect(sides).toHaveLength(2); expect(sides[0]).toEqual(sides[1]);
     const trumpMarks = await page.locator('.trump-card .corner').evaluateAll(nodes => nodes.map(el=>getComputedStyle(el).visibility));
-    expect(trumpMarks.every(value=>value === (webgl ? 'hidden' : 'visible'))).toBe(true);
+    const badge = await page.locator('.trump-display').getAttribute('data-presentation') === 'badge';
+    expect(trumpMarks.every(value=>value === (webgl || badge ? 'hidden' : 'visible'))).toBe(true);
     if (webgl && width === 390) await expect(page.locator('#notice')).toBeEmpty({timeout:6000});
     await page.screenshot({ path: `${out}/card-clarity-${webgl ? '3d' : '2d'}-${width}.png` });
     await page.locator('#cancel-card').click();
@@ -89,13 +90,14 @@ try {
     await page.waitForFunction(() => ['trickEnd', 'roundEnd', 'finished'].includes(document.body.dataset.phase));
     const labels = await page.locator('.played > small').evaluateAll(nodes => nodes.map(node => {
       const name = node.querySelector('.played-name').getBoundingClientRect();
-      const state = node.querySelector('.played-state').getBoundingClientRect();
-      return { nameY: name.y + name.height / 2, stateY: state.y + state.height / 2, state: node.querySelector('.played-state').textContent };
+      const owner = node.getBoundingClientRect();
+      return { nameY: name.y + name.height / 2, ownerY: owner.y + owner.height / 2,
+        badge: getComputedStyle(node.parentElement, '::before').content };
     }));
-    expect(labels.some(label => label.state === '赢墩')).toBe(true);
-    for (const label of labels) expect(Math.abs(label.nameY - label.stateY)).toBeLessThanOrEqual(2);
+    expect(labels.filter(label => label.badge.includes('赢得本墩'))).toHaveLength(1);
+    for (const label of labels) expect(Math.abs(label.nameY - label.ownerY)).toBeLessThanOrEqual(2);
     await page.screenshot({ path: `${out}/card-labels-${webgl ? '3d' : '2d'}-${width}.png` });
-    checks.push({ width, height, graphics: webgl ? '3D' : '2D', identicalTrumpFaces: true, noDetachedMarks: true, singleLineLabels: true });
+    checks.push({ width, height, graphics: webgl ? '3D' : '2D', identicalTrumpFaces: true, noDetachedMarks: true, singleLineOwners: true, distinctWinnerBadge: true });
     await context.close();
   }
 

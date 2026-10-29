@@ -21,10 +21,12 @@ export class HandMotion {
       old.innerHTML=placeholder.innerHTML;placeholder.replaceWith(old);
     }
     this.nodes=[...hand.querySelectorAll('[data-card]')];
-    this.landscape=matchMedia('(orientation:landscape) and (min-width:600px) and (max-height:540px)').matches;
+    this.landscape=document.body.dataset.tableLayout === 'strip';
     const desktop=matchMedia('(min-width:851px) and (min-height:541px)').matches;
     this.canHover=matchMedia('(hover:hover) and (pointer:fine)').matches && (desktop || this.landscape);
-    this.fan=(desktop || this.landscape) && !hand.classList.contains('hand-grid');
+    // A short phone needs real horizontal scrolling for a large hand; fitting
+    // every card into a tiny fan leaves adjacent special cards hard to select.
+    this.fan=(desktop || this.landscape && this.nodes.length<=10) && !hand.classList.contains('hand-grid');
     hand.classList.toggle('desktop-fan',this.fan);
     if(!this.nodes.some(node=>node.dataset.card===this.hovered))this.hovered=null;
     this.layout();

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TableMotion, CARD_COLLECT_MS, LEADING_CARD_SCALE } from '../src/table-motion.js';
+import { TableMotion, CARD_COLLECT_MS, LEADING_CARD_SCALE, COMPACT_LEADING_CARD_SCALE } from '../src/table-motion.js';
 
 function setup() {
   let now = 1000;
@@ -71,17 +71,57 @@ test('six cards sweep in order and remain readable until near the winner, all be
 test('leader emphasis transfers smoothly, survives redraw, and freezes with the table clock', () => {
   const s = setup(); s.play('red-1'); s.play('blue-2');
   const sync = leader => s.motion.sync(s.state, { serverNow: 1000, leader });
-  sync('red-1'); s.advance(180);
+  sync('red-1'); s.advance(220);
   assert.equal(s.motion.pose('red-1').scale, LEADING_CARD_SCALE);
-  sync('blue-2'); s.advance(90);
+  sync('blue-2'); s.advance(110);
   const before = s.motion.pose('blue-2');
   assert.ok(before.scale > 1 && before.scale < LEADING_CARD_SCALE);
   sync('blue-2'); assert.deepEqual(s.motion.pose('blue-2'), before);
   s.state.lifecycle = { paused:true }; sync('blue-2'); s.advance(10000);
   assert.deepEqual(s.motion.pose('blue-2'), before);
-  s.state.lifecycle.paused = false; sync('blue-2'); s.advance(90);
+  s.state.lifecycle.paused = false; sync('blue-2'); s.advance(110);
   assert.equal(s.motion.pose('red-1').scale, 1);
   assert.equal(s.motion.pose('blue-2').scale, LEADING_CARD_SCALE);
+});
+
+test('viewport emphasis changes keep arrival timing and transfer from the interrupted scale', () => {
+  const s = setup(); s.play('wizard-1'); s.play('wizard-2');
+  s.motion.sync(s.state, { leader:'wizard-1', serverNow:1000 });
+  s.advance(110);
+  const first = s.motion.pose('wizard-1'), timing = s.motion.timing('wizard-1');
+  s.motion.setEmphasisScale(COMPACT_LEADING_CARD_SCALE);
+  assert.deepEqual(s.motion.timing('wizard-1'), timing);
+  assert.equal(s.motion.pose('wizard-1').scale, first.scale);
+  s.advance(220);
+  assert.equal(s.motion.pose('wizard-1').scale, COMPACT_LEADING_CARD_SCALE);
+  assert.equal(s.motion.pose('wizard-1').lift, 4);
+  assert.equal(s.motion.pose('wizard-2').scale, 1);
+  s.motion.sync(s.state, { leader:'wizard-2', serverNow:1330 });
+  s.advance(70);
+  const interrupted = s.motion.pose('wizard-2').scale;
+  s.motion.sync(s.state, { leader:'wizard-1', serverNow:1400 });
+  assert.equal(s.motion.pose('wizard-2').scale, interrupted);
+  s.advance(220);
+  assert.equal(s.motion.pose('wizard-1').scale, COMPACT_LEADING_CARD_SCALE);
+  assert.equal(s.motion.pose('wizard-2').scale, 1);
+});
+
+test('recovery and reduced motion show the final maximum immediately without replaying arrivals', () => {
+  const state = { phase:'play', round:2, completedTricks:0, trick:[
+    {card:{id:'jester-1'},player:0}, {card:{id:'jester-2'},player:1}], events:[] };
+  let now = 1000;
+  const motion = new TableMotion(() => now);
+  motion.sync(state, { initial:true, leader:'jester-1', serverNow:now });
+  assert.equal(motion.pose('jester-1').enter, 1);
+  assert.equal(motion.pose('jester-1').scale, LEADING_CARD_SCALE);
+  motion.sync(state, { leader:'jester-2', reducedMotion:true, serverNow:now });
+  assert.deepEqual(motion.pose('jester-2'), {enter:1,collect:0,lift:0,opacity:1,scale:LEADING_CARD_SCALE});
+  assert.equal(motion.pose('jester-1').scale, 1);
+  assert.equal(motion.isAnimating(), false);
+  now += 10000;
+  motion.sync(state, { leader:'jester-2', reducedMotion:false, serverNow:now });
+  assert.equal(motion.pose('jester-2').scale, LEADING_CARD_SCALE);
+  assert.equal(motion.pose('jester-2').enter, 1);
 });
 
 test('practice keeps a manual review visible and a new trick discards old motion', () => {

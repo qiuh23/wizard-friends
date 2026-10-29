@@ -1,0 +1,53 @@
+/* Settled phases give the next action its own fixed, non-scrolling column.
+   Expanding details opens only the bounded details surface above the bar. */
+body[data-screen="game"] .action-panel.settlement-panel {
+  position:fixed;left:315px;right:max(16px,env(safe-area-inset-right));
+  top:auto;bottom:max(12px,env(safe-area-inset-bottom));transform:none;
+  width:auto;max-width:none;max-height:none;min-height:64px;overflow:visible;
+  display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;
+  gap:10px;padding:10px 12px;border:1px solid #c4a66e88;border-radius:9px;
+  background:#0b211cf5;box-shadow:0 5px 24px #0006;z-index:12;
+}
+body[data-screen="game"] .settlement-summary { min-width:0;display:flex;align-items:center;gap:16px; }
+body[data-screen="game"] .settlement-summary .action-title { min-width:0; }
+body[data-screen="game"] .settlement-summary .action-title h3 { font-size:16px;line-height:1.35;overflow-wrap:anywhere;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
+body[data-screen="game"] .settlement-summary .action-title small { display:block;font-size:12px;line-height:1.4;color:#b7e4e3;margin-top:3px; }
+body[data-screen="game"] .settlement-panel .personal-result { display:flex;flex-direction:column;align-items:flex-start;flex:0 0 auto;gap:3px;padding:0;border:0;font-size:12px;line-height:1.4; }
+body[data-screen="game"] .settlement-panel .personal-result > div { display:flex;align-items:baseline;gap:10px; }
+body[data-screen="game"] .settlement-panel .personal-result strong { font-size:24px;color:#f0d292;white-space:nowrap; }
+body[data-screen="game"] .settlement-actions { display:flex;align-items:center;justify-content:flex-end;min-width:0; }
+body[data-screen="game"] .settlement-actions .primary { margin:0;min-height:44px;padding:8px 14px;font-size:15px;line-height:1.25;white-space:normal;max-width:190px; }
+.settlement-wait { font-size:12px;color:#c7d5c2; }
+.settlement-details { min-width:0; }
+.settlement-details > summary { cursor:pointer;min-height:44px;display:flex;align-items:center;padding:6px;color:#c9dcc8;font-size:12px;white-space:nowrap;list-style:none; }
+.settlement-details > summary::before { content:'＋';margin-right:4px; }
+.settlement-details[open] > summary::before { content:'−'; }
+.settlement-details-body { position:absolute;left:0;right:0;bottom:calc(100% + 8px);max-height:min(46dvh,340px);overflow:auto;overscroll-behavior:contain;padding:12px 14px;border:1px solid #c4a66e99;border-radius:9px;background:#0b211cfc;color:#e9e4d5;box-shadow:0 5px 28px #0008;font-size:13px;line-height:1.55; }
+.settlement-details-body p { margin:0 0 10px; }
+.settlement-history { margin-top:12px; }
+.settlement-history h4 { font-size:13px;margin:0 0 5px;color:#ead19d; }
+.settlement-history table { width:100%;border-collapse:collapse;font-size:12px; }
+.settlement-history th,.settlement-history td { padding:5px 7px;border-bottom:1px solid #a99e6c44;text-align:right; }
+.settlement-history th:first-child { text-align:left;max-width:200px;overflow-wrap:anywhere; }
+.settlement-history thead { color:#c4d3be; }
+.settlement-self { background:#d4bb7314; }
+body[data-screen="game"][data-phase="finished"] .played-cards { opacity:1; }
+body[data-screen="game"]:has(.settlement-panel) .hand-section,
+body[data-screen="game"]:has(.settlement-panel) .play-confirm,
+body[data-screen="game"]:has(.settlement-panel) .selected-preview { display:none; }
+@media(max-width:850px) {
+  body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .action-panel.settlement-panel { left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;padding:8px 10px; }
+  body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .settlement-summary { grid-column:1 / -1;justify-content:space-between;gap:8px; }
+  body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .settlement-summary .action-title h3 { font-size:14px; }
+  body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .settlement-panel .personal-result { font-size:11px; }
+  body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .settlement-panel .personal-result strong { font-size:20px; }
+  body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .settlement-actions .primary { max-width:220px;font-size:14px; }
+}
+body[data-screen="game"][data-table-layout="strip"] .action-panel.settlement-panel { left:max(168px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));gap:6px;padding:6px 9px;min-height:58px;max-height:none;overflow:visible; }
+body[data-screen="game"][data-table-layout="strip"] .settlement-summary { gap:12px; }
+body[data-screen="game"][data-table-layout="strip"] .settlement-summary .action-title h3 { font-size:13px; }
+body[data-screen="game"][data-table-layout="strip"] .settlement-summary .action-title small { font-size:11px; }
+body[data-screen="game"][data-table-layout="strip"] .settlement-panel .personal-result { font-size:11px; }
+body[data-screen="game"][data-table-layout="strip"] .settlement-panel .personal-result strong { font-size:21px; }
+body[data-screen="game"][data-table-layout="strip"] .settlement-actions .primary { max-width:170px;font-size:13px;padding:7px 10px; }
+body[data-screen="game"][data-table-layout="strip"] .settlement-details-body { max-height:calc(100dvh - 118px); }

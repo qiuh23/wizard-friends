@@ -28,18 +28,58 @@ export function playedCardRect(node) {
     width: face.offsetWidth, height: face.offsetHeight };
 }
 
+// This mode is shared by DOM seats, controls and the physical-card renderer.
+// A wide phone is still compact when its browser toolbar consumes the height.
+export function tableLayoutMode(width, height) {
+  return width >= 600 && height <= 540 ? 'strip' : width < 600 && height <= 700 ? 'portrait-grid' : 'ring';
+}
+
+export function compactCardSlots(area, seats, preferredWidth, emphasis = 1.22) {
+  let best;
+  for (let columns=1;columns<=seats.length;columns++) {
+    const rows=Math.ceil(seats.length/columns), cellWidth=(area.right-area.left)/columns, cellHeight=(area.bottom-area.top)/rows;
+    const width=Math.min(preferredWidth,(cellWidth-12)/emphasis,(cellHeight-46)/(1.5*emphasis));
+    if(!best || width>best.width)best={columns,rows,width};
+  }
+  const {columns,rows,width}=best, cellWidth=(area.right-area.left)/columns, cellHeight=(area.bottom-area.top)/rows;
+  const height=width*1.5*emphasis+46;
+  return {width,slots:new Map(seats.map((seat,index)=>{
+    const x=area.left+cellWidth*(index%columns+.5),y=area.top+cellHeight*(Math.floor(index/columns)+.5);
+    return [seat.id,{x,y,rect:{left:x-cellWidth/2+4,right:x+cellWidth/2-4,top:y-height/2,bottom:y+height/2}}];
+  }))};
+}
+
+export function stripCardSlots(area, seats, preferredWidth, emphasis = 1.15) {
+  const cell = (area.right - area.left) / seats.length;
+  const width = Math.max(24, Math.min(preferredWidth, (cell - 12) / emphasis,
+    (area.bottom - area.top - 46) / (1.5 * emphasis)));
+  const height = width * 1.5 * emphasis + 46;
+  const y = (area.top + area.bottom) / 2 + 3;
+  return { width, slots: new Map(seats.map((seat, index) => {
+    const x = area.left + cell * (index + .5);
+    return [seat.id, { x, y, rect: { left:x-cell/2+4, right:x+cell/2-4,
+      top:y-height/2, bottom:y+height/2 } }];
+  })) };
+}
+
+// Include a seat number so identical initials and truncated long names remain
+// unambiguous, even when the table has only room for a short owner label.
+export function shortSeatName(name, seat, self = false) {
+  return `${seat + 1} ${self ? '你' : [...name].slice(0, 2).join('')}`;
+}
+
 const intersects = (a, b, gap = 4) => a.left < b.right + gap && a.right > b.left - gap && a.top < b.bottom + gap && a.bottom > b.top - gap;
 
 // Reserve every player's destination, including seats that have not played.
 // Keep each face in its owner's angular sector around the trump. Empty felt
 // in a different player's sector is not a valid destination.
-export function playedCardSlots(area, seats, center, obstacles, preferredWidth, emphasis = 1) {
+export function playedCardSlots(area, seats, center, obstacles, preferredWidth, emphasis = 1, labelSpace = 20) {
   const directions = seats.map(seat=>{
     const length=Math.hypot(seat.x-center.x,seat.y-center.y)||1;
     return {id:seat.id,x:(seat.x-center.x)/length,y:(seat.y-center.y)/length};
   });
   for (const width of [...new Set([1,.92,.84,.76,.68,.6].map(scale => Math.max(36, Math.round(preferredWidth * scale))).concat(36))]) {
-    const slotWidth = Math.max(56, width * emphasis), height = width * 1.5 * emphasis + 20;
+    const slotWidth = Math.max(56, width * emphasis + (labelSpace > 20 ? 6 : 0)), height = width * 1.5 * emphasis + labelSpace;
     const rectAt = (x,y) => ({ left:x-slotWidth/2, right:x+slotWidth/2, top:y-height/2, bottom:y+height/2 });
     const candidates = seats.map(seat => {
       const dx = center.x-seat.x, dy = center.y-seat.y, length2 = Math.max(1,dx*dx+dy*dy);

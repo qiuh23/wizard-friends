@@ -6,7 +6,7 @@ test('trump display uses the actual turned card, including a wizard after its su
   const reveal = { id: 'blue-9', kind: 'number', suit: 'blue', rank: 9 };
   const numbered = trumpPresentation({ phase: 'bid', trump: 'blue', reveal });
   assert.equal(numbered.card, reveal);
-  assert.equal(numbered.label, '主牌 · 蓝 · 冰霜');
+  assert.equal(numbered.label, '本轮主牌：蓝色');
   assert.equal(numbered.compactLabel, '蓝色主牌');
   const wizard = { id: 'wizard-0', kind: 'wizard' };
   assert.equal(trumpPresentation({ phase: 'trump', trump: null, reveal: wizard }).status, 'pending');
