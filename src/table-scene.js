@@ -228,7 +228,7 @@ export class TableScene {
 
     if (this.mode === 'game') {
       const mobile = width <= 600;
-      const distance = THREE.MathUtils.clamp((mobile ? 9.6 : 11.8) / (2 * Math.tan(THREE.MathUtils.degToRad(43 / 2)) * this.camera.aspect), 9, 34);
+      const distance = THREE.MathUtils.clamp((mobile ? 9.6 : 11.8) / (2 * Math.tan(THREE.MathUtils.degToRad(43 / 2)) * this.camera.aspect), height <= 540 && width >= 600 ? 7.7 : 9, 34);
       this.camera.position.set(0, distance * .68, distance * .73);
       // Spend the narrow viewport on readable cards, while fitting a six-card trick.
       const cardScale = mobile ? Math.min(1.7, 6.3 / this.cards.size) : 1;

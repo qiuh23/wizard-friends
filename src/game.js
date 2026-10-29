@@ -29,13 +29,14 @@ export function shuffled(cards, random) {
   }
   return copy;
 }
-export function leadSuit(trick) {
+export function leadSuit(trick, deckMode = 'standard') {
+  if (deckMode === 'mono') return null;
   const first = trick.find(x => x.card.kind !== 'jester');
   return first?.card.kind === 'number' ? first.card.suit : null;
 }
-export function legalCards(hand, trick) {
-  const suit = leadSuit(trick);
-  if (!suit || !hand.some(c => c.suit === suit)) return hand;
+export function legalCards(hand, trick, deckMode = 'standard') {
+  const suit = leadSuit(trick, deckMode);
+  if (!suit || !hand.some(c => c.kind === 'number' && c.suit === suit)) return hand;
   return hand.filter(c => c.kind !== 'number' || c.suit === suit);
 }
 export function winner(trick, trump, deckMode = 'standard') {
@@ -167,7 +168,7 @@ function applyAction(g, actor, action, randomSource, timedOut = false, now = Dat
   if (action.type === 'timeout') {
     if (g.phase !== 'play' || !Number.isFinite(g.turnDeadline) || now < g.turnDeadline) throw new Error('尚未到出牌超时时间。');
     const player = g.players[g.turn];
-    const cards = legalCards(player.hand, g.trick).slice().sort((a, b) =>
+    const cards = legalCards(player.hand, g.trick, g.options.deckMode).slice().sort((a, b) =>
       (a.kind === 'wizard' ? 100 : a.kind === 'jester' ? 0 : a.rank) -
       (b.kind === 'wizard' ? 100 : b.kind === 'jester' ? 0 : b.rank));
     // Only an authorized timeout may play for a disconnected seat.
@@ -236,7 +237,7 @@ function applyAction(g, actor, action, randomSource, timedOut = false, now = Dat
     return;
   }
   if (action.type === 'play' && g.phase === 'play') {
-    const card = legalCards(p.hand, g.trick).find(c => c.id === action.card);
+    const card = legalCards(p.hand, g.trick, g.options.deckMode).find(c => c.id === action.card);
     if (!card) throw new Error('这张牌不能出：有首攻花色时必须跟色，巫师和小丑除外。');
     p.hand.splice(p.hand.findIndex(c => c.id === card.id), 1);
     g.trick.push({ player: g.turn, card });
@@ -349,7 +350,7 @@ export function viewFor(g, id) {
         bidSubmitted: p.bid !== null, count: Array.isArray(p.hand) ? p.hand.length : p.count ?? 0,
         ...(showHand ? { hand: (p.hand ?? []).map(safeCard) } : {}) };
     }),
-    legal: g.phase === 'play' && players[g.turn]?.id === id ? legalCards(players[g.turn].hand, g.trick).map(c => c.id) : [],
+    legal: g.phase === 'play' && players[g.turn]?.id === id ? legalCards(players[g.turn].hand, g.trick, g.options.deckMode).map(c => c.id) : [],
     canBid: canPredict,
     bids: canPredict ? allowedBids(g) : [],
   };
