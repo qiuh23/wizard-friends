@@ -4,12 +4,12 @@ export const CHAT_NOTICE_EXIT_MS = 220;
 export class ChatNotices {
   constructor() { this.reset(); }
   reset() { this.hydrated = false; this.latest = 0; this.items = []; }
-  advance(now = Date.now(), limit = 5) {
+  advance(now = Date.now(), limit = 6) {
     this.items = this.items.filter(n => now < n.expiresAt + CHAT_NOTICE_EXIT_MS).slice(-limit)
       .map(n => ({ ...n, leaving: now >= n.expiresAt }));
     return this.items;
   }
-  update(messages, me, connected, now = Date.now(), limit = 5) {
+  update(messages, me, connected, now = Date.now(), limit = 6) {
     const fresh = connected && this.hydrated ? messages.filter(m => m.seq > this.latest && m.player !== me) : [];
     this.latest = Math.max(this.latest, 0, ...messages.map(m => m.seq));
     this.hydrated = connected;

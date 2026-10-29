@@ -22,10 +22,10 @@ export function seatPosition(index, self, count, radius = 1) {
 export function landscapeSeatPosition(index, self, count) {
   const seat = relativeSeat(index, self, count);
   const ring = {
-    3: [[14,100],[20,35],[80,35]],
-    4: [[14,100],[9,70],[50,12],[91,70]],
-    5: [[14,100],[8,70],[34,20],[66,20],[92,70]],
-    6: [[14,100],[8,70],[25,20],[50,12],[75,20],[92,70]],
+    3: [[14,100],[18,27],[82,27]],
+    4: [[14,100],[6,76],[50,-2],[94,76]],
+    5: [[14,100],[6,76],[32,9],[68,9],[94,76]],
+    6: [[14,100],[6,76],[23,9],[50,-2],[77,9],[94,76]],
   }[count];
   return { seat, x: ring[seat][0], y: ring[seat][1] };
 }

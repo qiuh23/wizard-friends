@@ -80,7 +80,7 @@ export class RoomSocial {
   closeChat() { this.chat.hidden = true; this.refreshButton(); }
   renderNotices() {
     clearTimeout(this.noticeTimer);
-    const now = Date.now(), items = this.notices.advance(now, matchMedia('(max-width:850px)').matches ? 3 : 5);
+    const now = Date.now(), items = this.notices.advance(now, matchMedia('(max-width:850px)').matches ? 4 : 6);
     const ids = new Set(items.map(n => String(n.message.seq)));
     for (const node of [...this.noticeRegion.children]) if (!ids.has(node.dataset.seq)) node.remove();
     for (const notice of items) {
@@ -112,7 +112,7 @@ export class RoomSocial {
     this.latestChat = state.chatSeq || 0;
     const own = state.players.find(p => p.id === me);
     this.root.querySelector('.chat-context').textContent = own ? `${own.name} · 预测 ${own.bid ?? '—'} / 实赢 ${own.won} · ${own.score} 分` : '观战中 · 仅公开信息';
-    this.notices.update(this.messages, me, connected && !document.hidden, Date.now(), matchMedia('(max-width:850px)').matches ? 3 : 5);
+    this.notices.update(this.messages, me, connected && !document.hidden, Date.now(), matchMedia('(max-width:850px)').matches ? 4 : 6);
     if (!this.chat.hidden) this.notices.items = [];
     this.renderNotices();
     this.chatButton = document.createElement('button');

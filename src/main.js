@@ -8,7 +8,7 @@ import './social.css';
 import './clarity.css';
 import { BackgroundMusic } from './music.js';
 import { RoomSocial } from './room-social.js';
-import { renderTrumpDisplay, layoutTrumpDisplay } from './trump-display.js';
+import { trumpPresentation, renderTrumpDisplay, layoutTrumpDisplay } from './trump-display.js';
 import { uniqueRandomName, validateName } from './player-names.js';
 import { ruleSetupHTML, ruleSummary } from './rule-ui.js';
 import { leadInfo, playerTotals, winnerReason, scoreHistoryHTML } from './table-summary.js';
@@ -255,6 +255,7 @@ function render() {
   } else {
     const done = ['trickEnd', 'roundEnd', 'finished'].includes(state.phase);
     const roundEnd = ['roundEnd', 'finished'].includes(state.phase);
+    const trump = trumpPresentation(state);
     const leadOrder = leadInfo(state);
     const landscape = matchMedia('(orientation:landscape) and (min-width:600px) and (max-height:540px)').matches;
     const shortDesktop = matchMedia('(min-width:851px) and (max-height:800px)').matches;
@@ -270,7 +271,7 @@ function render() {
     const followHint = followSuitHint(state, me);
     const ownResult = state.history.at(-1)?.round === state.round ? state.history.at(-1).result.find(r => r.id === me) : null;
     const roundResult = roundEnd && ownResult ? `<section class="personal-result"><b>第 ${state.round} 轮 · ${ownResult.bid === ownResult.won ? '预言成功' : '本轮结算'}</b><span>预测 ${ownResult.bid} 墩 · 实赢 ${ownResult.won} 墩</span><strong>${ownResult.delta >= 0 ? '+' : ''}${ownResult.delta} 分</strong><span>${ownResult.bid === ownResult.won ? `猜中：20 + 10 × ${ownResult.won}` : `相差 ${Math.abs(ownResult.bid - ownResult.won)} 墩 × −10`} · 累计 ${ownResult.total - ownResult.delta} → ${ownResult.total}</span></section>` : '';
-    body = `<div class="game-layout"><main><div class="roundbar"><span>第 <b>${state.round}</b> / ${state.maxRounds} 轮<em class="compact-trump"> · ${state.trump ? `${SUIT_NAMES[state.trump].split(' · ')[0]}色主牌` : '无主牌'}</em></span><span>第 ${Math.min(state.cardsPerRound, done ? state.completedTricks : state.completedTricks + 1)} 墩 · 余 ${Math.max(0, state.cardsPerRound - state.completedTricks)} 墩 · 顺时针 ↻</span>${leadOrder ? `<span class="lead-order">${leadHint}</span>` : ''}</div><section class="table">${tableDecorHTML()}<div class="table-ring"></div><div class="opponents" data-count="${state.players.length}" aria-label="围桌席位">${state.players.filter(x => x.id !== me).map(x => {
+    body = `<div class="game-layout"><main><div class="roundbar"><span>第 <b>${state.round}</b> / ${state.maxRounds} 轮<em class="compact-trump" style="--trump-color:${trump.color}" role="status" aria-live="polite" aria-atomic="true" aria-label="${escape(trump.label)}" title="${escape(trump.label)}"> · ${escape(trump.compactLabel)}</em></span><span>第 ${Math.min(state.cardsPerRound, done ? state.completedTricks : state.completedTricks + 1)} 墩 · 余 ${Math.max(0, state.cardsPerRound - state.completedTricks)} 墩 · 顺时针 ↻</span>${leadOrder ? `<span class="lead-order">${leadHint}</span>` : ''}</div><section class="table">${tableDecorHTML()}<div class="table-ring"></div><div class="opponents" data-count="${state.players.length}" aria-label="围桌席位">${state.players.filter(x => x.id !== me).map(x => {
       const i = state.players.findIndex(y => y.id === x.id), pos = (landscape || shortDesktop ? landscapeSeatPosition : seatPosition)(i, selfIndex, state.players.length);
       const identity = `${x.name} · 实赢 ${x.won} · 预测 ${x.bid ?? (x.bidSubmitted ? '已锁定' : '未预测')}${i === state.dealer ? ' · 庄家' : ''}${!x.online ? ' · 离线' : ''}`;
       return `<div class="player ${leadOrder?.seat === i ? 'lead-seat' : ''} ${!x.online ? 'offline' : ''} ${!done && !(state.phase === 'bid' && state.options.predictionMode !== 'public') && state.turn === i ? 'active' : ''}" role="group" aria-label="${escape(identity)}" data-seat="${pos.seat}" data-player="${escape(x.id)}" style="--seat-x:${pos.x}%;--seat-y:${pos.y}%" title="${escape(identity)}">${avatarHTML(x, i, leadOrder?.seat === i ? leadOrder : null)}<span class="prediction"><span title="实赢墩数"><small>赢</small><b>${x.won}</b></span><span title="预测墩数" class="${Number.isInteger(x.bid) ? '' : 'target-secret'}"><small>估</small><b>${x.bid ?? (x.bidSubmitted ? '✓' : '—')}</b></span></span></div>`;
