@@ -67,13 +67,14 @@ try {
     expect(onFace).not.toMatch(/蓝|红|绿|黄/);
     const before = await yellow.evaluate(el => el.style.getPropertyValue('--card-color'));
     expect(before).toBe('#f3cf66');
-    const sides = await page.locator('.trump-card-face').evaluateAll(faces => faces.map(face => ({
-      art: face.style.backgroundImage, mark: face.textContent, color: face.style.getPropertyValue('--card-color'),
-    })));
-    expect(sides).toHaveLength(2); expect(sides[0]).toEqual(sides[1]);
-    const trumpMarks = await page.locator('.trump-card .corner').evaluateAll(nodes => nodes.map(el=>getComputedStyle(el).visibility));
-    const badge = await page.locator('.trump-display').getAttribute('data-presentation') === 'badge';
-    expect(trumpMarks.every(value=>value === (webgl || badge ? 'hidden' : 'visible'))).toBe(true);
+    await expect(page.locator('.trump-card,.trump-reveal')).toHaveCount(0);
+    await page.locator('.table-trump').click();
+    const preview = page.locator('.trump-preview-face');
+    await expect(preview).toBeVisible();
+    const original = record.game.reveal;
+    await expect(preview.locator('.card-value')).toHaveText(original.kind==='number'?String(original.rank):original.kind==='wizard'?'W':'J');
+    expect(await preview.evaluate(face=>face.style.backgroundImage)).toContain(original.kind==='number'?`${original.suit}-${String(original.rank).padStart(2,'0')}`:original.kind);
+    await page.getByRole('button',{name:'返回牌桌',exact:true}).click();
     if (webgl && width === 390) await expect(page.locator('#notice')).toBeEmpty({timeout:6000});
     await page.screenshot({ path: `${out}/card-clarity-${webgl ? '3d' : '2d'}-${width}.png` });
     await page.locator('#cancel-card').click();
@@ -97,7 +98,7 @@ try {
     expect(labels.filter(label => label.badge.includes('赢得本墩'))).toHaveLength(1);
     for (const label of labels) expect(Math.abs(label.nameY - label.ownerY)).toBeLessThanOrEqual(2);
     await page.screenshot({ path: `${out}/card-labels-${webgl ? '3d' : '2d'}-${width}.png` });
-    checks.push({ width, height, graphics: webgl ? '3D' : '2D', identicalTrumpFaces: true, noDetachedMarks: true, singleLineOwners: true, distinctWinnerBadge: true });
+    checks.push({ width, height, graphics: webgl ? '3D' : '2D', originalTrumpPreview: true, noDetachedMarks: true, singleLineOwners: true, distinctWinnerBadge: true });
     await context.close();
   }
 

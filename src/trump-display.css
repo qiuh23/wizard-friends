@@ -1,66 +1,57 @@
-.trump-display {
-  position: absolute; z-index: 2; top: 37%; left: 50%;
-  width: 0; height: 0; pointer-events: none;
+/* Settled information stays static. Both renderers share one temporary reveal. */
+body[data-screen="game"] .table .trump-display {
+  position:absolute;z-index:4;width:max-content;height:auto;pointer-events:none;
 }
-.trump-display .table-trump {
-  top: 0; left: 76px; transform: translateY(-50%);
-  width: max-content; max-width: min(280px, 34vw);
-  line-height: 1.6; border: 1px solid color-mix(in srgb, var(--trump-color) 22%, transparent);
-  text-shadow: 0 1px 8px #000; white-space: normal;
+body[data-screen="game"] .table .trump-display .table-trump {
+  display:flex;align-items:center;gap:6px;position:static;transform:none;
+  width:max-content;max-width:210px;min-height:32px;padding:4px 8px;margin:0;
+  border:1px solid #e6cf8c44;border-radius:6px;background:#10251ee8;
+  color:var(--trump-color);font-family:inherit;font-size:13px;font-weight:500;line-height:1.45;white-space:nowrap;
+  text-shadow:0 1px 4px #000;pointer-events:auto;
 }
-.trump-display .table-trump:before { flex-shrink: 0; }
-.trump-card {
-  position: absolute; width: 100px; height: 150px;
-  left: -50px; top: -75px; perspective: 700px;
-  animation: trump-float 4.8s ease-in-out infinite;
+body[data-screen="game"] .table .trump-display .table-trump::before { display:none; }
+body[data-screen="game"] .table .trump-display .table-trump:hover { transform:none; }
+.trump-suit-icon { display:inline-grid;place-items:center;width:22px;height:22px;flex-shrink:0;font-size:19px; }
+/* Prediction/choice remains usable beside the reveal, including when motion
+   is disabled. Public card slots and settlement keep their existing layout. */
+body[data-screen="game"][data-table-layout="strip"]:is([data-phase="bid"],[data-phase="trump"]) .action-panel:not(.settlement-panel) {
+  left:auto;right:max(10px,env(safe-area-inset-right));bottom:100px;transform:none;
+  width:280px;max-width:34vw;padding:6px;flex-direction:column;gap:6px;
 }
-.trump-card-rotor {
-  width: 100%; height: 100%; position: relative; transform-style: preserve-3d;
-  animation: trump-turn 16s linear infinite;
+body[data-screen="game"][data-table-layout="strip"] .action-panel:has(.trump-options) .trump-options { display:flex;flex-wrap:wrap;justify-content:center;gap:4px; }
+body[data-screen="game"][data-table-layout="strip"] .action-panel:has(.trump-options) button { padding:7px 10px;min-height:36px; }
+.trump-reveal { position:fixed;inset:0;z-index:11;pointer-events:none; }
+.trump-reveal * { pointer-events:none; }
+.trump-reveal-card { position:absolute;left:0;top:0;transform-origin:center;perspective:900px;will-change:transform,opacity; }
+.trump-reveal-rotor { width:100%;height:100%;position:relative;transform-style:preserve-3d; }
+.trump-reveal .trump-card-face,.trump-reveal-back {
+  position:absolute;inset:0;width:100%;height:100%;margin:0;border-radius:6px;
+  backface-visibility:hidden;box-shadow:0 6px 20px #00130d66;opacity:1;
 }
-.trump-card .trump-card-face {
-  position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 5px;
-  backface-visibility: hidden; box-shadow: 0 0 18px color-mix(in srgb, var(--trump-color) 22%, transparent);
+.trump-reveal .trump-reveal-front { transform:translateZ(1px);background-size:cover; }
+.trump-reveal-back {
+  display:grid;place-items:center;transform:rotateY(180deg) translateZ(1px);
+  border:4px double #c7b27c;background:repeating-linear-gradient(45deg,#213c3b 0 7px,#294a47 7px 14px);
+  color:#e3cc92;font-size:38px;text-shadow:0 1px 6px #00150e;
 }
-.trump-card-front { transform: translateZ(1.5px); }
-.trump-card-back { transform: rotateY(180deg) translateZ(1.5px); }
-.has-webgl .trump-card { display: none; }
-.trump-neutral-sigil {
-  display: block; transform: translate(-50%, -50%); color: var(--trump-color);
-  width: 60px; text-align: center; opacity: .45; font-size: 54px; line-height: 1; text-shadow: 0 0 30px currentColor;
+.trump-reveal .trump-card-face > .corner:not(.bottom) { font-size:clamp(23px,3.2vh,32px); }
+.trump-reveal .trump-card-face > .corner small { font-size:12px; }
+.trump-reveal-sheen {
+  position:absolute;inset:-1px;padding:2px;border-radius:6px;opacity:0;
+  background:linear-gradient(110deg,transparent 35%,#fff1b9 50%,transparent 65%) 100% 0 / 300% 100%;
+  mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;
 }
-.trump-display:has(.trump-neutral-sigil) .table-trump { left: 40px; }
-body[data-screen="game"] .table:has(.foresight-hands) .trump-display { top: 51%; }
-body[data-screen="game"]:not(.has-webgl) .played-cards { inset: 52% 10% auto; }
-@keyframes trump-turn { from { transform: rotateY(-18deg); } to { transform: rotateY(342deg); } }
-@keyframes trump-float { 50% { translate: 0 -9px; } }
-@media(max-width:600px) {
-  .trump-display { top: 42%; }
-  .trump-display .table-trump,
-  .trump-display:has(.trump-neutral-sigil) .table-trump {
-    top: -82px; left: 0; transform: translate(-50%, -50%);
-    max-width: 85vw; font-size: 14px; padding: 7px 12px;
-  }
-  .trump-card { width: 74px; height: 111px; left: -37px; top: -55.5px; }
-  body[data-screen="game"]:not(.has-webgl) .trump-display { top: 35%; }
-  body[data-screen="game"]:not(.has-webgl) .played-cards { inset: 50% 3% auto; }
-  body[data-screen="game"] .table:has(.foresight-hands) .trump-display { top: 49%; }
-  .table:has(.foresight-hands) .trump-display .table-trump { top: 75px; }
-  .table:has(.foresight-hands) .trump-display:has(.trump-neutral-sigil) .table-trump { top: 45px; }
+.trump-reveal-label {
+  position:absolute;transform:translateX(-50%);width:max-content;max-width:90vw;
+  padding:5px 12px;border:1px solid color-mix(in srgb,var(--trump-color) 45%,transparent);
+  border-radius:6px;background:#10251ef2;color:var(--trump-color);font-size:14px;
+  line-height:1.5;text-align:center;opacity:0;box-shadow:0 3px 12px #00150d55;
 }
-@media(max-height:520px) and (min-width:601px) {
-  .trump-display { top: 39%; }
-  .trump-card { width: 58px; height: 87px; left: -29px; top: -43.5px; }
-  .trump-display .table-trump { left: 47px; font-size: 13px; }
-  body[data-screen="game"]:not(.has-webgl) .played-cards { top: 50%; }
+body[data-screen="game"] .trump-preview { border:1px solid #d8c58d;border-radius:12px;background:#102b23;color:#f3ead6;padding:20px;text-align:center;pointer-events:auto;max-height:90dvh;overflow:auto; }
+.trump-preview::backdrop { background:#00100bba; }
+body[data-screen="game"] .trump-preview .trump-preview-face { display:block;width:128px;height:192px;margin:10px auto 18px;visibility:visible;background-size:cover; }
+body[data-screen="game"] .trump-preview .corner { visibility:visible; }
+@media(max-width:600px),(max-height:540px) {
+  body[data-screen="game"] .table .trump-display .table-trump { font-size:12px;min-height:30px;padding:3px 6px;gap:4px; }
+  .trump-reveal-label { font-size:13px;padding:4px 9px; }
 }
-@media(prefers-reduced-motion:reduce) {
-  .trump-card, .trump-card-rotor { animation: none; }
-  .trump-card-rotor { transform: rotateY(-18deg); }
-}
-/* Explicit opt-in takes priority over the global reduced-motion rule. */
-body[data-trump-motion="on"] .trump-card { animation: trump-float 4.8s ease-in-out infinite !important; }
-body[data-trump-motion="on"] .trump-card-rotor { animation: trump-turn 16s linear infinite !important; }
-body[data-trump-motion="off"] .trump-card,
-body[data-trump-motion="off"] .trump-card-rotor { animation: none; }
-body[data-trump-motion="off"] .trump-card-rotor { transform: rotateY(-18deg); }

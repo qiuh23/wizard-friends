@@ -99,7 +99,8 @@ async function checkVariantGame() {
   await expect(page.locator('.concealed-hand')).toContainText('4 张手牌暂时保密');
   expect(await page.locator('.hand .card').count()).toBe(0);
   expect(await page.locator('.foresight-hands .card').count()).toBe(8);
-  await expect(page.locator('.table-trump')).toHaveText('无主牌 · 单色牌库');
+  await expect(page.locator('.table-trump')).toContainText('本轮无主牌');
+  await expect(page.locator('.table-trump')).toHaveAttribute('title','本轮无主牌 · 单色牌库');
   const trumpBounds = await page.locator('.table-trump').boundingBox();
   const foresightBounds = await page.locator('.foresight-hands').boundingBox();
   expect(trumpBounds).not.toBeNull();
@@ -171,9 +172,9 @@ try {
   await reduced.locator('#quick-settings > summary').click();
   await reduced.getByRole('button', { name: '主牌动画：关', exact: true }).click();
   await expect(reduced.locator('#trump-motion')).toHaveAttribute('aria-pressed', 'true');
-  const movingFrame = await trumpFrame();
-  await reduced.waitForTimeout(1000);
-  expect((await trumpFrame()).equals(movingFrame)).toBe(false);
+  // The preference is remembered, but the system's reduced-motion request
+  // continues to take effect, including an explicitly enabled reveal setting.
+  await expectStillTrump();
   await reduced.reload();
   await reduced.locator('.scene-host.ready canvas').waitFor({ timeout: 20000 });
   await reduced.locator('#quick-settings > summary').click();
@@ -196,19 +197,20 @@ try {
   await page.locator('#quick-settings > summary').click();
   await page.locator('#practice').click();
   await page.locator('#start').click();
-  await expect(page.locator('.trump-card')).toBeVisible();
+  await expect(page.locator('.table-trump')).toBeVisible();
+  await expect(page.locator('.trump-card,.trump-reveal')).toHaveCount(0);
   expect(await page.locator('.trump-marker').count()).toBe(0);
-  const animationNames = await page.locator('.trump-card, .trump-card-rotor').evaluateAll(elements => elements.map(el => getComputedStyle(el).animationName));
-  expect(animationNames).toEqual(['none', 'none']);
+  expect(await page.locator('.trump-suit-icon').evaluate(node=>node.getAnimations().length)).toBe(0);
   await page.locator('#table-menu').click();
   await page.getByRole('button', { name: '主牌动画：关', exact: true }).click();
-  const enabledAnimations = await page.locator('.trump-card, .trump-card-rotor').evaluateAll(elements => elements.map(el => getComputedStyle(el).animationName));
-  expect(enabledAnimations).toEqual(['trump-float', 'trump-turn']);
-  const firstTransform = await page.locator('.trump-card-rotor').evaluate(el => getComputedStyle(el).transform);
-  await page.waitForTimeout(1000);
-  expect(await page.locator('.trump-card-rotor').evaluate(el => getComputedStyle(el).transform)).not.toBe(firstTransform);
+  await expect(page.locator('.trump-reveal')).toHaveCount(0);
+  await expect(page.locator('#trump-motion')).toHaveAttribute('aria-pressed','true');
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  // Changing the setting does not replay the current round.
+  await expect(page.locator('.trump-reveal')).toHaveCount(0);
+  expect(await page.locator('.trump-suit-icon').evaluate(node=>node.style.filter)).toBe('');
   await page.getByRole('button', { name: '主牌动画：开', exact: true }).click();
-  expect(await page.locator('.trump-card-rotor').evaluate(el => getComputedStyle(el).animationName)).toBe('none');
+  await expect(page.locator('.trump-reveal')).toHaveCount(0);
   await page.locator('#table-menu').click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: '.local/variants-2d-reduced-mobile.png', fullPage: true });

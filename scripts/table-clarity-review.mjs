@@ -31,24 +31,24 @@ function fixture(count, round, phase, mode = 'public', selfLeader = false) {
 }
 const overlaps=(a,b)=>a.left<b.right-1 && a.right>b.left+1 && a.top<b.bottom-1 && a.bottom>b.top+1;
 const browser=await chromium.launch({channel:process.env.BROWSER_CHANNEL||'chrome',headless:true});
-async function open(record,width,height,webgl=true,reducedMotion='reduce') {
+async function open(record,width,height,webgl=true,reducedMotion='reduce',trumpMotion=false) {
   const context=await browser.newContext({viewport:{width,height},hasTouch:width<1000,reducedMotion});
-  await context.addInitScript(({record,webgl})=>{
+  await context.addInitScript(({record,webgl,trumpMotion})=>{
     record.game.turnDeadline=Date.now()+30000;
     sessionStorage.setItem('wizard-room-session',JSON.stringify(record));
-    localStorage.setItem('wizard-trump-motion','false');
+    localStorage.setItem('wizard-trump-motion',String(trumpMotion));
     localStorage.setItem('wizard-low-graphics','true');
     if(!webgl) {
       const get=HTMLCanvasElement.prototype.getContext;
       HTMLCanvasElement.prototype.getContext=function(kind,...args){return kind.startsWith('webgl')?null:get.call(this,kind,...args)};
     }
-  },{record,webgl});
+  },{record,webgl,trumpMotion});
   const page=await context.newPage(); page.on('pageerror',e=>errors.push(e.message));
   await page.route(/\/src\/table-scene\.js(?:\?|$)/,async route=>{
     const response=await route.fetch();
     await route.fulfill({response,body:(await response.text()).replace('this.animate(0);','window.__clarityScene=this;this.animate(0);')});
   });
-  if(process.env.CLARITY_CASE==='playfield') await page.route(/\/src\/main\.js(?:\?|$)/,async route=>{
+  if(['playfield','trump'].includes(process.env.CLARITY_CASE)) await page.route(/\/src\/main\.js(?:\?|$)/,async route=>{
     const response=await route.fetch();
     // Browser-only instrumentation of the fetched development module. The
     // application and Worker expose no arbitrary-state endpoint.
@@ -62,6 +62,8 @@ window.__clarityApply=async(next,{initial=false,role='host',practiceMode=true}={
   state.lifecycle=next.lifecycle||{};updateEventEffects(initial);render();
 };
 window.__clarityMotion=tableMotion;
+window.__clarityReveal=trumpReveal;
+window.__clarityRedraw=render;
 window.__clarityLoadId=crypto.randomUUID();
 window.__claritySnapshot=()=>({round:state.round,phase:state.phase,eventSeq:state.eventSeq,gameTrick:game.trick.length,stateTrick:state.trick.length,loadId:window.__clarityLoadId});
 `;
@@ -403,7 +405,8 @@ async function reviewPlayfield() {
   console.log(JSON.stringify({checks,errors}));
 }
 try {
-  if(process.env.CLARITY_CASE==='playfield') await reviewPlayfield();
+  if(process.env.CLARITY_CASE==='trump') await reviewTrump();
+  else if(process.env.CLARITY_CASE==='playfield') await reviewPlayfield();
   else {
   if (process.env.CLARITY_CASE !== 'secondary') {
   for(const [width,height] of [[1440,900],[1280,720],[390,844],[360,640],[844,390],[667,375]]) {
@@ -490,3 +493,171 @@ try {
   expect(errors).toEqual([]);console.log(JSON.stringify({checks,errors}));
   }
 } finally {await browser.close();}
+
+// Focused local reveal checks reuse this harness, legal engine fixtures and
+// its response-only instrumentation. No production test endpoint or CI matrix.
+function turnedFixture(kind) {
+  for(let seed=1;seed<=250;seed++) {
+    const game=createGame();game.randomState=createRandomStream(Array(11).fill(seed));
+    for(let i=0;i<6;i++)addPlayer(game,`p${i}`,['远帆','青山','清月','星河','林语','云舒'][i]);
+    game.options={...DEFAULT_OPTIONS,predictionMode:'hidden'};
+    const lobby=structuredClone(game);
+    act(game,'p0',{type:'start',options:game.options});
+    if(game.reveal?.kind===kind && (kind!=='number'||game.trump==='yellow'))
+      return {lobby,record:{version:1,role:'practice',room:'离线练习',me:'p0',game,identities:{}}};
+  }
+  throw Error(`No legal ${kind} reveal fixture`);
+}
+async function beginReveal(page,lobby,next) {
+  await page.evaluate(async({lobby,next})=>{
+    const reveal=window.__clarityReveal;reveal.clock=()=>performance.now();
+    await window.__clarityApply(lobby,{initial:true});
+    const copy=structuredClone(next);for(const event of copy.events)event.time=Date.now();
+    await window.__clarityApply(copy);
+  },{lobby,next});
+}
+async function holdReveal(page,elapsed=620) {
+  await page.evaluate(elapsed=>{
+    const reveal=window.__clarityReveal;if(!reveal.effect)throw Error('Expected a live reveal');
+    const at=reveal.effect.start+elapsed;reveal.clock=()=>at;reveal.draw();
+  },elapsed);
+}
+async function revealGeometry(page) {
+  return page.evaluate(()=>{
+    const rect=n=>{const r=n.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height}};
+    const shown=n=>n.offsetWidth&&n.offsetHeight&&getComputedStyle(n).visibility!=='hidden';
+    const reveal=window.__clarityReveal,root=document.querySelector('.trump-reveal');
+    const domDeck=document.querySelector('.prop-deck');
+    const card=root?.querySelector('.trump-reveal-card'),label=root?.querySelector('.trump-reveal-label');
+    return {root:!!root,key:root?.dataset.key,phase:root?.dataset.phase,card:card?rect(card):null,
+      label:label?{...rect(label),text:label.textContent,opacity:getComputedStyle(label).opacity}:null,
+      badge:rect(document.querySelector('.table-trump')),icon:rect(document.querySelector('.trump-suit-icon')),
+      origin:reveal.geometry?.origin,center:reveal.geometry?.center,deck:window.__clarityScene?.deckScreenRect(),
+      domDeck:!document.body.classList.contains('has-webgl')&&domDeck&&shown(domDeck)?rect(domDeck):null,
+      hiddenDeck:window.__clarityScene?.deck.visible===false,
+      physical:window.__clarityScene?.trump.visible,overlayCount:document.querySelectorAll('.trump-reveal-card').length,
+      pointer:root?getComputedStyle(root).pointerEvents:null,face:root?.querySelector('.trump-reveal-front')?.style.backgroundImage,
+      rotor:root?.querySelector('.trump-reveal-rotor')?.style.transform,
+      obstacles:[...document.querySelectorAll('.opponents .player,.own-status,.hand-section,.action-panel,.game-toolbar,.roundbar')].filter(shown).map(rect),
+      overflow:document.documentElement.scrollWidth>innerWidth};
+  });
+}
+async function assertSettled(page,label) {
+  await expect(page.locator('.table-trump')).toContainText(label);
+  await expect(page.locator('.trump-reveal,.trump-card')).toHaveCount(0);
+  if(await page.locator('body').evaluate(body=>body.classList.contains('has-webgl')))
+    expect(await page.evaluate(()=>window.__clarityScene.trump.visible)).toBe(false);
+  const still=await page.locator('.trump-suit-icon').evaluate(node=>({filter:node.style.filter,animations:node.getAnimations().length}));
+  expect(still).toEqual({filter:'',animations:0});
+}
+async function reviewTrump() {
+  const normal=turnedFixture('number'),wizard=turnedFixture('wizard'),jester=turnedFixture('jester');
+  for(const [width,height,webgl] of [[1440,900,true],[844,390,true],[844,390,false],[390,844,false],[844,300,true]]) {
+    const {page,context}=await open(normal.record,width,height,webgl,'no-preference',true);
+    await assertSettled(page,'主牌：黄色'); // Restored practice never replays.
+    await beginReveal(page,normal.lobby,normal.record.game);
+    await holdReveal(page,100);
+    await expect(page.locator('.trump-reveal')).toHaveAttribute('data-phase','extract');
+    expect(await page.locator('.trump-reveal-rotor').evaluate(node=>node.style.transform)).toBe('rotateY(180deg)');
+    if(width===1440)await page.screenshot({path:`${out}/trump-extract-desktop.png`});
+    await holdReveal(page,320);await expect(page.locator('.trump-reveal')).toHaveAttribute('data-phase','flip');
+    await holdReveal(page);
+    const data=await revealGeometry(page);
+    expect(data.phase).toBe('hold');expect(data.overlayCount).toBe(1);expect(data.physical).not.toBe(true);
+    expect(data.rotor).toBe('rotateY(0deg)');expect(data.face).toContain('yellow-');expect(data.label.text).toContain('本轮主牌：黄色');
+    expect(Number(data.label.opacity)).toBe(1);expect(data.pointer).toBe('none');expect(data.overflow).toBe(false);
+    for(const obstacle of data.obstacles) {
+      expect(overlaps(data.card,obstacle),`${width}x${height}: reveal overlaps ${JSON.stringify(obstacle)}`).toBe(false);
+      expect(overlaps(data.label,obstacle),`${width}x${height}: reveal label overlaps ${JSON.stringify(obstacle)}`).toBe(false);
+      expect(overlaps(data.badge,obstacle),`${width}x${height}: badge overlaps ${JSON.stringify(obstacle)}`).toBe(false);
+    }
+    if(data.deck)expect(data.origin).toEqual({x:data.deck.left+data.deck.width/2,y:data.deck.top+data.deck.height/2});
+    if(data.domDeck)expect(data.origin).toEqual({x:data.domDeck.left+data.domDeck.width/2,y:data.domDeck.top+data.domDeck.height/2});
+    if(data.hiddenDeck)expect(data.origin).toEqual({x:data.center.x,y:data.center.y+32});
+    if(webgl&&[1440,844].includes(width)&&height!==300)
+      await page.screenshot({path:`${out}/trump-reveal-${width}x${height}-20261030.png`});
+    // Re-render, duplicate the same state and open the real menu mid-reveal.
+    const start=await page.evaluate(()=>{window.__heldReveal=document.querySelector('.trump-reveal');return window.__clarityReveal.effect.start;});
+    await page.evaluate(()=>window.__clarityRedraw());await page.locator('#table-menu').click();await page.locator('#table-menu').click();
+    await page.evaluate(game=>window.__clarityApply(game),normal.record.game);
+    expect(await page.evaluate(()=>window.__heldReveal===document.querySelector('.trump-reveal'))).toBe(true);
+    expect(await page.evaluate(()=>window.__clarityReveal.effect.start)).toBe(start);
+    // Hit a normal prediction control through the reveal layer.
+    await page.locator('[data-bid="0"]').click();await expect(page.locator('.bid-options')).toHaveCount(0);
+    expect(await page.evaluate(()=>JSON.parse(sessionStorage.getItem('wizard-room-session')).game.players[0].bid)).toBe(0);
+    await holdReveal(page,1150);const landing=await revealGeometry(page);
+    expect(Math.hypot((landing.card.left+landing.card.right-landing.icon.left-landing.icon.right)/2,
+      (landing.card.top+landing.card.bottom-landing.icon.top-landing.icon.bottom)/2)).toBeLessThan(2);
+    await holdReveal(page,1160);await page.evaluate(()=>{const r=window.__clarityReveal;r.clock=()=>r.pulseAt+321;r.draw();});
+    await assertSettled(page,'主牌：黄色');
+    if(webgl&&[1440,844].includes(width)&&height!==300)
+      await page.screenshot({path:`${out}/trump-settled-${width}x${height}-20261030.png`});
+    // A fresh real-time run must also finish without the controlled screenshot clock.
+    await beginReveal(page,normal.lobby,normal.record.game);
+    await expect(page.locator('.trump-reveal')).toHaveCount(1);
+    await expect(page.locator('.trump-reveal')).toHaveCount(0,{timeout:2000});
+    await expect.poll(()=>page.locator('.trump-suit-icon').evaluate(node=>node.style.filter)).toBe('');
+    await page.reload();await page.locator('.own-status').waitFor();await assertSettled(page,'主牌：黄色');
+    checks.push({width,height,webgl,ordinary:true,actualLanding:true,oneLayer:true,duplicatesAndMenu:true,bidDuringReveal:true,reloadedWithoutReplay:true});
+    await context.close();
+  }
+  const {page,context}=await open(wizard.record,844,390,true,'no-preference',true);
+  await beginReveal(page,wizard.lobby,wizard.record.game);await holdReveal(page);
+  await expect(page.locator('.trump-reveal-label')).toHaveText('✦ 等待庄家选择主牌');
+  await expect(page.locator('.table-trump')).toContainText('等待庄家选择主牌');
+  await expect(page.locator('.trump-reveal-front')).toHaveCSS('background-image',/wizard\.svg/);
+  for(const [width,height] of [[844,300],[844,390]]) {
+    await page.setViewportSize({width,height});await beginReveal(page,wizard.lobby,wizard.record.game);await holdReveal(page);
+    const geometry=await revealGeometry(page);
+    for(const obstacle of geometry.obstacles) {
+      expect(overlaps(geometry.card,obstacle),'wizard face leaves controls usable').toBe(false);
+      expect(overlaps(geometry.label,obstacle),'pending text leaves controls readable').toBe(false);
+      expect(overlaps(geometry.badge,obstacle),'pending badge avoids players and toolbar').toBe(false);
+    }
+  }
+  await page.screenshot({path:`${out}/trump-wizard-pending-844x390-20261030.png`});
+  // Actual dealer action cancels a pending reveal and emphasizes the new suit.
+  await page.locator('[data-trump="yellow"]').click();
+  await expect(page.locator('.trump-reveal')).toHaveCount(0);
+  await expect(page.locator('.table-trump')).toContainText('主牌：黄色');
+  expect(await page.evaluate(()=>window.__clarityReveal.pulseAt)).not.toBe(null);
+  await page.evaluate(()=>{const r=window.__clarityReveal;r.clock=()=>r.pulseAt+321;r.draw();});
+  await assertSettled(page,'主牌：黄色');
+  checks.push({wizardActualFace:true,pendingBeforeChoice:true,fastChoiceWithoutRedraw:true});
+  await beginReveal(page,jester.lobby,jester.record.game);await holdReveal(page);
+  await expect(page.locator('.trump-reveal-front')).toHaveCSS('background-image',/jester\.svg/);
+  await expect(page.locator('.trump-reveal-label')).toContainText('本轮无主牌');
+  await holdReveal(page,1160);await page.evaluate(()=>{const r=window.__clarityReveal;r.clock=()=>r.pulseAt+321;r.draw();});
+  await assertSettled(page,'本轮无主牌');checks.push({jesterRealFace:true,noTrump:true});
+  for(const game of [fixture(6,10,'bid').game,(()=>{
+    const g=createGame();for(let i=0;i<3;i++)addPlayer(g,`p${i}`,`单色${i}`);
+    act(g,'p0',{type:'start',options:{...DEFAULT_OPTIONS,deckMode:'mono'}});return g;
+  })()]) {
+    expect(game.reveal).toBe(null);await beginReveal(page,normal.lobby,game);
+    await expect(page.locator('.trump-reveal')).toHaveCount(0);await expect(page.locator('.table-trump')).toContainText('本轮无主牌');
+    checks.push({noInventedCard:game.options.deckMode==='mono'?'mono':'exhausted'});
+  }
+  const many=fixture(6,10,'bid').game;
+  await page.evaluate(game=>window.__clarityApply(game,{initial:true}),many);
+  const bids=page.locator('.bid-options');
+  await bids.evaluate(row=>{row.scrollLeft=row.scrollWidth;});
+  const last=await page.locator('[data-bid]').last().getAttribute('data-bid');await visibleButton(page,`[data-bid="${last}"]`);
+  await bids.evaluate(row=>{row.scrollLeft=0;});
+  const first=await page.locator('[data-bid]').first().getAttribute('data-bid');await visibleButton(page,`[data-bid="${first}"]`);
+  checks.push({narrowPredictionDockBothEndsReachable:true});
+  for(const phase of [100,600,900]) {
+    await beginReveal(page,normal.lobby,normal.record.game);await holdReveal(page,phase);
+    await page.setViewportSize(phase===100?{width:932,height:430}:phase===600?{width:844,height:390}:{width:390,height:844});
+    await expect(page.locator('.trump-reveal')).toHaveCount(0);await assertSettled(page,'主牌：黄色');
+  }
+  checks.push({resizeDuringExtractionHoldReturn:true});
+  await beginReveal(page,normal.lobby,normal.record.game);await holdReveal(page,600);
+  await page.emulateMedia({reducedMotion:'reduce'});await assertSettled(page,'主牌：黄色');
+  await beginReveal(page,normal.lobby,normal.record.game);await assertSettled(page,'主牌：黄色');
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await page.locator('#table-menu').click();await page.locator('#trump-motion').click();await page.locator('#table-menu').click();
+  await beginReveal(page,normal.lobby,normal.record.game);await assertSettled(page,'主牌：黄色');
+  checks.push({dynamicReducedMotion:true,motionOff:true});await context.close();
+  expect(errors).toEqual([]);fs.writeFileSync(`${out}/trump-reveal-review.json`,JSON.stringify({checks,errors},null,2));
+  console.log(JSON.stringify({checks,errors}));
+}

@@ -384,3 +384,15 @@
 - 同时核对发现脚本后半段仍寻找已移除的 `.win-reason`／结算 `.lead-callout`。改验新摘要的赢家、下一墩首攻、默认折叠与展开后理由（与共享 winnerReason 一致），继续验证原 2 秒保留、5 秒自动推进，并确认下一行动者为赢家。新增点击前的真实视口／elementFromPoint 检查；没有用 force、自动滚动或跳过断言隐藏问题。
 - 本地修复后完整同一组三客户端冒烟通过，errors=[]，包括隐私、观众、暂停聊天、房主关页／新标签返回、倒计时恢复、刷新、得分同步、五秒赢墩回顾、首攻及解散墓碑。既有本地聊天键盘专项 10 组通过（竖屏、844／932 横屏、低高度和桌面，含草稿、焦点、发送、关闭重开及恢复默认视口），failedGeometry=[]、errors=[]。
 - 语法、226/226 单测、前端构建、Worker 打包预演及 Git 空白检查通过；本地日志为 `.local/pr9-ci-before.log`、`pr9-ci-after.log`、`pr9-chat-keyboard.log`、`pr9-check.log`、`pr9-tests.log`、`pr9-build.log` 与 `pr9-worker-check.log`。不重复无关音乐或大规模布局回归，不改工作流、依赖或检查强度。代码及本条记录一起推送 PR #9，替代远端 CI 结果在对话中核验交付；此处不预先声明远端通过。
+
+<a id="h-035"></a>
+## H-035 · 2026-10-30 · 每轮主牌揭示与左上角静态提示
+- 来源与最终约束见 [D-025](DECISIONS.md#d-025)。核实上一轮个人 PR #9 已合并，最新 origin/main 为 `96ed807`；起始工作区及暂存区干净，从此创建 `codex/trump-round-reveal`。本轮授权推送并创建中文 PR，保留不自动合并／部署、不改依赖／远端工作流的边界。
+- 实现：四段 1160ms 揭示、真实牌背与牌面翻转、局部牌框亮光、实际提示图标落点及一次短暂强调。二维和三维共用现有 DOM 牌面，复用全局帧循环，不另建动画时钟循环；Three.js 保留首页模型，并提供现有牌堆投影。对局常驻徽章静态显示当前规则结果，仍可查看原牌；取消旧中央常驻牌与重复隐藏角标。
+- 实际问题与修正：第一轮横屏浏览器检查发现中央预测面板与揭示牌／文字相交，保持遮挡断言，将该阶段控件收紧到右侧，并按真实头像、操作区和手牌测量展示空间。极低横屏使用可用高度内的清晰牌面。转屏测试最初传入与当前相同的视口，不会触发 resize；改为实际变更尺寸，分别覆盖抽出、停留及归位阶段，未用等待或放宽断言掩盖问题。
+- 必要本地检查：`node scripts/check-syntax.mjs`、`npm run build` 与 Git 空白检查通过；保留既有 Three.js 分包提示。定向运行 `tests/trump-display.test.js`、`tests/table-motion.test.js`、`tests/table-layout.test.js`，27/27 通过，含新轮次／重复快照、延迟消息完整播放、巫师快速选色、J／无翻牌、恢复、取消及不修改输入状态。
+- 复用 `table-clarity-review.mjs` 的 `CLARITY_CASE=trump`，12 项专项检查通过，errors=[]：1440×900、844×390 三维与二维、390×844 二维、844×300 三维；检查牌背／翻面／真实牌面、下方文字、真实牌堆起点、图标归位小于 2px、单一牌影、头像和控件不遮挡、真实预测点击、重渲染与菜单／重复状态不重播、实际时间自动清场和刷新归位。补充 W 待选与快速选色、J 无主、用尽／单色无伪造翻牌、预测两端可达、三阶段转屏和动态减少动效／关闭动效。
+- 复用 `room-animation-review.mjs` 的 `ROOM_ANIMATION_CASE=trump`，真实本地 Durable Objects／WebSocket 专项 5 项通过，errors=[]：揭示中聊天快照保持同一对象与进度；关闭原生房间 socket 后重连不补播；刷新与中途观战直接归位；下一轮真实发牌在玩家和观众端各播放一次；转屏和解散同步清场。没有以注入快照代替这组连接检查。
+- 保留改进的定向复核：六人桌面及横屏的固定出牌槽、实际三维投影、两次领先更替及二维回退共 3 项通过；`card-face-review.mjs` 的桌面／横竖屏 × 二维／三维 6 组及实体纹理检查通过，含静态徽章查看真实原牌、无分离角标、归属标签与赢家状态。既有 `variant-browser-smoke.mjs --motion-only` 通过，确认系统减少动态优先、偏好持久化与设置变化不补播当前轮。
+- 本地日志：`.local/trump-check.log`、`trump-build.log`、`trump-unit.log`、`trump-reveal-review.log`、`trump-network-review.log`、`trump-playfield-desktop.log`、`trump-playfield-landscape.log`、`trump-card-face.log`、`trump-motion-preference.log`；详细浏览器结果在忽略提交的 `output/playwright/`。未跑无关全量回归，也未新增 CI job 或矩阵。
+- 已实际复看并保存关键截图：[桌面揭示](../screenshots/trump-reveal-1440x900-20261030.png)、[桌面归位](../screenshots/trump-settled-1440x900-20261030.png)、[横屏揭示](../screenshots/trump-reveal-844x390-20261030.png)、[横屏归位](../screenshots/trump-settled-844x390-20261030.png)、[巫师待选](../screenshots/trump-wizard-pending-844x390-20261030.png)。手机均为本机 Chrome 设备模拟，未作真机 GPU／Safari 验证。代码、必要检查与开发记录一起提交；PR 创建结果与既有远端检查另在对话及附件核验，不提前声明通过。
