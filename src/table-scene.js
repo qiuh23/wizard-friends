@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { cardImage } from './card-art.js';
 import { trumpStyle } from './trump-style.js';
 import { paintCardFace } from './card-face.js';
-import { TRICK_REVIEW_MS } from './game.js';
 
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 export class TableScene {
@@ -226,7 +225,11 @@ export class TableScene {
     if(!this.host)return;
     const {width,height}=this.host.getBoundingClientRect();
     if(!width||!height)return;
-    this.renderer.setSize(width,height,false);this.camera.aspect=width/height;
+    if (width !== this.width || height !== this.height) {
+      this.width = width; this.height = height;
+      this.renderer.setSize(width,height,false);
+    }
+    this.camera.aspect=width/height;
     this.camera.clearViewOffset();
     this.trump.quaternion.identity();
     const touchTable = this.mode === 'game' && width <= 850;
@@ -263,6 +266,8 @@ export class TableScene {
     this.camera.lookAt(0,0,0);this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld();
     this.layoutDecorations(width, height);
     if (this.mode === 'game') { this.alignCardSeats(); this.alignTrump(); }
+    this.drawCards();
+    this.renderer.render(this.scene,this.camera);
   }
   alignTrump() {
     const display = this.host.closest('.table')?.querySelector('.trump-display');
@@ -362,17 +367,27 @@ export class TableScene {
       const scale = Math.max(.1,face.offsetWidth/Math.max(1,width));
       group.scale.set(scale,1,scale);
       group.userData.rotation=0;
-      if (!group.userData.seated || reducedMotion) {
-        const angle=seat*Math.PI*2/this.state.players.length;
-        const from=pointAt(area.left+area.width*(.5-Math.sin(angle)*.42),area.top+area.height*(.51+Math.cos(angle)*.39));
-        group.position.copy(!reducedMotion && node.classList.contains('card-enter') && from ? from : target);
-        group.userData.seated=true;
-      }
-      if (!reducedMotion && node.classList.contains('collect-winner') && !group.userData.collect) {
-        const winner=(this.state.lastWinner-self+this.state.players.length)%this.state.players.length;
-        const angle=winner*Math.PI*2/this.state.players.length;
-        const to=pointAt(area.left+area.width*(.5-Math.sin(angle)*.42),area.top+area.height*(.51+Math.cos(angle)*.39));
-        if(to) group.userData.collect={start:(this.animationTime||0)+TRICK_REVIEW_MS-800,to};
+      group.userData.from = pointAt(x + parseFloat(node.style.getPropertyValue('--from-x')), y + parseFloat(node.style.getPropertyValue('--from-y'))) || target;
+      group.userData.collectTo = pointAt(x + parseFloat(node.style.getPropertyValue('--winner-dx')) * innerWidth / 100,
+        y + parseFloat(node.style.getPropertyValue('--winner-dy')) * innerHeight / 100) || target;
+      group.userData.baseScale = group.scale.clone();
+      if (!this.motion) group.position.copy(target);
+    }
+  }
+  drawCards() {
+    if (this.mode !== 'game' || !this.motion) return;
+    for (const [id, group] of this.cards) {
+      const data = group.userData;
+      if (!data.from || !data.baseScale) continue;
+      const pose = reducedMotion ? { enter: 1, collect: 0 } : this.motion.pose(id);
+      group.position.lerpVectors(data.from, data.target, pose.enter);
+      if (pose.collect) group.position.lerp(data.collectTo, pose.collect);
+      group.scale.copy(data.baseScale).multiplyScalar(1 - .65 * pose.collect);
+      group.rotation.y = data.rotation;
+      group.visible = pose.collect < 1;
+      for (const mesh of [data.face, data.edge]) {
+        mesh.material.transparent = true;
+        mesh.material.opacity = pose.enter * (1 - pose.collect);
       }
     }
   }
@@ -404,13 +419,11 @@ export class TableScene {
       this.trump.position.y = this.trump.userData.baseHeight + Math.sin(trumpTime * Math.PI / 2.4) * (this.trumpMotion ? .07 * (this.mode === 'game' ? this.trump.scale.y : 1) : 0);
       this.trumpCard.rotation.y = this.mode === 'game' ? -.12 + Math.sin(trumpTime * .65) * .22 : -.25 + trumpTime * Math.PI / 8;
     }
-    for(const group of this.paused ? [] : this.cards.values()){
-      const collect=group.userData.collect;
-      if (collect && sceneTime >= collect.start) {
-        group.position.lerp(collect.to,.18);group.scale.multiplyScalar(.9);
-      } else group.position.lerp(group.userData.target,.19);
+    for(const group of this.paused || this.mode === 'game' && this.motion ? [] : this.cards.values()){
+      group.position.lerp(group.userData.target,.19);
       group.rotation.y=THREE.MathUtils.lerp(group.rotation.y,group.userData.rotation,.15);
     }
+    this.drawCards();
     this.renderer.render(this.scene,this.camera);
   }
 }

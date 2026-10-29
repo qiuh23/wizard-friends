@@ -83,12 +83,12 @@ body[data-screen="game"][data-trump-motion="on"] .trump-card-rotor { animation:t
 /* Keep the directory in the menu column, leaving the scene unobstructed. */
 body[data-screen="home"] .home-menu { padding-top:clamp(28px,7dvh,80px);padding-bottom:80px; }
 body[data-screen="home"] .home-room-list { position:relative;inset:auto;width:100%;max-width:none;margin:18px 0 0; }
-body[data-screen="home"] .room-directory { max-height:220px;padding:12px;gap:8px;background:#10221bba;border-color:#b5a27755;border-radius:7px;box-shadow:none; }
+body[data-screen="home"] .room-directory { max-height:300px;padding:12px;gap:8px;background:#10221bba;border-color:#b5a27755;border-radius:7px;box-shadow:none; }
 body[data-screen="home"] .room-directory-heading { gap:6px; }
 body[data-screen="home"] .room-directory-heading h2 { font-size:16px; }
 body[data-screen="home"] .room-directory-status { font-size:12px; }
 body[data-screen="home"] .room-directory-empty { padding:8px 0;font-size:13px; }
-body[data-screen="home"] .room-directory-list { max-height:145px; }
+body[data-screen="home"] .room-directory-list { max-height:220px; }
 body[data-screen="home"] .room-directory-item { grid-template-columns:1fr;gap:6px;padding:8px; }
 body[data-screen="home"] .room-directory-host { font-size:14px; }
 body[data-screen="home"] .room-directory-code { margin-bottom:4px; }

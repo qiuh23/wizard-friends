@@ -28,6 +28,7 @@ import './table-dock.css';
 import './table-clarity.css';
 import { cardMark, cardMarksHTML } from './card-face.js';
 import { captureHand, HandMotion } from './hand-motion.js';
+import { CARD_ENTER_MS, TableMotion } from './table-motion.js';
 import { seatPosition, landscapeSeatPosition, desktopPlayedPosition, compactPlayedPosition, relativeSeat, followSuitHint, playBlockedReason, sortCards, isSwipe } from './hand-model.js';
 import { readRoomRecoveries, saveRoomRecovery, removeRoomRecovery } from './room-recovery.js';
 import { PRACTICE_SAVE_KEY, PRACTICE_KEEP_MS, readPractice, savePractice } from './practice-save.js';
@@ -66,7 +67,8 @@ function syncScene() {
     mount.className = 'scene-host'; mount.setAttribute('aria-hidden', 'true');
     target.prepend(mount);
   }
-  if (tableScene) { tableScene.paused = !!state?.lifecycle?.paused; tableScene.viewer = me; tableScene.attach(mount, state); }
+  if (!state) tableMotion.sync(null);
+  if (tableScene) { tableScene.motion = tableMotion; tableScene.viewer = me; tableScene.attach(mount, state); }
   else if (target && !scenePending && !sceneFailed) {
     scenePending = true;
     import('./table-scene.js').then(({ TableScene }) => {
@@ -101,9 +103,10 @@ let joinOpen = new URLSearchParams(location.search).has('room');
 let joinDraft = null;
 let pendingPlay = null, noticeTimer;
 const handMotion = new HandMotion(showHoveredCard);
+const tableMotion = new TableMotion();
 let selectedCard = null, handExpanded = false, handCollapsed = false, handSort = 'suit', handScroll = 0, gridScroll = 0, selectionContext = '';
 let seenEventSeq = null, lastTurnCue = '', turnSound = localStorage.getItem('wizard-turn-sound') !== 'false';
-let practicePaused = false, practiceRemaining = null, animationBatch = [];
+let practicePaused = false, practiceRemaining = null;
 let practiceSaved = readPractice(localStorage);
 
 const tokenKey = 'wizard-player-token';
@@ -207,7 +210,7 @@ function render() {
         </nav>
         <div class="menu-identity"><label for="nickname">昵称</label><input id="nickname" maxlength="16" placeholder="旅人" autocomplete="nickname" value="${escape(nickname)}"></div>
         <div class="home-presence"></div>
-        <aside class="home-room-list" aria-label="正在进行的房间"></aside>
+        <aside class="home-room-list" aria-label="在线房间"></aside>
       </section></main>`);
     bindCommon();handMotion.attach(null,previousHand,null);
     $('#create').onclick = () => launch(true);
@@ -273,7 +276,8 @@ function render() {
       return `<div class="player ${leadOrder?.seat === i ? 'lead-seat' : ''} ${!x.online ? 'offline' : ''} ${!done && !(state.phase === 'bid' && state.options.predictionMode !== 'public') && state.turn === i ? 'active' : ''}" role="group" aria-label="${escape(identity)}" data-seat="${pos.seat}" data-player="${escape(x.id)}" style="--seat-x:${pos.x}%;--seat-y:${pos.y}%" title="${escape(identity)}">${avatarHTML(x, i, leadOrder?.seat === i ? leadOrder : null)}<span class="prediction"><span title="实赢墩数"><small>赢</small><b>${x.won}</b></span><span title="预测墩数" class="${Number.isInteger(x.bid) ? '' : 'target-secret'}"><small>估</small><b>${x.bid ?? (x.bidSubmitted ? '✓' : '—')}</b></span></span></div>`;
     }).join('')}</div>${foresight}<div class="played-cards ${state.trick.length>=5 ? 'compact-trick' : ''}">${state.trick.map((x, i) => {
       const pos = matchMedia('(max-width:850px)').matches ? compactPlayedPosition(x.player,selfIndex,state.players.length,matchMedia('(max-width:380px)').matches ? 360 : 390,matchMedia('(orientation:landscape) and (min-width:600px)').matches) : desktopPlayedPosition(x.player, selfIndex, state.players.length, matchMedia('(max-height:800px)').matches), winnerPos = seatPosition(currentWinner ?? x.player, selfIndex, state.players.length), seat = relativeSeat(x.player, selfIndex, state.players.length);
-      return `<div class="played ${currentWinner === x.player ? 'winner' : ''} ${animationBatch.some(e => e.type === 'play' && e.card?.id === x.card.id) ? 'card-enter' : ''} ${state.phase === 'trickEnd' && animationBatch.some(e => e.type === 'trickEnd') ? 'collect-winner' : ''}" role="img" aria-label="${escape(state.players[x.player].name)}：${escape(cardLabel(x.card))}${currentWinner === x.player ? done ? '，赢墩' : '，领先' : ''}" data-play-seat="${seat}" style="--play-x:${pos.x}%;--play-y:${pos.y}%;--winner-dx:${winnerPos.x-pos.x}vw;--winner-dy:${(winnerPos.y-pos.y)*.4}dvh;--from-x:${-Math.sin(seat * Math.PI * 2 / state.players.length) * 150}px;--from-y:${Math.cos(seat * Math.PI * 2 / state.players.length) * 100}px">${cardHTML(x.card)}<small title="${escape(state.players[x.player].name)}"><span class="played-name">${escape(state.players[x.player].name)}</span><span class="played-state" data-compact="${currentWinner===x.player ? done ? '赢墩' : '领先' : i===0 ? '首攻' : ''}">${currentWinner === x.player ? done ? '赢墩' : '领先' : i===0 ? '首攻' : '&nbsp;'}</span></small></div>`;
+      const motion = tableMotion.timing(x.card.id);
+      return `<div class="played ${currentWinner === x.player ? 'winner' : ''} ${motion.enterMs < CARD_ENTER_MS ? 'card-enter' : ''} ${motion.collectMs !== null ? 'collect-winner' : ''}" role="img" aria-label="${escape(state.players[x.player].name)}：${escape(cardLabel(x.card))}${currentWinner === x.player ? done ? '，赢墩' : '，领先' : ''}" data-play-seat="${seat}" style="--entry-delay:${-motion.enterMs}ms;--collect-delay:${-(motion.collectMs ?? 0)}ms;--play-x:${pos.x}%;--play-y:${pos.y}%;--winner-dx:${winnerPos.x-pos.x}vw;--winner-dy:${(winnerPos.y-pos.y)*.4}dvh;--from-x:${-Math.sin(seat * Math.PI * 2 / state.players.length) * 150}px;--from-y:${Math.cos(seat * Math.PI * 2 / state.players.length) * 100}px">${cardHTML(x.card)}<small title="${escape(state.players[x.player].name)}"><span class="played-name">${escape(state.players[x.player].name)}</span><span class="played-state" data-compact="${currentWinner===x.player ? done ? '赢墩' : '领先' : i===0 ? '首攻' : ''}">${currentWinner === x.player ? done ? '赢墩' : '领先' : i===0 ? '首攻' : '&nbsp;'}</span></small></div>`;
     }).join('')}</div>${matchResult}<div class="table-caption">已完成 ${state.completedTricks} / ${state.cardsPerRound} 墩</div></section>${ownStatusHTML(p)}<section class="action-panel"><div class="action-title"><h3>${state.lifecycle?.paused ? '牌局已暂停' : prompt.replace('点击金边手牌出牌', '选牌并确认出牌')}</h3><small class="win-reason">${state.phase === 'bid' ? '' : reason || followHint}</small>${leadOrder && state.phase !== 'play' ? `<strong class="lead-callout" role="status">➤ ${leadHint}${state.players[leadOrder.seat]?.id === me ? ' · 你' : ''}</strong>` : ''}</div>${actionUI}${roundResult}${state.phase === 'trickEnd' && !practice ? '<span id="trick-review-timer" role="timer">看清胜负后继续</span>' : ''}${done && state.phase !== 'finished' && !state.lifecycle?.closeAfterRound && (roundEnd || practice) ? isHost ? `<button id="next" class="primary" ${roundEnd && state.players.some(p => !p.online) ? 'disabled' : ''}>${roundEnd ? state.players.some(p => !p.online) ? '等待玩家重连' : '开始下一轮' : '继续下一墩'} →</button>` : '<p class="muted">等待房主继续</p>' : ''}${state.lifecycle?.closeAfterRound && roundEnd ? '<button id="confirm-results" class="primary">确认结果并离开</button>' : ''}${state.phase === 'finished' && isHost && !state.lifecycle?.closeAfterRound ? '<button id="rematch" class="primary">再来一局 →</button>' : ''}</section>${!spectating ? handHTML(p, myTurn) : ''}</main><aside>${scoreHistoryHTML(state, me)}<section class="panel scoreboard"><div class="section-label">预言排行榜 <span>总分</span></div>${state.players.map((x, i) => ({ ...x, seat: i })).sort((a,b) => b.score - a.score).map((x, i) => { const totals = playerTotals(state, x.id); return `<div class="score-row"><span class="rank">${String(i + 1).padStart(2, '0')}</span><span>${escape(x.name)}${x.id === me ? '<small>你</small>' : ''}<small>胜局 ${totals.matchWins} · 本局赢 ${totals.tricks} 墩 · 猜中 ${totals.exactRounds} 轮</small></span><b>${x.score}</b></div>`; }).join('')}${roundEnd ? `<div class="round-results"><h4>第 ${state.round} 轮得分</h4>${state.history.at(-1).result.map(r => `<div><span>${escape(state.players.find(x => x.id === r.id).name)} <small>${r.won}/${r.bid} 墩</small></span><b class="${r.delta > 0 ? 'positive' : 'negative'}">${r.delta > 0 ? '+' : ''}${r.delta}</b></div>`).join('')}</div>` : ''}</section><section class="panel journal"><div class="section-label">牌桌记事 <span>↙</span></div>${state.log.slice(-7).map(l => `<p>${escape(l)}</p>`).join('')}</section></aside></div>`;
   }
   app.innerHTML = shell(`${head}${body}${lifecycleHTML()}`);
@@ -316,7 +320,6 @@ function render() {
 
   $('#next')?.addEventListener('click', () => send({ type: 'next' }));
   $('#rematch')?.addEventListener('click', () => send({ type: 'rematch' }));
-  animationBatch = [];
 }
 function bindCommon() {
   const pregame = state && ['lobby', 'rules'].includes(state.phase);
@@ -607,7 +610,7 @@ function bindHand() {
 }
 function updateEventEffects(initial = false) {
   const seq = state?.eventSeq || 0;
-  animationBatch = !initial && seenEventSeq != null ? (state.events || []).filter(e => e.seq > seenEventSeq) : [];
+  tableMotion.sync(state, { initial: initial || seenEventSeq == null, serverNow: Date.now() + serverClockOffset });
   seenEventSeq = seq;
   const myTurn = !spectating && (state?.canBid || (state?.players[state.turn]?.id === me && ['play','trump'].includes(state.phase)));
   const cue = myTurn ? `${state.round}:${state.completedTricks}:${state.phase}:${state.turn}` : '';
@@ -707,6 +710,10 @@ const social = new RoomSocial(send, () => {
 });
 const music = new BackgroundMusic();
 const directory = new RoomDirectory({
+  onJoin(selectedRoom) {
+    if (busy || state) return;
+    launch(false, { role: 'guest', room: selectedRoom, me: '' });
+  },
   onWatch(selectedRoom) {
     if (busy || state) return;
     launch(false, { role: 'spectator', room: selectedRoom, me: '' });
