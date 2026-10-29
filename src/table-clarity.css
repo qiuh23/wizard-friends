@@ -1,4 +1,6 @@
 /* Cards share a measured layout and scale with the room between seats and trump. */
+.played-links { position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none; }
+.played-links line { stroke-width:1.5;stroke-linecap:round;opacity:.6; }
 body[data-screen="game"] .table .played-cards .played,
 body[data-screen="game"].has-webgl .table .played-cards .played {
   width:max(56px,var(--played-width,56px));height:calc(var(--played-width,56px) * 1.5 + 20px);

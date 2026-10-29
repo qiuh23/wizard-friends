@@ -31,9 +31,13 @@ export function playedCardRect(node) {
 const intersects = (a, b, gap = 4) => a.left < b.right + gap && a.right > b.left - gap && a.top < b.bottom + gap && a.bottom > b.top - gap;
 
 // Reserve every player's destination, including seats that have not played.
-// Search the corridor from each real avatar toward the trump, then reduce the
-// common face size only if all seats cannot fit at the preferred size.
+// Keep each face in its owner's angular sector around the trump. Empty felt
+// in a different player's sector is not a valid destination.
 export function playedCardSlots(area, seats, center, obstacles, preferredWidth) {
+  const directions = seats.map(seat=>{
+    const length=Math.hypot(seat.x-center.x,seat.y-center.y)||1;
+    return {id:seat.id,x:(seat.x-center.x)/length,y:(seat.y-center.y)/length};
+  });
   for (const width of [...new Set([1,.92,.84,.76,.68,.6].map(scale => Math.max(36, Math.round(preferredWidth * scale))).concat(36))]) {
     const slotWidth = Math.max(56, width), height = width * 1.5 + 20;
     const rectAt = (x,y) => ({ left:x-slotWidth/2, right:x+slotWidth/2, top:y-height/2, bottom:y+height/2 });
@@ -42,15 +46,20 @@ export function playedCardSlots(area, seats, center, obstacles, preferredWidth) 
       const preferred = { x:seat.x+dx*.36, y:seat.y+dy*.36 };
       if (seat.self) preferred.y = Math.max(preferred.y,center.y+height*.35);
       const xs = [preferred.x], ys = [preferred.y];
+      for(const offset of [-.6,-.3,.3,.6]){xs.push(preferred.x+slotWidth*offset);ys.push(preferred.y+slotWidth*offset);}
       for (const t of [.32,.4,.5,.6,.7,.8]) { xs.push(seat.x+dx*t); ys.push(seat.y+dy*t); }
       for (const r of obstacles) { xs.push(r.left-4-slotWidth/2,r.right+4+slotWidth/2); ys.push(r.top-4-height/2,r.bottom+4+height/2); }
       const options = [];
       for (const x of new Set(xs)) for (const y of new Set(ys)) {
         const t = ((x-seat.x)*dx+(y-seat.y)*dy)/length2;
         const cross = ((x-seat.x)*dy-(y-seat.y)*dx)**2/length2;
-        if (t < .12 || t > (seat.self ? 1.35 : 1) || cross > (slotWidth*2.2)**2) continue;
+        if (t < .12 || t > (seat.self ? 1.35 : 1) || cross > (slotWidth*(seat.self ? 1.5 : .7))**2) continue;
         if ((x-center.x)**2+(y-center.y)**2 > length2*.85) continue;
         if (seat.self && y < center.y+height*.22) continue;
+        const face={x:x-center.x,y:y-10-center.y};
+        const owner=directions.find(direction=>direction.id===seat.id);
+        const alignment=face.x*owner.x+face.y*owner.y;
+        if (directions.some(other=>other.id!==seat.id&&face.x*other.x+face.y*other.y>alignment-.5)) continue;
         const rect = rectAt(x,y);
         if (rect.left < area.left || rect.right > area.right || rect.top < area.top || rect.bottom > area.bottom || obstacles.some(o => intersects(rect,o))) continue;
         options.push({ x,y,rect,score:(x-preferred.x)**2+(y-preferred.y)**2+cross*4 });
@@ -93,4 +102,14 @@ export function playedCardSlots(area, seats, center, obstacles, preferredWidth) 
     }
   }
   return null;
+}
+
+export function playedCardLink(source, sourceRect, targetRect, gap=4) {
+  const dx=(targetRect.left+targetRect.right)/2-source.x,dy=(targetRect.top+targetRect.bottom)/2-source.y;
+  const length=Math.hypot(dx,dy);if(!length)return null;
+  const exit=Math.min(dx>0?(sourceRect.right-source.x)/dx:dx<0?(sourceRect.left-source.x)/dx:Infinity,
+    dy>0?(sourceRect.bottom-source.y)/dy:dy<0?(sourceRect.top-source.y)/dy:Infinity)+gap/length;
+  const enter=Math.max(dx>0?(targetRect.left-source.x)/dx:dx<0?(targetRect.right-source.x)/dx:-Infinity,
+    dy>0?(targetRect.top-source.y)/dy:dy<0?(targetRect.bottom-source.y)/dy:-Infinity)-gap/length;
+  return enter>exit?{x1:source.x+dx*exit,y1:source.y+dy*exit,x2:source.x+dx*enter,y2:source.y+dy*enter}:null;
 }

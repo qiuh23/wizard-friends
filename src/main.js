@@ -29,7 +29,7 @@ import './table-clarity.css';
 import { cardMark, cardMarksHTML } from './card-face.js';
 import { captureHand, HandMotion } from './hand-motion.js';
 import { CARD_ENTER_MS, TableMotion } from './table-motion.js';
-import { playedCardRect, playedCardSlots } from './table-layout.js';
+import { playedCardRect, playedCardSlots, playedCardLink } from './table-layout.js';
 import { seatPosition, landscapeSeatPosition, relativeSeat, followSuitHint, playBlockedReason, sortCards, isSwipe } from './hand-model.js';
 import { readRoomRecoveries, saveRoomRecovery, removeRoomRecovery } from './room-recovery.js';
 import { PRACTICE_SAVE_KEY, PRACTICE_KEEP_MS, readPractice, savePractice } from './practice-save.js';
@@ -430,7 +430,7 @@ function updateLayoutMetrics() {
     const trumpNode = $('.trump-display[data-occluded="false"] .trump-card');
     const trump = trumpNode?.getBoundingClientRect();
     if (trump) obstacles.push(trump);
-    const center = trump ? {x:trump.left+trump.width/2,y:trump.top+trump.height/2} : {x:rect.left+rect.width/2,y:rect.top+rect.height*.48};
+    let center = trump ? {x:trump.left+trump.width/2,y:trump.top+trump.height/2} : {x:rect.left+rect.width/2,y:rect.top+rect.height*.48};
     const seats = [...avatars].filter(([,node])=>node).map(([id,node]) => { const r=node.getBoundingClientRect(); return {id,self:id===me,x:r.left+r.width/2,y:r.top+r.height/2}; });
     const area = {left:rect.left+8,right:rect.right-8,top:rect.top+8,bottom:rect.bottom-8};
     const crowdScale = {3:1,4:.9,5:.8,6:.7}[state.players.length];
@@ -438,22 +438,37 @@ function updateLayoutMetrics() {
     const preferredWidth = Math.min(sizeLimit,Math.max(36,Math.min(rect.width,rect.height)*.135*crowdScale));
     let layout = playedCardSlots(area,seats,center,obstacles,preferredWidth);
     if (!layout && trumpNode) for (const scale of [.8,.65,.55,.4]) {
-      const display = trumpNode.closest('.trump-display');
-      display.style.setProperty('--trump-width',`${trump.width*scale}px`);
-      display.style.setProperty('--trump-height',`${trump.height*scale}px`);
-      obstacles[obstacles.length-1] = trumpNode.getBoundingClientRect();
+      layoutTrumpDisplay(table,scale);
+      const smallerTrump=trumpNode.getBoundingClientRect();
+      obstacles[obstacles.length-1] = smallerTrump;
+      center={x:smallerTrump.left+smallerTrump.width/2,y:smallerTrump.top+smallerTrump.height/2};
       layout = playedCardSlots(area,seats,center,obstacles,preferredWidth);
       if (layout) break;
     }
     played.dataset.layout = layout ? 'seats' : 'unavailable';
     if (layout) {
       played.style.setProperty('--played-width',`${layout.width}px`);
+      let links=played.querySelector('.played-links');
+      if(!links){links=document.createElementNS('http://www.w3.org/2000/svg','svg');links.classList.add('played-links');links.setAttribute('aria-hidden','true');played.prepend(links);}
+      links.setAttribute('viewBox',`0 0 ${rect.width} ${rect.height}`);links.replaceChildren();
       for (const node of played.querySelectorAll('.played')) {
         const slot = layout.slots.get(node.dataset.player);
         node.style.setProperty('--play-x',`${slot.x-rect.left}px`);
         node.style.setProperty('--play-y',`${slot.y-rect.top}px`);
         node.style.setProperty('--player-color',avatars.get(node.dataset.player)?.style.getPropertyValue('--avatar-color') || '#f3ead6');
         if (node.dataset.player === me) node.querySelector('.played-name').textContent = '你';
+        if(seats.length>=5){
+          const avatar=avatars.get(node.dataset.player),source=seats.find(seat=>seat.id===node.dataset.player);
+          const sourceRect=avatar.closest('.player,.own-status').getBoundingClientRect();
+          const link=playedCardLink(source,sourceRect,node.getBoundingClientRect());
+          if(link){
+            const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+            for(const name of ['x1','x2'])line.setAttribute(name,link[name]-rect.left);
+            for(const name of ['y1','y2'])line.setAttribute(name,link[name]-rect.top);
+            line.setAttribute('stroke',avatar.style.getPropertyValue('--avatar-color'));
+            line.dataset.player=node.dataset.player;links.append(line);
+          }
+        }
       }
     }
   }

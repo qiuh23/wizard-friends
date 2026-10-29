@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { openCardSlot, playedCardSlots } from '../src/table-layout.js';
+import { openCardSlot, playedCardSlots, playedCardLink } from '../src/table-layout.js';
 
 test('trump yields to an opposite seat and never leaves the available table', () => {
   const area = {left:8,right:382,top:64,bottom:410};
@@ -45,7 +45,7 @@ test('played-card sizing shrinks to fit and reports a completely obstructed play
   assert.equal(playedCardSlots(area,seats,center,[area],118),null);
 });
 
-test('six narrow-landscape seats keep the viewer below and beside the unobstructed trump', () => {
+test('six narrow-landscape cards cannot occupy another avatar sector even when that space is empty', () => {
   const center={x:333.5,y:212.265625},area={left:8,right:659,top:8,bottom:367};
   const seats=[{id:'p0',self:true,x:30,y:341},{id:'p1',x:63,y:165.328125},
     {id:'p2',x:153.40625,y:75.546875},{id:'p3',x:333.5,y:47.421875},
@@ -54,10 +54,25 @@ test('six narrow-landscape seats keep the viewer below and beside the unobstruct
   const trump={left:295.5,right:371.5,top:155.265625,bottom:269.265625};
   obstacles.push(trump,{left:8,right:153,top:319,bottom:363},{left:168,right:659,top:285.828125,bottom:359},
     {left:513,right:657,top:8,bottom:52},{left:12,right:141.125,top:10,bottom:29});
-  const layout=playedCardSlots(area,seats,center,obstacles,68);
+  assert.equal(playedCardSlots(area,seats,center,obstacles,36),null,'the large central trump leaves no honest top-seat slot');
+  const smallerTrump={left:center.x-15.2,right:center.x+15.2,top:center.y-22.8,bottom:center.y+22.8};
+  obstacles[obstacles.indexOf(trump)]=smallerTrump;
+  const layout=playedCardSlots(area,seats,center,obstacles,36);
   assert.ok(layout);assert.equal(layout.slots.size,6);
   const own=layout.slots.get('p0');
   assert.ok(own.y>center.y);
-  assert.ok(own.rect.right<trump.left||own.rect.left>trump.right||own.rect.top>trump.bottom);
-  for(const slot of layout.slots.values())assert.ok(slot.rect.right<=trump.left||slot.rect.left>=trump.right||slot.rect.bottom<=trump.top||slot.rect.top>=trump.bottom);
+  assert.ok(own.rect.right<smallerTrump.left||own.rect.left>smallerTrump.right||own.rect.top>smallerTrump.bottom);
+  for(const seat of seats){
+    const slot=layout.slots.get(seat.id),face={x:slot.x-center.x,y:slot.y-10-center.y};
+    const alignment=source=>(face.x*(source.x-center.x)+face.y*(source.y-center.y))/Math.hypot(source.x-center.x,source.y-center.y);
+    for(const other of seats.filter(other=>other.id!==seat.id))assert.ok(alignment(seat)>alignment(other),'card stays in its own avatar direction');
+    assert.ok(slot.rect.right<=smallerTrump.left||slot.rect.left>=smallerTrump.right||slot.rect.bottom<=smallerTrump.top||slot.rect.top>=smallerTrump.bottom);
+  }
+});
+
+test('ownership links stop before the player and card rectangles and omit a gap too short to draw', () => {
+  const source={x:20,y:20},player={left:10,right:30,top:10,bottom:30};
+  const link=playedCardLink(source,player,{left:60,right:80,top:10,bottom:30});
+  for(const [key,value]of Object.entries({x1:34,y1:20,x2:56,y2:20}))assert.ok(Math.abs(link[key]-value)<1e-9);
+  assert.equal(playedCardLink(source,player,{left:34,right:54,top:10,bottom:30}),null);
 });

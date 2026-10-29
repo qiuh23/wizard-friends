@@ -36,6 +36,7 @@ async function inspect(page,webgl) {
     const trump=document.querySelector('.trump-display[data-occluded="false"] .trump-card');
     const winnerId=document.querySelector('.played.winner')?.dataset.player;
     return {layout:document.querySelector('.played-cards').dataset.layout,
+      sources:[...document.querySelectorAll('.opponents .avatar,.own-status .avatar')].map(node=>({id:node.dataset.playerDetails,...center(node)})),
       faceWidth:parseFloat(document.querySelector('.played-cards').style.getPropertyValue('--played-width')),
       obstacles:[...document.querySelectorAll('.opponents .player,.own-status,.action-panel,.hand-section,.roundbar,.game-toolbar,.foresight-hands,.lifecycle-banner')].filter(visible).map(rect).concat(trump?[rect(trump)]:[]),
       trump:trump?center(trump):null,overflow:document.documentElement.scrollWidth>innerWidth,
@@ -52,6 +53,7 @@ async function inspect(page,webgl) {
 try {
   for(const webgl of [true,false])for(const[width,height]of(webgl?[[1440,900],[1280,720],[1105,482],[844,390],[667,375],[390,844],[360,640]]:[[1440,900],[844,390],[390,844]]))for(const count of[3,4,5,6])for(const full of[false,true]){
     if(process.env.PLAYED_SIZE&&Number(process.env.PLAYED_SIZE)!==width)continue;
+    if(process.env.PLAYED_COUNT&&Number(process.env.PLAYED_COUNT)!==count)continue;
     const record=fixture(count,full);
     const context=await browser.newContext({viewport:{width,height},hasTouch:width<1106,reducedMotion:'no-preference'});
     await context.addInitScript(({record,webgl})=>{
@@ -73,6 +75,10 @@ try {
           expect(c.rect.top,label).toBeGreaterThanOrEqual(0);expect(c.rect.bottom,label).toBeLessThanOrEqual(height);
           for(const o of data.obstacles)expect(overlaps(c.rect,o),`${label} ${c.id} overlaps ${JSON.stringify(o)}`).toBe(false);
           if(data.trump)expect(Math.hypot(c.card.x-data.trump.x,c.card.y-data.trump.y),`${label}: card must remain inward from its avatar`).toBeLessThan(Math.hypot(c.source.x-data.trump.x,c.source.y-data.trump.y));
+          if(data.trump){
+            const direction=source=>((c.card.x-data.trump.x)*(source.x-data.trump.x)+(c.card.y-data.trump.y)*(source.y-data.trump.y))/Math.hypot(source.x-data.trump.x,source.y-data.trump.y);
+            for(const other of data.sources.filter(s=>s.id!==c.id))expect(direction(c.source),`${label}: ${c.id} is in ${other.id}'s direction`).toBeGreaterThanOrEqual(direction(other)-.01);
+          }
           for(const [point,target]of[[c.from,c.source],[c.collect,c.winner],...(webgl?[[c.mesh.target,c.card],[c.mesh.position,c.card],[c.mesh.from,c.source],[c.mesh.collect,c.winner]]:[])])expect(Math.hypot(point.x-target.x,point.y-target.y),label).toBeLessThan(2);
         }
         for(let i=0;i<data.cards.length;i++)for(let j=i+1;j<data.cards.length;j++)expect(overlaps(data.cards[i].rect,data.cards[j].rect),label).toBe(false);
