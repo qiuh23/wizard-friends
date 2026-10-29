@@ -60,22 +60,25 @@ export class TableScene {
     const woodMap = new THREE.CanvasTexture(canvas); woodMap.colorSpace = THREE.SRGBColorSpace;
     const wood = this.material('#a69c92',{ map: woodMap, roughness: .68 });
     const brass = this.material('#b99a5c',{ metalness: .7, roughness: .32 });
-    this.surround = this.mesh(new THREE.PlaneGeometry(90,90),this.material('#49433e',{map:woodMap,roughness:.95}),0,-.42,0);
+    this.surround = this.mesh(new THREE.PlaneGeometry(90,90),this.material('#082b20',{roughness:.97}),0,.334,0);
     this.surround.rotation.x = -Math.PI / 2;
     this.surround.visible = false;
-    this.mesh(new THREE.BoxGeometry(13,.55,8.8),wood,0,-.12,0);
-    this.mesh(new THREE.BoxGeometry(12.6,.08,8.4),brass,0,.19,0);
-    this.mesh(new THREE.BoxGeometry(12.4,.12,8.2),wood,0,.26,0);
-    this.mesh(new THREE.BoxGeometry(10.35,.025,6.5),this.material('#082b20',{roughness:.97}),0,.335,0);
+    this.tableSurface = [
+      this.mesh(new THREE.BoxGeometry(13,.55,8.8),wood,0,-.12,0),
+      this.mesh(new THREE.BoxGeometry(12.6,.08,8.4),brass,0,.19,0),
+      this.mesh(new THREE.BoxGeometry(12.4,.12,8.2),wood,0,.26,0),
+      this.mesh(new THREE.BoxGeometry(10.35,.025,6.5),this.material('#082b20',{roughness:.97}),0,.335,0),
+    ];
     const lineMat = new THREE.MeshBasicMaterial({color:'#ae8f51', transparent:true, opacity:.35, side:THREE.DoubleSide});
     this.trumpRingMaterial = lineMat;
+    this.tableInlay = new THREE.Group(); this.scene.add(this.tableInlay);
     for (const radius of [2.25,2.38,2.8]) {
-      const ring = this.mesh(new THREE.RingGeometry(radius,radius+.03,96),lineMat,0,.354,0);
+      const ring = this.mesh(new THREE.RingGeometry(radius,radius+.03,96),lineMat,0,.354,0,this.tableInlay);
       ring.rotation.x=-Math.PI/2;
     }
     for(let i=0;i<12;i++){
       const angle=i*Math.PI/6;
-      const rune=this.mesh(new THREE.OctahedronGeometry(.07),brass,Math.cos(angle)*2.58,.36,Math.sin(angle)*2.58);
+      const rune=this.mesh(new THREE.OctahedronGeometry(.07),brass,Math.cos(angle)*2.58,.36,Math.sin(angle)*2.58,this.tableInlay);
       rune.scale.y=.1;
     }
     this.candle(-5.25,-1.7,1.15, brass);
@@ -225,6 +228,12 @@ export class TableScene {
     if(!width||!height)return;
     this.renderer.setSize(width,height,false);this.camera.aspect=width/height;
     this.camera.clearViewOffset();
+    this.trump.quaternion.identity();
+    const touchTable = this.mode === 'game' && width <= 850;
+    for (const surface of this.tableSurface) surface.visible = !touchTable;
+    // On a phone the felt is the playfield, rather than a small table model
+    // between wide strips of timber. Keep the original framed table on desktop.
+    this.tableInlay.scale.set(touchTable ? 1.45 : 1,1,touchTable && height > width ? 2.5 : 1);
 
     if (this.mode === 'game') {
       const mobile = width <= 600;
@@ -253,7 +262,41 @@ export class TableScene {
     this.trump.userData.baseHeight = this.trump.position.y;
     this.camera.lookAt(0,0,0);this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld();
     this.layoutDecorations(width, height);
-    if (this.mode === 'game') this.alignCardSeats();
+    if (this.mode === 'game') { this.alignCardSeats(); this.alignTrump(); }
+  }
+  alignTrump() {
+    const display = this.host.closest('.table')?.querySelector('.trump-display');
+    const anchor = display?.querySelector('.trump-card');
+    if (!anchor) return;
+    this.trump.visible = display.dataset.occluded !== 'true';
+    if (!this.trump.visible) return;
+    const rect = anchor.getBoundingClientRect(), canvas = this.renderer.domElement.getBoundingClientRect();
+    const ray = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0,1,0),-2);
+    const pointAt = (x,y) => {
+      ray.setFromCamera(new THREE.Vector2((x-canvas.left)/canvas.width*2-1,1-(y-canvas.top)/canvas.height*2),this.camera);
+      return ray.ray.intersectPlane(plane,new THREE.Vector3());
+    };
+    const center = { x:rect.x+rect.width/2, y:rect.y+rect.height/2 };
+    const point = pointAt(center.x,center.y); if (!point) return;
+    // Read the trump square-on even with the phone's steep table camera.
+    this.trump.quaternion.copy(this.camera.quaternion);
+    this.trump.position.copy(point); this.trump.scale.setScalar(1);
+    // A box enclosing every rotation and the subtle float keeps the entire
+    // physical card inside its reserved DOM slot, including edge-on frames.
+    const bounds = () => {
+      const points = [];
+      for (const x of [-.57,.57]) for (const y of [-.92,.92]) for (const z of [-.57,.57]) {
+        const p = new THREE.Vector3(x,y,z).multiplyScalar(this.trump.scale.x).applyQuaternion(this.trump.quaternion).add(this.trump.position).project(this.camera);
+        points.push({ x:canvas.left+(p.x+1)*canvas.width/2, y:canvas.top+(1-p.y)*canvas.height/2 });
+      }
+      return { left:Math.min(...points.map(p=>p.x)), right:Math.max(...points.map(p=>p.x)), top:Math.min(...points.map(p=>p.y)), bottom:Math.max(...points.map(p=>p.y)) };
+    };
+    const initial = bounds();
+    this.trump.scale.setScalar(Math.min(rect.width/(initial.right-initial.left),rect.height/(initial.bottom-initial.top))*.96);
+    const scaled = bounds();
+    const corrected = pointAt(center.x+center.x-(scaled.left+scaled.right)/2,center.y+center.y-(scaled.top+scaled.bottom)/2);
+    if (corrected) this.trump.position.copy(corrected);
+    this.trump.userData.baseHeight = this.trump.position.y;
   }
   layoutDecorations(width, height) {
     for (const { group, position, scale } of this.tableProps) { group.position.copy(position); group.scale.copy(scale); group.visible = true; }
@@ -358,8 +401,8 @@ export class TableScene {
     this.orb.rotation.y=t*.2;
     if (this.trump.visible) {
       const trumpTime = this.trumpMotion ? sceneTime * .001 : 0;
-      this.trump.position.y = this.trump.userData.baseHeight + Math.sin(trumpTime * Math.PI / 2.4) * (this.trumpMotion ? .07 : 0);
-      this.trumpCard.rotation.y = -.25 + trumpTime * Math.PI / 8;
+      this.trump.position.y = this.trump.userData.baseHeight + Math.sin(trumpTime * Math.PI / 2.4) * (this.trumpMotion ? .07 * (this.mode === 'game' ? this.trump.scale.y : 1) : 0);
+      this.trumpCard.rotation.y = this.mode === 'game' ? -.12 + Math.sin(trumpTime * .65) * .22 : -.25 + trumpTime * Math.PI / 8;
     }
     for(const group of this.paused ? [] : this.cards.values()){
       const collect=group.userData.collect;

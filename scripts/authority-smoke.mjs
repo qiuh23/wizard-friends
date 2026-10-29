@@ -77,7 +77,8 @@ try {
   for (const page of [guest, other]) await expect(page.locator('#rules-form input').first()).toBeDisabled();
   await host.locator('#start').click();
   for (const page of pages) await page.locator('.table').waitFor();
-  await expect(host.locator('.lead-order')).toContainText('首墩先手');
+  await expect(host.locator('.lead-callout')).toBeVisible();
+  await expect(host.locator('.lead-callout')).toContainText('首墩先手');
   // Authority secrets must never enter even the host browser cache.
   for (const page of pages) {
     const saved = await session(page), view = saved.state;
@@ -167,10 +168,12 @@ try {
   }
   await expect.poll(async () => (await state(host)).phase).toBe('trickEnd');
   await expect(host.locator('.win-reason')).not.toBeEmpty();
-  await expect(host.locator('.lead-order')).toContainText('下墩先手');
+  await expect(host.locator('.lead-callout')).toBeVisible();
+  await expect(host.locator('.lead-callout')).toContainText('下墩先手');
   await host.waitForTimeout(2000);
   expect((await state(host)).phase).toBe('trickEnd');
   await expect.poll(async () => (await state(host)).phase, {timeout:7000}).toBe('play');
+  await host.locator('#table-menu').click();
   await host.locator('#room-dissolve').click();
   for (const page of pages) await page.locator('#create').waitFor();
   await watcher.locator('#create').waitFor();

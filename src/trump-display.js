@@ -2,6 +2,7 @@ import { cardImage } from './card-art.js';
 import { cardMark, cardMarksHTML } from './card-face.js';
 import { SUIT_NAMES } from './game.js';
 import { trumpStyle } from './trump-style.js';
+import { openCardSlot } from './table-layout.js';
 
 export function trumpPresentation(state) {
   const appearance = trumpStyle(state);
@@ -53,4 +54,33 @@ export function renderTrumpDisplay(table, state) {
   label.setAttribute('role', 'status');
   root.append(label);
   table.append(root);
+}
+
+export function layoutTrumpDisplay(table) {
+  const root = table?.querySelector('.trump-display');
+  if (!root?.querySelector('.trump-card')) return;
+  const box = table.getBoundingClientRect();
+  const visible = selector => [...document.querySelectorAll(selector)].filter(el => {
+    const style = getComputedStyle(el);
+    return style.display !== 'none' && style.visibility !== 'hidden' && el.getBoundingClientRect().height > 0;
+  }).map(el => el.getBoundingClientRect());
+  const header = visible('.game-toolbar, .roundbar');
+  const dock = visible('.own-status, .action-panel, .hand-section');
+  const area = { left:box.left+8, right:box.right-8,
+    top:Math.max(box.top+8,...header.map(r=>r.bottom+12)), bottom:Math.min(box.bottom-8,...dock.map(r=>r.top-10)) };
+  const obstacles = visible('.opponents .player, .played, .foresight-hands, .lifecycle-banner');
+  const width = box.width > 850 ? 100 : box.width > box.height ? 76 : 94;
+  const preferred = { x:box.left+box.width/2, y:area.top+(area.bottom-area.top)*.7 };
+  let slot = null, best = Infinity;
+  for (const scale of [1, .8, .65]) {
+    const candidate = openCardSlot(area, obstacles, width*scale, width*1.5*scale, preferred);
+    if (!candidate) continue;
+    const score = (candidate.x-preferred.x)**2*2+(candidate.y-preferred.y)**2+(width-candidate.width)**2*4;
+    if (score < best) { slot = candidate; best = score; }
+  }
+  root.dataset.occluded = String(!slot);
+  if (!slot) return;
+  Object.assign(root.style, { left:`${slot.x-box.left}px`, top:`${slot.y-box.top}px` });
+  root.style.setProperty('--trump-width',`${slot.width}px`);
+  root.style.setProperty('--trump-height',`${slot.height}px`);
 }

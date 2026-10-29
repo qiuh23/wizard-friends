@@ -83,7 +83,9 @@ try {
     const illegal = hand.find(c => !expected.legal.includes(c.id));
     const legal = hand.find(c => c.kind === 'number' && expected.legal.includes(c.id));
     const { page, context } = await open(saved, 390, 844);
+    await page.locator('#table-menu').click();
     await page.locator('#hand-expand').click();
+    await page.locator('#table-menu').click();
     await expect(page.locator(`.hand [data-card="${illegal.id}"]`)).not.toHaveClass(/playable/);
     await page.locator(`.hand [data-card="${illegal.id}"]`).click();
     await expect(page.locator('#confirm-play')).toBeDisabled();

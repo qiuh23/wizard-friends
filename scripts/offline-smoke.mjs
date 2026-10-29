@@ -33,6 +33,7 @@ try {
   await expect.poll(async () => (await saved())?.game.phase).toBe('roundEnd');
   await expect(page.locator('.personal-result')).toBeVisible();
   const result = (await saved()).game.history;
+  await page.locator('#table-menu').click();
   await page.locator('#leave').click(); await page.locator('#create').waitFor();
   await page.locator('#resume-practice').click();
   await expect.poll(async () => (await saved())?.game.history).toEqual(result);
