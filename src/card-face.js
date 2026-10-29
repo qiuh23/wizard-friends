@@ -16,7 +16,7 @@ export function cardMark(card) {
 
 export function cardMarksHTML(card) {
   const mark = cardMark(card);
-  return `<span class="corner">${mark.value}<small>${mark.symbol}</small></span>${card.kind === 'number' ? `<span class="suit-mark" aria-hidden="true">${mark.symbol}</span>` : ''}`;
+  return `<span class="corner"><span class="card-value">${mark.value}</span><small>${mark.symbol}</small></span>${card.kind === 'number' ? `<span class="suit-mark" aria-hidden="true">${mark.symbol}</span>` : ''}`;
 }
 
 // Bake every mark into the physical face: no independently animated DOM numbers.
@@ -25,12 +25,19 @@ export function paintCardFace(ctx, image, card) {
   ctx.drawImage(image, 0, 0, 320, 480);
   ctx.strokeStyle = mark.color; ctx.lineWidth = 8;
   ctx.strokeRect(4, 4, 312, 472);
-  ctx.fillStyle = '#0b1518'; ctx.fillRect(10, 10, 146, 174);
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = '#fff0cb'; ctx.font = 'bold 108px Georgia, serif';
-  ctx.fillText(mark.value, 18, 116);
-  ctx.fillStyle = mark.color; ctx.font = 'bold 40px sans-serif';
-  ctx.fillText(mark.symbol, 18, 164);
+  let top = 10;
+  // Separate fitted backings leave the illustration visible beside the symbol.
+  for (const [text, font, color] of [[mark.value, 'bold 108px Georgia, serif', '#fff0cb'],
+    [mark.symbol, 'bold 40px sans-serif', mark.color]]) {
+    ctx.font = font;
+    const ink = ctx.measureText(text), height = ink.actualBoundingBoxAscent + ink.actualBoundingBoxDescent;
+    const width = ink.actualBoundingBoxLeft + ink.actualBoundingBoxRight;
+    ctx.fillStyle = '#0b1518'; ctx.fillRect(10, top, Math.ceil(width + 6), Math.ceil(height + 6));
+    ctx.fillStyle = color;
+    ctx.fillText(text, 13 + ink.actualBoundingBoxLeft, top + 3 + ink.actualBoundingBoxAscent);
+    top += height + 9;
+  }
   if (card.kind === 'number') {
     ctx.fillStyle = mark.color; ctx.beginPath(); ctx.arc(276, 44, 26, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#0b1518'; ctx.font = 'bold 34px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';

@@ -29,8 +29,8 @@ test('each message lasts eight seconds independently, fades and expires without 
 });
 test('bounded desktop and mobile stacks retain chronological order and reset between rooms', () => {
   const feed = new ChatNotices(); feed.update([], 'self', true, 0);
-  feed.update(Array.from({ length: 10 }, (_, i) => message(i + 1)), 'self', true, 1, 5);
-  assert.deepEqual(feed.items.map(n => n.message.seq), [6,7,8,9,10]);
-  assert.deepEqual(feed.advance(2, 3).map(n => n.message.seq), [8,9,10]);
+  feed.update(Array.from({ length: 10 }, (_, i) => message(i + 1)), 'self', true, 1);
+  assert.deepEqual(feed.items.map(n => n.message.seq), [5,6,7,8,9,10]);
+  assert.deepEqual(feed.advance(2, 4).map(n => n.message.seq), [7,8,9,10]);
   feed.reset(); assert.equal(feed.latest, 0); assert.equal(feed.items.length, 0);
 });

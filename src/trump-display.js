@@ -7,13 +7,15 @@ import { openCardSlot } from './table-layout.js';
 export function trumpPresentation(state) {
   const appearance = trumpStyle(state);
   if (state.options?.deckMode === 'mono') {
-    return { ...appearance, card: null, cardLabel: '', status: 'mono', label: '无主牌 · 单色牌库' };
+    return { ...appearance, card: null, cardLabel: '', status: 'mono', label: '无主牌 · 单色牌库', compactLabel: '无主牌 · 单色' };
   }
   const card = state.reveal || null;
   const cardLabel = !card ? '' : card.kind === 'number' ? `${SUIT_NAMES[card.suit]} ${card.rank}` : card.kind === 'wizard' ? '巫师' : '小丑';
-  if (appearance.pending) return { ...appearance, card, cardLabel, status: 'pending', label: '等待庄家选择主牌' };
-  if (state.trump) return { ...appearance, card, cardLabel, status: 'suit', label: `主牌 · ${SUIT_NAMES[state.trump]}${card?.kind === 'wizard' ? '（巫师指定）' : ''}` };
-  return { ...appearance, card, cardLabel, status: card?.kind === 'jester' ? 'jester' : 'exhausted', label: card?.kind === 'jester' ? '无主牌 · 翻开小丑' : '无主牌 · 牌库已用尽' };
+  if (appearance.pending) return { ...appearance, card, cardLabel, status: 'pending', label: '等待庄家选择主牌', compactLabel: 'W · 待庄家选色' };
+  if (state.trump) return { ...appearance, card, cardLabel, status: 'suit', label: `主牌 · ${SUIT_NAMES[state.trump]}${card?.kind === 'wizard' ? '（巫师指定）' : ''}`,
+    compactLabel: `${card?.kind === 'wizard' ? 'W → ' : ''}${SUIT_NAMES[state.trump].split(' · ')[0]}色主牌` };
+  return { ...appearance, card, cardLabel, status: card?.kind === 'jester' ? 'jester' : 'exhausted', label: card?.kind === 'jester' ? '无主牌 · 翻开小丑' : '无主牌 · 牌库已用尽',
+    compactLabel: card?.kind === 'jester' ? 'J · 本轮无主牌' : '无主牌 · 牌库用尽' };
 }
 
 export function renderTrumpDisplay(table, state) {

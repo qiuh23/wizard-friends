@@ -31,7 +31,7 @@ body[data-screen="game"] .turn-label { display:none; }
 .win-reason:empty { display:none; }
 body[data-screen="game"] .roundbar { top:12px;left:14px;min-height:0;padding:0;max-width:calc(100vw - 174px);background:none;box-shadow:none; }
 body[data-screen="game"] .roundbar b { font-size:16px; }
-body[data-screen="game"] .compact-trump { display:inline;font-style:normal;font-size:12px; }
+body[data-screen="game"] .compact-trump { display:inline-block;font-style:normal;font-size:12px;white-space:nowrap;color:var(--trump-color); }
 body[data-screen="game"] .trump-display .table-trump { display:none; }
 body[data-screen="game"] .game-toolbar { top:8px!important;left:auto;right:10px;gap:6px;background:none;border:0; }
 body[data-screen="game"] .game-toolbar > button {
