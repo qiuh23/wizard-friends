@@ -97,6 +97,18 @@ body[data-screen="game"] .bid-options {
   overscroll-behavior:contain;scroll-snap-type:x proximity;
 }
 body[data-screen="game"] .bid-options .bid { flex:0 0 44px;min-width:44px;min-height:44px;padding:0;border:0;border-radius:50%;background:#173b2bbd;color:#f8e6b7;font-size:20px;scroll-snap-align:center;box-shadow:inset 0 0 0 1px #e6cc8a4d,0 0 6px #d9bd6a12; }
+body[data-screen="game"] .bid-options .bid:first-child { margin-inline-start:auto; }
+body[data-screen="game"] .bid-options .bid:last-child { margin-inline-end:auto; }
+/* Open the existing fan without growing a card over its neighbours. */
+@media(hover:hover) and (pointer:fine) {
+  body[data-screen="game"] .hand.desktop-fan .card,
+  body[data-screen="game"] .hand.desktop-fan.large-hand .card {
+    transition:left .24s cubic-bezier(.2,.8,.2,1),top .24s cubic-bezier(.2,.8,.2,1),
+      transform .24s cubic-bezier(.2,.8,.2,1),translate .24s cubic-bezier(.2,.8,.2,1),box-shadow .2s;
+  }
+  body[data-screen="game"]:has(.hand.desktop-fan) .hover-preview,
+  body[data-screen="game"]:has(.hand.desktop-fan) .selected-preview { display:none; }
+}
 body[data-screen="game"] .bid-options .bid:hover { background:#e6c486;color:#211c11; }
 body[data-screen="game"] .play-confirm:not([data-submitting="true"]):has(#cancel-card:disabled) { visibility:hidden;pointer-events:none; }
 body[data-screen="game"] .hand-heading > b { display:none; }

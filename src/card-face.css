@@ -1,4 +1,5 @@
 /* Color and contrast reinforce the original art without adding color words. */
+.card,.card.red,.card.green,.card.yellow,.card.wizard,.card.jester { background-color:#e8deca; }
 .card > .corner:not(.bottom) {
   visibility:visible;position:absolute;left:3px;top:3px;z-index:3;
   display:flex;flex-direction:column;align-items:flex-start;gap:1px;
@@ -15,20 +16,13 @@ body[data-screen="game"] .hand .card > .corner:not(.bottom) { min-width:0;paddin
 .trump-card-face > .corner:not(.bottom) { font-size:26px; }
 body[data-screen="game"].has-webgl .played .card,
 body[data-screen="game"].has-webgl .played .card * { visibility:hidden; }
-/* Only the physical card moves; its identity label stays at the same seat.
-   Negative delays resume the shared timeline after a DOM redraw. */
+/* HTML and physical cards read the same pausable presentation clock. */
 body[data-screen="game"] .played.card-enter,
 body[data-screen="game"] .played.collect-winner { animation:none; }
-body[data-screen="game"] .played.card-enter .card {
-  animation:table-card-enter 420ms ease-out both;
-  animation-delay:var(--entry-delay,0ms);
-}
+body[data-screen="game"] .played.card-enter .card,
 body[data-screen="game"] .played.collect-winner .card {
-  animation:table-card-enter 420ms ease-out both,table-card-collect 800ms ease-in-out forwards;
-  animation-delay:var(--entry-delay,0ms),var(--collect-delay,0ms);
+  animation:none;
 }
-@keyframes table-card-enter { from{translate:var(--from-x) var(--from-y);opacity:0;}to{translate:0 0;opacity:1;} }
-@keyframes table-card-collect { from{transform:translate(0,0) scale(1);opacity:1;}to{transform:translate(var(--winner-dx),var(--winner-dy)) scale(.35);opacity:0;} }
 body[data-screen="game"].has-webgl .played .card { animation:none; }
 @media(max-width:850px) {
   .trump-card-face > .corner:not(.bottom) { font-size:18px; }

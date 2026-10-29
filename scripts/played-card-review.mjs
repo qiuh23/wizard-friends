@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import { createGame, addPlayer, act, viewFor } from '../src/game.js';
 import { createRandomStream } from '../src/random.js';
 import { DEFAULT_OPTIONS } from '../src/rules-options.js';
+import { LEADING_CARD_SCALE } from '../src/table-motion.js';
 
 // Local/manual geometry and renderer regression; all fixtures use legal actions.
 // Inspection references are injected into browser responses, never production.
@@ -43,7 +44,14 @@ async function inspect(page,webgl) {
       cards:[...document.querySelectorAll('.played')].map(node=>{
         const face=node.querySelector('.card'),r=rect(node),card={x:r.left+face.offsetLeft+face.offsetWidth/2,y:r.top+face.offsetTop+face.offsetHeight/2};
         const group=webgl?scene.cards.get(face.dataset.card||[...scene.cards].find(([,g])=>scene.state.players[g.userData.player].id===node.dataset.player)?.[0]):null;
-        return {id:node.dataset.player,rect:r,card,source:center(avatar(node.dataset.player)),winner:center(avatar(winnerId)),
+        let faceRect=rect(face);
+        if(group){
+          const points=group.userData.face.geometry.attributes.position;
+          const corners=Array.from({length:points.count},(_,i)=>screen(group.userData.face.localToWorld(group.position.clone().set(points.getX(i),points.getY(i),points.getZ(i)))));
+          faceRect={left:Math.min(...corners.map(p=>p.x)),right:Math.max(...corners.map(p=>p.x)),top:Math.min(...corners.map(p=>p.y)),bottom:Math.max(...corners.map(p=>p.y))};
+        }
+        const matrix=new DOMMatrix(getComputedStyle(face).transform);
+        return {id:node.dataset.player,rect:r,faceRect,leading:node.classList.contains('winner'),scale:group?group.scale.x/group.userData.baseScale.x:Math.hypot(matrix.a,matrix.b),card,source:center(avatar(node.dataset.player)),winner:center(avatar(winnerId)),
           from:{x:card.x+parseFloat(node.style.getPropertyValue('--from-x')),y:card.y+parseFloat(node.style.getPropertyValue('--from-y'))},
           collect:{x:card.x+parseFloat(node.style.getPropertyValue('--winner-dx')),y:card.y+parseFloat(node.style.getPropertyValue('--winner-dy'))},
           mesh:group?{position:screen(group.position),target:screen(group.userData.target),from:screen(group.userData.from),collect:screen(group.userData.collectTo)}:null};
@@ -71,9 +79,13 @@ try {
         expect(data.layout,label).toBe('seats');expect(data.overflow,label).toBe(false);
         expect(data.cards.length,label).toBe(full?count:2);
         for(const c of data.cards){
+          expect(c.scale,label).toBeCloseTo(c.leading?LEADING_CARD_SCALE:1,4);
           expect(c.rect.left,label).toBeGreaterThanOrEqual(0);expect(c.rect.right,label).toBeLessThanOrEqual(width);
           expect(c.rect.top,label).toBeGreaterThanOrEqual(0);expect(c.rect.bottom,label).toBeLessThanOrEqual(height);
-          for(const o of data.obstacles)expect(overlaps(c.rect,o),`${label} ${c.id} overlaps ${JSON.stringify(o)}`).toBe(false);
+          for(const o of data.obstacles){
+            expect(overlaps(c.rect,o),`${label} ${c.id} overlaps ${JSON.stringify(o)}`).toBe(false);
+            expect(overlaps(c.faceRect,o),`${label} enlarged ${c.id} overlaps ${JSON.stringify(o)}`).toBe(false);
+          }
           if(data.trump)expect(Math.hypot(c.card.x-data.trump.x,c.card.y-data.trump.y),`${label}: card must remain inward from its avatar`).toBeLessThan(Math.hypot(c.source.x-data.trump.x,c.source.y-data.trump.y));
           if(data.trump){
             const direction=source=>((c.card.x-data.trump.x)*(source.x-data.trump.x)+(c.card.y-data.trump.y)*(source.y-data.trump.y))/Math.hypot(source.x-data.trump.x,source.y-data.trump.y);
@@ -81,7 +93,10 @@ try {
           }
           for(const [point,target]of[[c.from,c.source],[c.collect,c.winner],...(webgl?[[c.mesh.target,c.card],[c.mesh.position,c.card],[c.mesh.from,c.source],[c.mesh.collect,c.winner]]:[])])expect(Math.hypot(point.x-target.x,point.y-target.y),label).toBeLessThan(2);
         }
-        for(let i=0;i<data.cards.length;i++)for(let j=i+1;j<data.cards.length;j++)expect(overlaps(data.cards[i].rect,data.cards[j].rect),label).toBe(false);
+        for(let i=0;i<data.cards.length;i++)for(let j=i+1;j<data.cards.length;j++){
+          expect(overlaps(data.cards[i].rect,data.cards[j].rect),label).toBe(false);
+          expect(overlaps(data.cards[i].faceRect,data.cards[j].faceRect),label).toBe(false);
+        }
       }catch(error){await page.screenshot({path:`${out}/played-card-failure.png`});fs.writeFileSync(`${out}/played-card-failure.json`,JSON.stringify({label,data},null,2));throw error;}
       checks.push({width,height,count,webgl,full,...data});
       if(webgl&&full&&[3,6].includes(count))await page.screenshot({path:`${out}/played-cards-${count}-${width}.png`});

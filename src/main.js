@@ -14,7 +14,7 @@ import { ruleSetupHTML, ruleSummary } from './rule-ui.js';
 import { leadInfo, playerTotals, winnerReason, scoreHistoryHTML } from './table-summary.js';
 import './variants.css';
 import './trump-display.css';
-import { cardImage } from './card-art.js';
+import { cardImage, loadCardImage } from './card-art.js';
 import { createPresence } from './presence.js';
 import { createRoomTransport } from './room-transport.js';
 import { readRoomSession, saveRoomSession, clearRoomSession } from './room-session.js';
@@ -28,7 +28,7 @@ import './table-dock.css';
 import './table-clarity.css';
 import { cardMark, cardMarksHTML } from './card-face.js';
 import { captureHand, HandMotion } from './hand-motion.js';
-import { CARD_ENTER_MS, TableMotion } from './table-motion.js';
+import { CARD_ENTER_MS, LEADING_CARD_SCALE, TableMotion } from './table-motion.js';
 import { playedCardRect, playedCardSlots, playedCardLink } from './table-layout.js';
 import { seatPosition, landscapeSeatPosition, relativeSeat, followSuitHint, playBlockedReason, sortCards, isSwipe } from './hand-model.js';
 import { readRoomRecoveries, saveRoomRecovery, removeRoomRecovery } from './room-recovery.js';
@@ -147,6 +147,7 @@ function cardLabel(c) {
   return c.kind === 'wizard' ? '巫师 W' : c.kind === 'jester' ? '小丑 J' : `${SUIT_NAMES[c.suit].split(' · ')[0]} ${c.rank}`;
 }
 function cardHTML(c, inspectable = false, legal = false, selected = false) {
+  loadCardImage(c).catch(() => {});
   const special = c.kind !== 'number';
   const label = c.kind === 'wizard' ? '巫师' : c.kind === 'jester' ? '小丑' : SUIT_NAMES[c.suit].split(' · ')[1];
   const value = special ? (c.kind === 'wizard' ? 'W' : 'J') : c.rank;
@@ -279,7 +280,7 @@ function render() {
     }).join('')}</div>${foresight}<div class="played-cards ${state.players.length>=5 ? 'compact-trick' : ''}" style="inset:0">${state.trick.map((x, i) => {
       const seat = relativeSeat(x.player, selfIndex, state.players.length);
       const motion = tableMotion.timing(x.card.id);
-      return `<div class="played ${currentWinner === x.player ? 'winner' : ''} ${motion.enterMs < CARD_ENTER_MS ? 'card-enter' : ''} ${motion.collectMs !== null ? 'collect-winner' : ''}" role="img" aria-label="${escape(state.players[x.player].name)}：${escape(cardLabel(x.card))}${currentWinner === x.player ? done ? '，赢墩' : '，领先' : ''}" data-play-seat="${seat}" data-player="${escape(state.players[x.player].id)}" style="--entry-delay:${-motion.enterMs}ms;--collect-delay:${-(motion.collectMs ?? 0)}ms;--play-x:50%;--play-y:50%">${cardHTML(x.card)}<small title="${escape(state.players[x.player].name)}"><span class="played-name">${escape(state.players[x.player].name)}</span><span class="played-state" data-compact="${currentWinner===x.player ? done ? '赢墩' : '领先' : i===0 ? '首攻' : ''}">${currentWinner === x.player ? done ? '赢墩' : '领先' : i===0 ? '首攻' : '&nbsp;'}</span></small></div>`;
+      return `<div class="played ${currentWinner === x.player ? 'winner' : ''} ${motion.enterMs < CARD_ENTER_MS ? 'card-enter' : ''} ${motion.collectMs !== null ? 'collect-winner' : ''}" role="img" aria-label="${escape(state.players[x.player].name)}：${escape(cardLabel(x.card))}${currentWinner === x.player ? done ? '，赢墩' : '，领先' : ''}" data-card-id="${escape(x.card.id)}" data-play-seat="${seat}" data-player="${escape(state.players[x.player].id)}" style="--play-x:50%;--play-y:50%">${cardHTML(x.card)}<small title="${escape(state.players[x.player].name)}"><span class="played-name">${escape(state.players[x.player].name)}</span><span class="played-state" data-compact="${currentWinner===x.player ? done ? '赢墩' : '领先' : i===0 ? '首攻' : ''}">${currentWinner === x.player ? done ? '赢墩' : '领先' : i===0 ? '首攻' : '&nbsp;'}</span></small></div>`;
     }).join('')}</div>${matchResult}<div class="table-caption">已完成 ${state.completedTricks} / ${state.cardsPerRound} 墩</div></section>${ownStatusHTML(p)}<section class="action-panel"><div class="action-title"><h3>${state.lifecycle?.paused ? '牌局已暂停' : prompt.replace('点击金边手牌出牌', '选牌并确认出牌')}</h3><small class="win-reason">${state.phase === 'bid' ? '' : reason || followHint}</small>${leadOrder && state.phase !== 'play' ? `<strong class="lead-callout" role="status">➤ ${leadHint}${state.players[leadOrder.seat]?.id === me ? ' · 你' : ''}</strong>` : ''}</div>${actionUI}${roundResult}${state.phase === 'trickEnd' && !practice ? '<span id="trick-review-timer" role="timer">看清胜负后继续</span>' : ''}${done && state.phase !== 'finished' && !state.lifecycle?.closeAfterRound && (roundEnd || practice) ? isHost ? `<button id="next" class="primary" ${roundEnd && state.players.some(p => !p.online) ? 'disabled' : ''}>${roundEnd ? state.players.some(p => !p.online) ? '等待玩家重连' : '开始下一轮' : '继续下一墩'} →</button>` : '<p class="muted">等待房主继续</p>' : ''}${state.lifecycle?.closeAfterRound && roundEnd ? '<button id="confirm-results" class="primary">确认结果并离开</button>' : ''}${state.phase === 'finished' && isHost && !state.lifecycle?.closeAfterRound ? '<button id="rematch" class="primary">再来一局 →</button>' : ''}</section>${!spectating ? handHTML(p, myTurn) : ''}</main><aside>${scoreHistoryHTML(state, me)}<section class="panel scoreboard"><div class="section-label">预言排行榜 <span>总分</span></div>${state.players.map((x, i) => ({ ...x, seat: i })).sort((a,b) => b.score - a.score).map((x, i) => { const totals = playerTotals(state, x.id); return `<div class="score-row"><span class="rank">${String(i + 1).padStart(2, '0')}</span><span>${escape(x.name)}${x.id === me ? '<small>你</small>' : ''}<small>胜局 ${totals.matchWins} · 本局赢 ${totals.tricks} 墩 · 猜中 ${totals.exactRounds} 轮</small></span><b>${x.score}</b></div>`; }).join('')}${roundEnd ? `<div class="round-results"><h4>第 ${state.round} 轮得分</h4>${state.history.at(-1).result.map(r => `<div><span>${escape(state.players.find(x => x.id === r.id).name)} <small>${r.won}/${r.bid} 墩</small></span><b class="${r.delta > 0 ? 'positive' : 'negative'}">${r.delta > 0 ? '+' : ''}${r.delta}</b></div>`).join('')}</div>` : ''}</section><section class="panel journal"><div class="section-label">牌桌记事 <span>↙</span></div>${state.log.slice(-7).map(l => `<p>${escape(l)}</p>`).join('')}</section></aside></div>`;
   }
   app.innerHTML = shell(`${head}${body}${lifecycleHTML()}`);
@@ -413,6 +414,27 @@ function bindCommon() {
   $('#rules').onclick = () => { settingsOpen = false; menuOpen = false; rulesOpen = true; render(); $('#close-rules')?.focus(); };
   $('#close-rules')?.addEventListener('click', () => { rulesOpen = false; render(); $('#rules')?.focus(); });
 }
+function drawHTMLCards() {
+  if (!state?.trick.length || document.hidden || document.body.classList.contains('has-webgl')) return;
+  for (const node of document.querySelectorAll('.played[data-card-id]')) {
+    const card = node.querySelector('.card'), id = node.dataset.cardId;
+    const pose = tableMotion.pose(id);
+    if (motionMedia.matches) Object.assign(pose, { enter:1, collect:0, lift:0, opacity:1, scale:tableMotion.emphasisAt(id) });
+    const offset = name => parseFloat(node.style.getPropertyValue(name)) || 0;
+    const x = offset('--from-x') * (1 - pose.enter) + offset('--winner-dx') * pose.collect;
+    const y = offset('--from-y') * (1 - pose.enter) + offset('--winner-dy') * pose.collect - pose.lift;
+    const transform = `translate(${x}px, ${y}px) scale(${pose.scale})`;
+    const opacity = String(pose.enter * pose.opacity);
+    if (card.style.transform !== transform) card.style.transform = transform;
+    if (card.style.opacity !== opacity) card.style.opacity = opacity;
+  }
+}
+function animateHTMLCards() {
+  requestAnimationFrame(animateHTMLCards);
+  drawHTMLCards();
+}
+requestAnimationFrame(animateHTMLCards);
+
 function updateLayoutMetrics() {
   document.body.style.setProperty('--chat-panel-height', `${$('#room-chat')?.getBoundingClientRect().height || 0}px`);
   document.body.style.setProperty('--action-panel-height', `${$('.action-panel')?.getBoundingClientRect().height || 0}px`);
@@ -436,13 +458,13 @@ function updateLayoutMetrics() {
     const crowdScale = {3:1,4:.9,5:.8,6:.7}[state.players.length];
     const sizeLimit = {3:84,4:76,5:64,6:56}[state.players.length];
     const preferredWidth = Math.min(sizeLimit,Math.max(36,Math.min(rect.width,rect.height)*.135*crowdScale));
-    let layout = playedCardSlots(area,seats,center,obstacles,preferredWidth);
+    let layout = playedCardSlots(area,seats,center,obstacles,preferredWidth,LEADING_CARD_SCALE);
     if (!layout && trumpNode) for (const scale of [.8,.65,.55,.4]) {
       layoutTrumpDisplay(table,scale);
       const smallerTrump=trumpNode.getBoundingClientRect();
       obstacles[obstacles.length-1] = smallerTrump;
       center={x:smallerTrump.left+smallerTrump.width/2,y:smallerTrump.top+smallerTrump.height/2};
-      layout = playedCardSlots(area,seats,center,obstacles,preferredWidth);
+      layout = playedCardSlots(area,seats,center,obstacles,preferredWidth,LEADING_CARD_SCALE);
       if (layout) break;
     }
     played.dataset.layout = layout ? 'seats' : 'unavailable';
@@ -481,6 +503,7 @@ function updateLayoutMetrics() {
       node.style.setProperty(`--${prefix}-${prefix === 'from' ? 'y' : 'dy'}`, `${rect ? rect.top + rect.height / 2 - card.y : 0}px`);
     }
   }
+  drawHTMLCards();
 }
 function setupClearUI() {
   if (!state || ['lobby', 'rules'].includes(state.phase)) {
@@ -675,7 +698,8 @@ function bindHand() {
 }
 function updateEventEffects(initial = false) {
   const seq = state?.eventSeq || 0;
-  tableMotion.sync(state, { initial: initial || seenEventSeq == null, serverNow: Date.now() + serverClockOffset });
+  const leader = state?.trick.length ? state.trick.find(entry => entry.player === winner(state.trick, state.trump, state.options.deckMode))?.card.id : null;
+  tableMotion.sync(state, { initial: initial || seenEventSeq == null, serverNow: Date.now() + serverClockOffset, leader });
   seenEventSeq = seq;
   const myTurn = !spectating && (state?.canBid || (state?.players[state.turn]?.id === me && ['play','trump'].includes(state.phase)));
   const cue = myTurn ? `${state.round}:${state.completedTricks}:${state.phase}:${state.turn}` : '';

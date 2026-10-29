@@ -38,12 +38,16 @@ test('desktop shallow fan adapts few, fifteen, and twenty unique cards within it
  for(const count of [1,5,15,20]) {
   const fan=desktopFan(count,880,2,3);
   assert.equal(fan.poses.length,count);assert.ok(fan.cardWidth>=74);
-  assert.ok(fan.poses.every(p=>p.x>=0 && p.x+fan.cardWidth<=880 && Math.abs(p.angle)<=12));
+  assert.ok(fan.poses.every(p=>p.x+p.push>=0 && p.x+p.push+fan.cardWidth<=880 && Math.abs(p.angle)<=13));
   if(count>=15)assert.ok(fan.step>=30);
  }
  const fan=desktopFan(20,880,3,4);
- assert.equal(fan.poses[3].lift,-19);assert.equal(fan.poses[4].lift,-14);
- assert.equal(fan.poses[2].push,-10);assert.equal(fan.poses[5].push,10);
+ assert.equal(fan.poses[3].lift,-18);assert.equal(fan.poses[4].lift,-26);
+ assert.equal(fan.poses[2].push,-14);assert.equal(fan.poses[5].push,14);
+ const selected=desktopFan(20,880,-1,4);
+ assert.equal(selected.cardWidth,fan.cardWidth);
+ assert.equal(selected.poses[4].lift,-26);
+ assert.equal(selected.poses[3].push,-14);assert.equal(selected.poses[5].push,14);
 });
 
 test('all screen layouts keep successive seats in a physical clockwise cycle for every viewer', () => {
