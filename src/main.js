@@ -9,7 +9,7 @@ import './clarity.css';
 import { BackgroundMusic } from './music.js';
 import { RoomSocial } from './room-social.js';
 import { TrumpReveal, renderTrumpDisplay, layoutTrumpDisplay } from './trump-display.js';
-import { uniqueRandomName, validateName } from './player-names.js';
+import { validateName } from './player-names.js';
 import { ruleSetupHTML, ruleSummary } from './rule-ui.js';
 import { leadInfo, playerTotals, scoreHistoryHTML } from './table-summary.js';
 import './variants.css';
@@ -130,8 +130,8 @@ let practiceSaved = readPractice(localStorage);
 const tokenKey = 'wizard-player-token';
 let token = sessionStorage.getItem(tokenKey);
 if (!token) { token = crypto.randomUUID(); sessionStorage.setItem(tokenKey, token); }
-let nickname = sessionStorage.getItem('wizard-name') || uniqueRandomName();
-let automaticName = sessionStorage.getItem('wizard-name-automatic') !== 'false';
+let nickname = sessionStorage.getItem('wizard-name-automatic') === 'true' ? '' : sessionStorage.getItem('wizard-name') || '';
+let automaticName = false;
 persistName();
 const roomFromURL = (new URLSearchParams(location.search).get('room') || '').trim().toUpperCase();
 const watchFromURL = new URLSearchParams(location.search).get('watch') === '1';
@@ -215,6 +215,7 @@ function render() {
   const scorePanel = $('#table-score-panel'), ledger = $('.score-ledger .history-scroll');
   const scoreScroll = { top: scorePanel?.scrollTop || 0, left: ledger?.scrollLeft || 0, row: ledger?.scrollTop || 0 };
   if (!state) {
+    if (automaticName) { nickname = ''; automaticName = false; persistName(); }
     const returnSession = readRoomSession(sessionStorage,roomFromURL);
     const recoveryHandles=readRoomRecoveries(localStorage,roomFromURL);
     const returnRooms=returnSession && returnSession.role !== 'practice' ? [{...returnSession,token},...recoveryHandles.filter(r=>r.room!==returnSession.room || r.token!==token)] : recoveryHandles;
@@ -229,7 +230,7 @@ function render() {
           ${practiceSaved ? '<button id="resume-practice" class="menu-choice">恢复练习<span>↗</span></button>' : ''}<button id="practice" class="menu-choice" ${busy ? 'disabled' : ''}>单人练习<span aria-hidden="true">↗</span></button>
           ${busy ? '<button id="cancel-connect" class="text-button">取消连接</button>' : ''}
         </nav>
-        <div class="menu-identity"><label for="nickname">昵称</label><input id="nickname" maxlength="16" placeholder="旅人" autocomplete="nickname" value="${escape(nickname)}"></div>
+        <div class="menu-identity"><label for="nickname">昵称</label><input id="nickname" maxlength="16" placeholder="请输入昵称" required autocomplete="nickname" value="${escape(nickname)}"></div>
         <div class="home-presence"></div>
         <aside class="home-room-list" aria-label="在线房间"></aside>
       </section></main>`);
@@ -647,9 +648,9 @@ document.addEventListener('keydown', event => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && rulesOpen) { rulesOpen = false; render(); } });
 function saveName() {
   try {
-    if (!nickname.trim()) { nickname = uniqueRandomName(); automaticName = true; }
-    nickname = validateName(nickname); persistName(); return true;
-  } catch (error) { notify(error.message); return false; }
+    if (!nickname.trim()) throw new Error('请先填写昵称。');
+    nickname = validateName(nickname); automaticName = false; persistName(); return true;
+  } catch (error) { notify(error.message); $('#nickname')?.focus(); return false; }
 }
 
 function updateSpectatorActivity() {
@@ -814,7 +815,7 @@ function startPractice() {
 }
 function launch(host, restored = null) {
   const watching = !host && restored?.role === 'spectator';
-  if (!watching && !saveName()) return;
+  if (!restored && !watching && !saveName()) return;
   const entered = restored?.room || $('#room-input')?.value.trim().toUpperCase();
   if (!host && !/^[A-Z2-9]{8}$/.test(entered)) return notify('请输入有效的 8 位房间码。');
   if (busy) return;

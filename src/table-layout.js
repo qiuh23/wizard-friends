@@ -65,7 +65,8 @@ export function stripCardSlots(area, seats, preferredWidth, emphasis = 1.15) {
 // Include a seat number so identical initials and truncated long names remain
 // unambiguous, even when the table has only room for a short owner label.
 export function shortSeatName(name, seat, self = false) {
-  return `${seat + 1} ${self ? '你' : [...name].slice(0, 2).join('')}`;
+  const short = /^牌友\d+$/.test(name) ? name : [...name].slice(0, 2).join('');
+  return `${seat + 1} ${self ? '你' : short}`;
 }
 
 const intersects = (a, b, gap = 4) => a.left < b.right + gap && a.right > b.left - gap && a.top < b.bottom + gap && a.bottom > b.top - gap;

@@ -1,14 +1,12 @@
 # 巫师牌 · 好友桌
 
-**[开始游戏](https://wizard-friends.wizard-friends.workers.dev/)**
-
-**[个人 Cloudflare 补充入口](https://wizard-friends.qiuh23.workers.dev/)**
-
-两个入口的房间和浏览器返回记录各自独立；一起游戏时请使用同一个入口。
+**[开始游戏](https://wizard-friends.qiuh23.workers.dev/)**
 
 3–6 人中文 Wizard 网页游戏，保留原 SVG 插画、暗绿三维牌桌、二维降级、省电模式、聊天、观战和离线练习。
 
-首页「在线房间」同时显示等待开局和进行中的房间。等待房有空位时可直接加入，满员或开局后可只读观战；房主离线的等待房暂时隐藏，原房主返回后恢复展示。不同入口的目录各自独立。
+首页「在线房间」同时显示等待开局和进行中的房间。等待房有空位时可直接加入，满员或开局后可只读观战；房主离线的等待房暂时隐藏，原房主返回后恢复展示。
+
+真人首次进入时需填写昵称，创建房间、加入房间和个人练习共用同一校验；恢复对局保留原名。新机器人使用小林、阿宁、木子、橙子等日常昵称，房内查重并尽量避开已有头像首字；候选用尽时使用「牌友2」这类编号。名字在创建时保存，刷新和换轮保持不变。
 
 ## 对局与手机手牌
 
@@ -85,7 +83,7 @@ GAME_URL=http://127.0.0.1:5173/ node scripts/rules-ui-review.mjs
 
 `verify.yml` 保留为 GitHub 上的验证流程：缓存依赖、语法检查、规则／隐私／生命周期／随机数测试、一次前端构建、Worker 打包预演及一组小规模联机冒烟。验证任务不需要生产授权；纯 Markdown／开发记录修改跳过无关检查，重复验证自动取消。
 
-个人补充入口通过 **Cloudflare Workers Builds** 连接 [`qiuh23/wizard-friends`](https://github.com/qiuh23/wizard-friends) 的 `main`，该分支更新后自动验证并发布到 `wizard-friends.qiuh23.workers.dev`。原来的游戏入口继续保留，原账户的发布方式不在此仓库中调整。
+游戏入口通过 **Cloudflare Workers Builds** 连接 [`qiuh23/wizard-friends`](https://github.com/qiuh23/wizard-friends) 的 `main`，该分支更新后自动验证并发布到 `wizard-friends.qiuh23.workers.dev`。
 
 **发布触发点是个人仓库的 `main` 更新。** 功能分支推送和未合并的 PR 不会更新这个游戏入口；PR 合并进入 `main` 后才会自动发布。判断是否发布完成时，将线上 [`build-info.json`](https://wizard-friends.qiuh23.workers.dev/build-info.json) 的 `revision` 与个人 `main` 的完整提交号比较，并确认 [`/api/health`](https://wizard-friends.qiuh23.workers.dev/api/health) 返回 `version: 2`。Cloudflare 的构建记录须同时显示成功，只有 GitHub 验证通过不代表已发布。
 
@@ -95,7 +93,7 @@ Cloudflare 的 Git 构建设置为：
 - 构建命令：`npm run build:cloudflare`，依次完成语法检查、全部单测、前端构建及 Worker 打包预演，任一步失败即停止发布。
 - 部署命令：`npm run deploy:cloudflare`，发布网页与 Worker，再核对线上前端的完整提交号及 `/api/health` 的版本 2 协议，传播期间有限重试；核对失败则本次构建报错。
 
-发布授权由 Cloudflare 构建设置管理，仓库中不保存令牌。个人入口使用同域 API／WebSocket，构建时不要设置指向原入口的 `VITE_RELAY_URL`，以免网页连接到另一套房间。`wrangler.jsonc` 固定个人账户和 Worker 名称；`npm run deploy` 仍可用于维护者手动发布。GitHub 验证与 Cloudflare 构建分别运行；Cloudflare 发布前必跑上述检查，完整三客户端浏览器冒烟仍由 GitHub 验证流程承担。
+发布授权由 Cloudflare 构建设置管理，仓库中不保存令牌。游戏入口使用同域 API／WebSocket，构建时无需设置 `VITE_RELAY_URL`。`wrangler.jsonc` 固定个人账户和 Worker 名称；`npm run deploy` 仍可用于维护者手动发布。GitHub 验证与 Cloudflare 构建分别运行；Cloudflare 发布前必跑上述检查，完整三客户端浏览器冒烟仍由 GitHub 验证流程承担。
 
 GitHub Pages 保留为独立手动工作流，复用成功的 `main` 验证产物，不重新构建；核对产物内公开 relay 配置与当前 `RELAY_URL` 一致。Workers Builds 的连接和构建记录可在 Cloudflare 的 `wizard-friends` → 设置 → 构建中检查，机制见 [Cloudflare 官方文档](https://developers.cloudflare.com/workers/ci-cd/builds/)。
 

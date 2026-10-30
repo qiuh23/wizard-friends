@@ -31,19 +31,40 @@ function setup() {
   const relay = new RoomRelay(ctx, env);
   const add = (id) => { const ws = new Socket({ id, room: 'ABCDEFGH' }); ctx.sockets.push(ws); return ws; };
   const message = (ws, value) => relay.webSocketMessage(ws, JSON.stringify(value));
-  const hello = (ws, host, secret = token) => message(ws, { type: 'hello', version: 2, host, token: secret });
+  const hello = (ws, host, secret = token) => message(ws, { type: 'hello', version: 2, host, token: secret, name: host ? '房主' : ws.data.id });
   return { ctx, env, relay, add, message, hello, advertisements };
 }
+
+test('new human handshakes require a nickname even with the legacy automatic flag', async () => {
+  for (const host of [true, false]) for (const [name, automaticName] of [[undefined, false], ['', true], ['   ', true]]) {
+    const s = setup();
+    if (!host) await s.hello(s.add('host'), true);
+    const before = structuredClone(s.relay.authority?.record.identities || {});
+    const unnamed = s.add('unnamed');
+    await s.message(unnamed, { type: 'hello', version: 2, host, token: host ? token : otherToken, name, automaticName });
+    assert.equal(unnamed.sent.at(-1).type, 'fatal');
+    assert.match(unnamed.sent.at(-1).message, /昵称/);
+    assert.equal(unnamed.data.authenticated, undefined);
+    assert.equal(s.relay.authority.game.players.length, host ? 0 : 1);
+    assert.deepEqual(s.relay.authority.record.identities, before);
+    if (host) assert.equal(s.ctx.store.has('owner'), false);
+  }
+});
+
 test('authority ownership and private state survive hibernation; all valid host connections count', async () => {
   const s = setup(), host = s.add('host'); await s.hello(host, true);
   assert.equal(host.sent[0].type, 'ready'); assert.notEqual(s.ctx.store.get('owner'), token);
   const initialId = host.sent.at(-1).data.me;
+  const originalNames = s.relay.authority.game.players.map(({ id, name }) => ({ id, name }));
+  const identities = structuredClone(s.relay.authority.record.identities);
   const recreated = new RoomRelay(s.ctx, s.env), impostor = s.add('impostor');
   await recreated.webSocketMessage(impostor, JSON.stringify({ type: 'hello', version: 2, host: true, token: otherToken }));
   assert.equal(impostor.sent.at(-1).type, 'fatal');
   const resumed = s.add('resumed');
   await recreated.webSocketMessage(resumed, JSON.stringify({ type: 'hello', version: 2, host: true, token }));
   assert.equal(resumed.sent.at(-1).data.me, initialId);
+  assert.deepEqual(resumed.sent.at(-1).data.state.players.map(({ id, name }) => ({ id, name })), originalNames);
+  assert.deepEqual(recreated.authority.record.identities, identities);
   assert.equal(host.data.removed, undefined);
   await recreated.webSocketClose(host);
   assert.equal(recreated.authority.hostOnline(), true);
@@ -170,8 +191,9 @@ test('late room-service recovery gives time before an incoming message can trigg
 
 test('new room cannot import a fabricated private deck and old protocol receives a terminal upgrade notice', async () => {
   const s = setup(), attacker = s.add('attacker');
-  await s.message(attacker, { type: 'hello', version: 2, host: true, token, snapshot: { players: [], history: [] } });
+  await s.message(attacker, { type: 'hello', version: 2, host: true, token, name: '伪造者', snapshot: { players: [], history: [] } });
   assert.equal(attacker.sent.at(-1).type, 'fatal');
+  assert.match(attacker.sent.at(-1).message, /不能导入/);
   assert.equal(s.ctx.store.has('owner'), false);
   const old = s.add('old-version');
   await s.message(old, { type: 'hello', host: true, token });
