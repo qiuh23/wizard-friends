@@ -1,6 +1,7 @@
 export const CARD_ENTER_MS = 260;
 export const CARD_COLLECT_MS = 1100;
 export const CARD_COLLECT_STAGGER_MS = 35;
+export const CARD_LABEL_FADE_MS = 140;
 export const LEADING_CARD_SCALE = 1.22;
 export const COMPACT_LEADING_CARD_SCALE = 1.15;
 const EMPHASIS_MS = 220;
@@ -85,6 +86,10 @@ export class TableMotion {
     return emphasis ? this.reducedMotion ? emphasis.to
       : emphasis.from + (emphasis.to - emphasis.from) * smooth(progress(time - emphasis.at, EMPHASIS_MS)) : 1;
   }
+  labelOpacity() {
+    if (this.reducedMotion || this.collectAt === null) return 1;
+    return 1 - smooth(progress(this.clock() - (this.collectAt - CARD_LABEL_FADE_MS), CARD_LABEL_FADE_MS));
+  }
   pose(id) {
     if (this.reducedMotion) return { enter: 1, collect: 0, lift: 0, opacity: 1, scale: this.emphasisAt(id) };
     const { enterMs, collectMs, collectDurationMs } = this.timing(id);
@@ -100,7 +105,7 @@ export class TableMotion {
   }
   isAnimating() {
     const time = this.clock();
-    return !this.paused && !this.reducedMotion && (this.collectAt !== null && time >= this.collectAt && time < this.collectAt + CARD_COLLECT_MS ||
+    return !this.paused && !this.reducedMotion && (this.collectAt !== null && time >= this.collectAt - CARD_LABEL_FADE_MS && time < this.collectAt + CARD_COLLECT_MS ||
       [...this.entries.values()].some(at => time < at + CARD_ENTER_MS) ||
       [...this.emphasis.values()].some(value => value.from !== value.to && time < value.at + EMPHASIS_MS));
   }

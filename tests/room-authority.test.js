@@ -214,15 +214,15 @@ test('a system bot handoff also freezes a previously disconnected next seat budg
   assert.equal(s.room.game.turnDeadline - s.now(), 30450);
 });
 
-test('trick results hold for five seconds and pausing preserves the remaining review instead of skipping it', () => {
+test('trick results hold for three seconds and pausing preserves the remaining review instead of skipping it', () => {
   const s = setup(); s.start();
   Object.assign(s.room.game, { round: 2, cardsPerRound: 2, completedTricks: 0, turn: 0, trump: null });
   s.room.game.players.forEach((p, i) => { p.hand = [1, 2].map(n => ({ id: `blue-${i * 2 + n}`, kind: 'number', suit: 'blue', rank: i * 2 + n })); });
   for (const who of [s.host, s.a, s.b]) s.send(who, { type: 'action', action: { type: 'play', card: s.room.game.players.find(p => p.id === who.id).hand[0].id } });
   assert.equal(s.room.game.phase, 'trickEnd');
-  assert.equal(s.room.view(s.a, 0, s.now()).lifecycle.reviewRemainingMs, 5000);
+  assert.equal(s.room.view(s.a, 0, s.now()).lifecycle.reviewRemainingMs, 3000);
   assert.throws(() => s.send(s.host, { type: 'action', action: { type: 'next' } }), /看完/);
-  s.advance(4000); assert.equal(s.room.game.phase, 'trickEnd');
+  s.advance(2000); assert.equal(s.room.game.phase, 'trickEnd');
   s.send(s.host, { type: 'pause' }); s.advance(60000);
   assert.equal(s.room.view(s.a, 0, s.now()).lifecycle.reviewRemainingMs, 1000);
   s.send(s.a, { type: 'action', action: { type: 'chat', text: '看看胜因' } });

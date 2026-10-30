@@ -59,6 +59,7 @@ body[data-screen="game"][data-table-layout] .table .played-cards .played-name { 
 body[data-screen="game"][data-table-layout] .table .played-cards .played.winner .played-name { color:#251c0c; }
 body[data-screen="game"][data-table-layout] .table .played-cards .played-state { display:none; }
 body[data-screen="game"][data-table-layout] .table .played-cards .played.winner::before {
+  opacity:var(--played-label-opacity,1);
   content:'当前最大';position:absolute;top:0;left:50%;transform:translateX(-50%);padding:1px 6px;border-radius:4px;
   white-space:nowrap;font-size:12px;line-height:17px;font-weight:600;background:#ebd18e;color:#201b0c;box-shadow:0 1px 4px #0005;
 }

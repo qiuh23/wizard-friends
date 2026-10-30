@@ -8,6 +8,10 @@ export function cardImage(card) {
 }
 
 const imageLoads = new Map();
+const decodedImages = new Map();
+// A promise alone cannot supply the first synchronous WebGL frame.
+export function loadedCardImage(card) { return decodedImages.get(cardImage(card)) || null; }
+
 // HTML cards and physical faces share one decoded image per illustration.
 export function loadCardImage(card) {
   const url = cardImage(card);
@@ -16,7 +20,9 @@ export function loadCardImage(card) {
       const image = new Image();
       image.decoding = 'async';
       image.onload = async () => {
-        try { await image.decode(); resolve(image); } catch (error) { reject(error); }
+        try {
+          await image.decode(); decodedImages.set(url, image); resolve(image);
+        } catch (error) { reject(error); }
       };
       image.onerror = () => reject(new Error('牌面插画加载失败。'));
       image.src = url;

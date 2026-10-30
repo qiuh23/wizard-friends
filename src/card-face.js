@@ -1,4 +1,5 @@
-import { SUIT_NAMES } from './game.js';
+import { deck, SUIT_NAMES } from './game.js';
+import { cardImage, loadCardImage, loadedCardImage } from './card-art.js';
 import { TRUMP_COLORS } from './trump-style.js';
 
 const symbols = { blue: '❄', red: '♜', green: '❧', yellow: '✧', wizard: '✦', jester: '☾' };
@@ -50,4 +51,66 @@ export function paintCardFace(ctx, image, card) {
     ctx.fillStyle = '#0b1518'; ctx.font = 'bold 34px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(mark.symbol, 276, 44);
   }
+}
+
+const faceCanvases = new Map(), faceLoads = new Map();
+function updateFace(face, image, card) {
+  if (face.image === image) return;
+  paintCardFace(face.canvas.getContext('2d'), image, card); face.image = image;
+  if (image) {
+    const listeners = [...face.listeners]; face.listeners.clear();
+    for (const listener of listeners) listener(face.canvas);
+  }
+}
+// Canvas faces survive changes of round and renderer; GPU textures stay lazy.
+export function cardFaceCanvas(card) {
+  const key = cardImage(card);
+  if (!faceCanvases.has(key)) {
+    const canvas = document.createElement('canvas'); canvas.width = 320; canvas.height = 480;
+    faceCanvases.set(key, { canvas, image: undefined, listeners: new Set() });
+  }
+  const face = faceCanvases.get(key), image = loadedCardImage(card);
+  updateFace(face, image, card);
+  return face.canvas;
+}
+
+// A visible texture must also refresh when a later background retry succeeds.
+// Keep the one-shot listener through failures, and release it after success.
+export function onCardFaceReady(card, listener) {
+  cardFaceCanvas(card);
+  const face = faceCanvases.get(cardImage(card));
+  if (face.image) { listener(face.canvas); return () => {}; }
+  face.listeners.add(listener);
+  return () => face.listeners.delete(listener);
+}
+
+export function loadCardFace(card) {
+  const key = cardImage(card);
+  if (!faceLoads.has(key)) {
+    const canvas = cardFaceCanvas(card);
+    const request = loadCardImage(card).then(image => {
+      updateFace(faceCanvases.get(key), image, card); return canvas;
+    }).catch(error => { faceLoads.delete(key); throw error; });
+    faceLoads.set(key, request);
+  }
+  return faceLoads.get(key);
+}
+
+let preloadTask = null, allFacesReady = false;
+export function preloadCardFaces() {
+  if (allFacesReady) return Promise.resolve();
+  if (preloadTask) return preloadTask;
+  // Prewarm public artwork only. Never predict a deal or read hidden hands.
+  const cards = [...new Map(deck().map(card => [cardImage(card), card])).values()];
+  preloadTask = (async () => {
+    let complete = true;
+    // Yield between small batches so a mobile table remains responsive.
+    for (let i = 0; i < cards.length; i += 3) {
+      const results = await Promise.allSettled(cards.slice(i, i + 3).map(loadCardFace));
+      complete &&= results.every(result => result.status === 'fulfilled');
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    allFacesReady = complete;
+  })().finally(() => { preloadTask = null; });
+  return preloadTask;
 }

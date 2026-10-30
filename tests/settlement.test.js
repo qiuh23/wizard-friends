@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { settlementHTML } from '../src/settlement.js';
+import { createGame, addPlayer, act, viewFor } from '../src/game.js';
+import { DEFAULT_OPTIONS } from '../src/rules-options.js';
 
 const game = phase => ({ phase, round:2, lastWinner:1, dealer:0, options:{deckMode:'standard'},
   players:[{id:'a',name:'青山<长名>',score:20,online:true},{id:'b',name:'青川',score:30,online:true},{id:'c',name:'云舒',score:-10,online:true}],
@@ -45,4 +47,51 @@ test('finished, host, guest, spectator, offline and continuation keep distinct a
   g.lifecycle=null;g.players[1].online=true;
   assert.match(settlementHTML(g,{me:'a',isHost:true,pending:true}),/disabled aria-busy="true">正在提交/);
   assert.equal(settlementHTML({...g,phase:'play'},{me:'a',isHost:true}),'');
+});
+
+test('finished results show final ranking and last-round scores outside folded details, including tied winners', () => {
+  const g = game('finished');
+  g.players[0].score = 30;
+  const before = structuredClone(g);
+  const html = settlementHTML(g, { me:'a', isHost:true });
+  const final = html.slice(html.indexOf('class="final-results"'), html.indexOf('<div class="settlement-summary">'));
+  assert.match(final, /最终分数 · 共 2 轮/);
+  assert.match(final, /青山&lt;长名&gt; · 你/);
+  assert.match(final, /class="final-bid-won">0 \/ 0/);
+  assert.match(final, /class="final-delta">\+20/);
+  assert.match(final, /class="final-total">30/);
+  assert.deepEqual([...final.matchAll(/class="final-rank">(\d+)/g)].map(match => Number(match[1])), [1,1,3]);
+  assert.match(html, /青山&lt;长名&gt;、青川 并列获胜/);
+  assert.doesNotMatch(final, /<details/);
+  assert.deepEqual(g, before, 'displaying final scores never mutates authoritative settlement');
+  assert.doesNotMatch(settlementHTML(game('roundEnd'), { me:'a' }), /final-results/);
+  assert.match(settlementHTML(g, { spectating:true }), /class="final-score-row" data-player="a"/);
+});
+
+test('a completed quick match announces actual fifth-round results and final totals before rematch', () => {
+  const g = createGame();
+  for (const id of ['a','b','c']) addPlayer(g, id, id);
+  act(g, 'a', { type:'start', options:{ ...DEFAULT_OPTIONS, short:true } }, () => .5);
+  for (let guard = 0; g.phase !== 'finished' && guard < 200; guard++) {
+    const actor = g.players[g.turn].id;
+    const view = viewFor(g, actor);
+    const action = g.phase === 'trump' ? { type:'trump', suit:'blue' }
+      : g.phase === 'bid' ? { type:'bid', value:view.bids[0] }
+      : g.phase === 'play' ? { type:'play', card:view.legal[0] } : { type:'next' };
+    act(g, action.type === 'next' ? 'a' : actor, action, () => .5);
+  }
+  assert.equal(g.phase, 'finished');
+  assert.equal(g.history.length, 5);
+  const before = structuredClone(g);
+  const html = settlementHTML(g, { me:'a', isHost:true, practice:true });
+  const final = html.slice(html.indexOf('class="final-results"'), html.indexOf('<div class="settlement-summary">'));
+  assert.match(final, /最终分数 · 共 5 轮/);
+  for (const result of g.history.at(-1).result) {
+    const row = final.split(`data-player="${result.id}">`)[1].split('</tr>')[0];
+    assert.ok(row.includes(`class="final-bid-won">${result.bid} / ${result.won}`));
+    assert.ok(row.includes(`class="final-delta">${result.delta >= 0 ? '+' : ''}${result.delta}`));
+    assert.ok(row.includes(`class="final-total">${result.total}`));
+  }
+  assert.match(html, /id="rematch"/);
+  assert.deepEqual(g, before);
 });

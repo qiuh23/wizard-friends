@@ -438,3 +438,14 @@
 - 本地验证：语法检查、`tests/trump-display.test.js` 与 `tests/table-motion.test.js` 共 17/17、生产构建及 Git 空白检查通过。沿用既有 Three.js 分包大小提示。`CLARITY_CASE=trump GAME_URL=http://127.0.0.1:5183/ node scripts/table-clarity-review.mjs` 的 12 组专项检查通过，errors=[]：5 个桌面／手机横竖屏二维／三维视口检查延长后的停留、实际归位、真实时间自动结束、遮挡、预测点击、去重及刷新；其余覆盖 W／J／无翻牌、三个阶段真实转屏、减少动态与关闭动效。手机为浏览器视口模拟，未声称 iPhone 真机验收。
 - 新截图：[手机徽章对齐](../screenshots/trump-icon-mobile-aligned-20261030.png)、[桌面翻牌停留](../screenshots/trump-reveal-slower-1440x900-20261030.png)。完整本机证据在 `output/playwright/trump-reveal-review.json`、`trump-icon-alignment-20261030.json` 及带 `slower`／`aligned` 的截图；使用独立 5183 端口及新文件名避免旧服务／旧图片混淆。
 - 按仓库策略将本任务代码、专项检查和记录一起提交并创建中文 PR；不自动合并或部署。远端 CI 结果在最终交付实时核验，本条不预先宣称远端通过。
+
+<a id="h-041"></a>
+## H-041 · 2026-10-30 · 选牌取消、最终分数及收牌／牌面加载优化
+- 来源及采用方案见 [D-030](DECISIONS.md#d-030)。起始工作区／暂存区干净，从最新 `origin/main` `4c98649` 建立 `codex/table-interaction-results`；核实没有其他开放 PR。未找到可用 dev-memory SKILL.md，沿用仓库记录和统一提交策略。
+- 完成空白取消选牌、快速局／标准局常显末轮得分与最终排名、3 秒联机复盘、牌下姓名／赢家标签先淡出，以及等待阶段 54 种牌面分批解码和绘制。独立审查补齐弹窗内容点击保留选牌，以及图片首次失败后后台重试通知已有 GPU 纹理刷新；后者用真实 CanvasTexture 验证，无需再次查找牌面。
+- 本地最终 `npm test` 262/262、`npm run check`、生产构建和 Git 空白检查通过；构建仅有既有 Three.js 分包大小提示。日志在 `.local/table-interaction-unit.log`、`table-interaction-build.log`。未增加依赖、CI 工作流、job 或远端测试矩阵。
+- `GAME_URL=http://127.0.0.1:5184/ REVIEW_STAMP=20261030-final-v2 node scripts/table-interaction-review.mjs` 10 组通过，errors=[]：1440×900／390×844／844×390 选牌、排序、主牌弹窗、空白与手牌拖动、手机触控及确认出牌；真实快速局三视口最终分数及六人手机可达性；二维／三维先隐藏标签再移动卡牌并清场；轮末自动预热 54 种牌面和新纹理同步首帧全像素一致。完整本机证据在 `output/playwright/table-interaction-review.json`，手机为浏览器模拟。
+- 独立慢图／失败专项见 `output/playwright/card-preload-browser-20261030.json`：占位仍可读，图片释放后显示插画；首次失败的可见纹理在仅后台重试后由 version 1 自动更新为 2，实际 WebGL 像素变化。桌面／手机轮末自动准备 54 种插画，各请求一次，下一轮新牌首次纹理已有完整插画，轮间无新增图片请求，errors=[]。
+- 隔离端口前端 5185、真实 Durable Objects 8794：`GAME_URL=http://127.0.0.1:5185/ RELAY_URL=http://127.0.0.1:8794/ node scripts/room-animation-review.mjs` 通过，errors=[]。覆盖三客户端、轮末保留、下一轮、聊天重绘、收牌中暂停、二维／三维转屏、暂停刷新、恢复同步清场和解散；日志 `.local/table-interaction-network.log`。
+- 过程修正：既有联机脚本仍按完整昵称、领先牌无抬升、横屏强调不变作断言；按当前真实短名并另验完整 aria-label、含抬升的姿态和紧凑强调精确校验，保留位置误差及冻结进度要求后通过。新脚本最初未等到省电 WebGL 真正绘制、以及 HMR 裸 import 引入第二份模块缓存；改为等待 renderer 帧和暴露实际产品导入引用，未放宽断言或添加产品调试接口。
+- 已人工查看新截图：[手机六人最终分数](../screenshots/table-final-score-mobile-six-20261030.png)、[桌面最终分数](../screenshots/table-final-score-desktop-20261030.png)、[姓名先消失再收牌](../screenshots/table-labels-before-collection-20261030.png)。代码、专项检查、截图和记录一起提交中文 PR，不自动合并或部署；远端 PR／CI 最终状态在交付时实时核验。

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TableMotion, CARD_COLLECT_MS, LEADING_CARD_SCALE, COMPACT_LEADING_CARD_SCALE } from '../src/table-motion.js';
+import { TableMotion, CARD_COLLECT_MS, CARD_LABEL_FADE_MS, LEADING_CARD_SCALE, COMPACT_LEADING_CARD_SCALE } from '../src/table-motion.js';
+import { TRICK_REVIEW_MS } from '../src/game.js';
 
 function setup() {
   let now = 1000;
@@ -37,16 +38,17 @@ test('arrival freezes through a long pause and resumes without jumping or replay
 test('collection follows the authority deadline, including delayed frames, pause and recovery', () => {
   const s = setup(); s.play('red-1');
   s.state.phase = 'trickEnd'; s.state.completedTricks = 1;
-  s.state.lifecycle = { nextTrickAt: 6000 }; s.sync();
-  s.advance(5000 - CARD_COLLECT_MS); assert.equal(s.motion.pose('red-1').collect, 0);
+  s.state.lifecycle = { nextTrickAt: 1000 + TRICK_REVIEW_MS }; s.sync();
+  s.advance(TRICK_REVIEW_MS - CARD_COLLECT_MS); assert.equal(s.motion.pose('red-1').collect, 0);
   s.advance(CARD_COLLECT_MS / 2); const half = s.motion.pose('red-1'); assert.equal(half.collect, .5);
   s.sync(); assert.deepEqual(s.motion.pose('red-1'), half);
   s.state.lifecycle = { paused: true, nextTrickAt: null, reviewRemainingMs: CARD_COLLECT_MS / 2 }; s.sync();
   s.advance(10000); s.sync(); assert.deepEqual(s.motion.pose('red-1'), half);
-  s.state.lifecycle = { paused: false, nextTrickAt: 16000 }; s.sync();
+  const resumedDeadline = 11000 + TRICK_REVIEW_MS;
+  s.state.lifecycle = { paused: false, nextTrickAt: resumedDeadline }; s.sync();
   s.advance(CARD_COLLECT_MS / 2); assert.equal(s.motion.pose('red-1').collect, 1);
-  const recovered = new TableMotion(() => 16000 - CARD_COLLECT_MS / 2);
-  recovered.sync(s.state, { initial: true, serverNow: 16000 - CARD_COLLECT_MS / 2 });
+  const recovered = new TableMotion(() => resumedDeadline - CARD_COLLECT_MS / 2);
+  recovered.sync(s.state, { initial: true, serverNow: resumedDeadline - CARD_COLLECT_MS / 2 });
   assert.equal(recovered.pose('red-1').enter, 1);
   assert.equal(recovered.pose('red-1').collect, .5);
 });
@@ -55,8 +57,8 @@ test('six cards sweep in order and remain readable until near the winner, all be
   const s = setup();
   for (let i = 0; i < 6; i++) s.play(`card-${i}`);
   s.state.phase = 'trickEnd'; s.state.completedTricks = 1;
-  s.state.lifecycle = { nextTrickAt: 6000 }; s.sync();
-  s.advance(5000 - CARD_COLLECT_MS + 300);
+  s.state.lifecycle = { nextTrickAt: 1000 + TRICK_REVIEW_MS }; s.sync();
+  s.advance(TRICK_REVIEW_MS - CARD_COLLECT_MS + 300);
   const first = s.motion.pose('card-0'), last = s.motion.pose('card-5');
   assert.ok(first.collect > last.collect && last.collect > 0);
   assert.equal(first.opacity, 1); assert.ok(first.lift > 0);
@@ -66,6 +68,29 @@ test('six cards sweep in order and remain readable until near the winner, all be
     assert.equal(pose.collect, 1); assert.equal(pose.opacity, 0); assert.equal(pose.lift, 0);
   }
   assert.equal(s.motion.isAnimating(), false);
+});
+
+test('names fade before any card collects, and freeze and recover on the shared review clock', () => {
+  const s = setup(); s.play('red-1'); s.play('blue-2');
+  s.state.phase = 'trickEnd'; s.state.completedTricks = 1;
+  s.state.lifecycle = { nextTrickAt:1000 + TRICK_REVIEW_MS }; s.sync();
+  s.advance(TRICK_REVIEW_MS - CARD_COLLECT_MS - CARD_LABEL_FADE_MS / 2);
+  assert.equal(s.motion.labelOpacity(), .5);
+  assert.equal(s.motion.pose('red-1').collect, 0);
+  s.state.lifecycle = { paused:true, reviewRemainingMs:CARD_COLLECT_MS + CARD_LABEL_FADE_MS / 2 }; s.sync();
+  s.advance(10000); s.sync(); assert.equal(s.motion.labelOpacity(), .5);
+  s.state.lifecycle = { nextTrickAt:11000 + TRICK_REVIEW_MS }; s.sync();
+  s.advance(CARD_LABEL_FADE_MS / 2);
+  assert.equal(s.motion.labelOpacity(), 0);
+  assert.equal(s.motion.pose('red-1').collect, 0);
+  s.advance(200);
+  assert.ok(s.motion.pose('red-1').collect > 0);
+  assert.ok(s.motion.pose('blue-2').collect > 0);
+  s.sync(); assert.equal(s.motion.labelOpacity(), 0);
+  const recovered = new TableMotion(() => 1000);
+  recovered.sync(s.state, {initial:true, serverNow:11000 + TRICK_REVIEW_MS - CARD_COLLECT_MS + 200});
+  assert.equal(recovered.labelOpacity(), 0);
+  s.motion.sync(s.state, {reducedMotion:true}); assert.equal(s.motion.labelOpacity(), 1);
 });
 
 test('leader emphasis transfers smoothly, survives redraw, and freezes with the table clock', () => {

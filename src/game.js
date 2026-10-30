@@ -124,7 +124,7 @@ function foresightActive(g) {
   return !!g.options.foresight && ['trump', 'bid'].includes(g.phase);
 }
 export const TURN_MS = 30000;
-export const TRICK_REVIEW_MS = 5000;
+export const TRICK_REVIEW_MS = 3000;
 export function act(g, actor, action, random, now = Date.now()) {
   const phase = g.phase, turn = g.turn;
   if (g.paused === true && !['chat', 'rename'].includes(action?.type)) throw Error('房主已暂停牌局。');

@@ -29,9 +29,16 @@ export function settlementHTML(state, { me, isHost = false, practice = false, sp
     action = isHost && !spectating ? `<button id="next" class="primary" ${offline ? 'disabled' : disabled}>${offline ? '等待玩家重连' : pending ? '正在提交…' : roundEnd ? '开始下一轮 →' : '继续下一墩 →'}</button>` : '<span class="settlement-wait">等待房主继续</span>';
   } else action = '<span id="trick-review-timer" role="timer">看清胜负后继续</span>';
   const reason = winnerReason(state.trick, state.trump, state.options.deckMode);
+  const finalRound = state.history.at(-1)?.round === state.round ? state.history.at(-1) : null;
+  const ranking = [...state.players].sort((a, b) => b.score - a.score);
+  const finalResults = finished ? `<section class="final-results" tabindex="0" aria-label="最终分数播报，可滚动" aria-live="polite"><h4>最终分数 · 共 ${state.round} 轮</h4><table><thead><tr><th scope="col">名次</th><th scope="col">玩家</th><th scope="col">末轮预测 / 实赢</th><th scope="col">末轮得分</th><th scope="col">总分</th></tr></thead><tbody>${ranking.map(p => {
+    const rank = ranking.findIndex(other => other.score === p.score) + 1;
+    const result = finalRound?.result.find(r => r.id === p.id);
+    return `<tr class="final-score-row${p.id === me ? ' settlement-self' : ''}" data-player="${escape(p.id)}"><td class="final-rank">${rank}</td><th scope="row" class="final-player">${escape(p.name)}${p.id === me ? ' · 你' : ''}</th><td class="final-bid-won">${result ? `${result.bid} / ${result.won}` : '—'}</td><td class="final-delta">${result ? signed(result.delta) : '—'}</td><td class="final-total">${p.score}</td></tr>`;
+  }).join('')}</tbody></table></section>` : '';
   const history = roundEnd ? `<p class="settlement-formula">预测命中：20 + 10 × 实赢；未中：每差 1 墩扣 10 分。</p>${[...state.history].reverse().map(h => `<section class="settlement-history"><h4>第 ${h.round} 轮</h4><table><thead><tr><th scope="col">玩家</th><th scope="col">预测 / 实赢</th><th scope="col">得分</th><th scope="col">累计</th></tr></thead><tbody>${state.players.map(p => {
     const r = h.result.find(r => r.id === p.id);
     return r ? `<tr${p.id === me ? ' class="settlement-self"' : ''}><th scope="row">${escape(p.name)}${p.id === me ? ' · 你' : ''}</th><td>${r.bid} / ${r.won}</td><td>${signed(r.delta)}</td><td>${r.total}</td></tr>` : '';
   }).join('')}</tbody></table></section>`).join('')}` : '';
-  return `<section class="action-panel settlement-panel" aria-label="${finished ? '整局结果' : roundEnd ? '本轮结算' : '本墩结算'}"><div class="settlement-summary"><div class="action-title"><h3 title="${title}">${title}</h3>${hint ? `<small>${hint}</small>` : ''}</div>${personal}</div><details class="settlement-details"><summary>查看详情</summary><div class="settlement-details-body" tabindex="0" aria-label="结算详情，可滚动">${reason ? `<p>${escape(reason)}</p>` : ''}${history}</div></details><div class="settlement-actions">${action}</div></section>`;
+  return `<section class="action-panel settlement-panel" aria-label="${finished ? '整局结果' : roundEnd ? '本轮结算' : '本墩结算'}">${finalResults}<div class="settlement-summary"><div class="action-title"><h3 title="${title}">${title}</h3>${hint ? `<small>${hint}</small>` : ''}</div>${personal}</div><details class="settlement-details"><summary>查看详情</summary><div class="settlement-details-body" tabindex="0" aria-label="结算详情，可滚动">${reason ? `<p>${escape(reason)}</p>` : ''}${history}</div></details><div class="settlement-actions">${action}</div></section>`;
 }
