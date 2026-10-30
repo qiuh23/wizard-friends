@@ -225,9 +225,69 @@ test('trick results hold for three seconds and pausing preserves the remaining r
   s.advance(2000); assert.equal(s.room.game.phase, 'trickEnd');
   s.send(s.host, { type: 'pause' }); s.advance(60000);
   assert.equal(s.room.view(s.a, 0, s.now()).lifecycle.reviewRemainingMs, 1000);
+  const legacy = structuredClone(s.room.record); delete legacy.collection; delete legacy.frozen.collectionRemaining;
+  const upgraded = new RoomAuthority(legacy,s.now());
+  assert.equal(upgraded.view(s.a,0,s.now()).lifecycle.collectionRemainingMs,1000,'upgrading a paused ordinary trick keeps its authoritative remaining review');
   s.send(s.a, { type: 'action', action: { type: 'chat', text: '看看胜因' } });
   s.send(s.host, { type: 'resume' }); s.advance(999);
   assert.equal(s.room.game.phase, 'trickEnd'); s.advance(1);
   assert.equal(s.room.game.phase, 'play'); assert.equal(s.room.game.turn, 2);
   assert.equal(s.room.game.turnDeadline, s.now() + 30450);
+});
+
+test('final-trick collection survives paused authority reconstruction without advancing round or match results', () => {
+  for (const target of ['roundEnd','finished']) {
+    const s = setup(); s.start();
+    const identities = [s.host,s.a,s.b];
+    for (let guard = 0; s.room.game.phase !== target && guard < 250; guard++) {
+      const game = s.room.game;
+      const actor = identities.find(identity => identity.id === game.players[game.turn].id);
+      const view = s.room.view(actor,0,s.now());
+      if (game.phase === 'trump') s.send(actor,{type:'action',action:{type:'trump',suit:'blue'}});
+      else if (game.phase === 'bid') s.send(actor,{type:'action',action:{type:'bid',value:view.bids[0]}});
+      else if (game.phase === 'play') s.send(actor,{type:'action',action:{type:'play',card:view.legal[0]}});
+      else if (game.phase === 'trickEnd') s.advance(3000);
+      else if (game.phase === 'roundEnd') s.send(s.host,{type:'action',action:{type:'next'}});
+      else assert.fail(`Unexpected phase ${game.phase}`);
+    }
+    assert.equal(s.room.game.phase,target);
+    const won = structuredClone({history:s.room.game.history,players:s.room.game.players,randomState:s.room.game.randomState});
+    assert.equal(s.room.record.task,null,'manual results never get an automatic advancement task');
+    assert.equal(s.room.view(s.a,0,s.now()).lifecycle.collectionAt,s.now()+3000);
+    s.advance(2450); s.send(s.host,{type:'pause'});
+    assert.equal(s.room.view(s.a,0,s.now()).lifecycle.collectionRemainingMs,550);
+    assert.equal(s.room.view(s.a,0,s.now()).lifecycle.collectionAt,null);
+    const recoveredAt = s.now()+10000;
+    const restored = new RoomAuthority(structuredClone(s.room.record),recoveredAt);
+    restored.join('host-hash',{host:true},recoveredAt);
+    restored.handle(s.a,{type:'action',action:{type:'chat',text:'暂停刷新后继续'}},recoveredAt);
+    assert.equal(restored.view(s.a,0,recoveredAt).lifecycle.collectionRemainingMs,550);
+    restored.handle(s.host,{type:'resume'},recoveredAt);
+    assert.equal(restored.view(s.a,0,recoveredAt).lifecycle.collectionAt,recoveredAt+550);
+    restored.tick(recoveredAt+550);
+    assert.equal(restored.game.phase,target);
+    assert.equal(restored.view(s.a,0,recoveredAt+550).lifecycle.collectionRemainingMs,0);
+    assert.deepEqual({history:restored.game.history,players:restored.game.players,randomState:restored.game.randomState},won);
+    restored.handle(s.host,{type:'action',action:{type:target==='finished'?'rematch':'next'}},recoveredAt+550);
+    assert.equal(restored.record.collection,null,'the next round cannot inherit the old collection clock');
+  }
+});
+
+test('legacy paused result records use their old event age without replaying collection', () => {
+  const s = setup(); s.start();
+  for (let count = 0; s.room.game.phase === 'play' && count < 3; count++) {
+    const actor = [s.host,s.a,s.b].find(identity => identity.id === s.room.game.players[s.room.game.turn].id);
+    s.send(actor,{type:'action',action:{type:'play',card:s.room.view(actor,0,s.now()).legal[0]}});
+  }
+  assert.equal(s.room.game.phase,'roundEnd');
+  s.send(s.host,{type:'pause'});
+  const record = structuredClone(s.room.record);
+  delete record.collection; delete record.frozen.collectionRemaining;
+  const restored = new RoomAuthority(record,s.now()+10000);
+  assert.equal(restored.view(s.a,0,s.now()+10000).lifecycle.collectionRemainingMs,0);
+  const noEvent = structuredClone(record); noEvent.game.events=[]; delete noEvent.collection;
+  const older = new RoomAuthority(noEvent,s.now()+10000);
+  assert.equal(older.view(s.a,0,s.now()+10000).lifecycle.collectionAt,null);
+  assert.equal(older.view(s.a,0,s.now()+10000).lifecycle.collectionRemainingMs,null);
+  assert.equal(older.game.phase,'roundEnd');
 });

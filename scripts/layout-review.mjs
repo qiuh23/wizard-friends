@@ -65,6 +65,19 @@ async function screenshotStable(page, options) {
   await page.waitForTimeout(150);
   await page.screenshot(options);
 }
+async function cancelOnBlankTable(page) {
+  const point=await page.locator('.table').evaluate(table=>{
+    const r=table.getBoundingClientRect();
+    for(let y=r.top+100;y<r.bottom-110;y+=24) for(let x=r.left+12;x<r.right-12;x+=24) {
+      const target=document.elementFromPoint(x,y);
+      if(target&&table.contains(target)&&target.matches('.table,.table-ring,.scene-host,canvas,.played-cards'))return {x,y};
+    }
+    throw Error('No unobstructed table surface for deselecting');
+  });
+  if(page.viewportSize().width<851)await page.touchscreen.tap(point.x,point.y);
+  else await page.mouse.click(point.x,point.y);
+  await expect(page.locator('.hand .selected')).toHaveCount(0);
+}
 async function openFixture(count, round, width, height, settle = false) {
   const context = await browser.newContext({ viewport: { width, height }, hasTouch: width < 851,
     isMobile: width < 600, reducedMotion: 'reduce' });
@@ -86,7 +99,7 @@ async function openFixture(count, round, width, height, settle = false) {
 }
 async function bounds(page) {
   return page.evaluate(() => {
-    const rect = el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; };
+    const rect = el => { if(!el)return null; const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; };
     const hand = document.querySelector('.hand');
     return { overflow: document.documentElement.scrollWidth > innerWidth,
       hand: rect(hand), scrollWidth: hand.scrollWidth, clientWidth: hand.clientWidth,
@@ -154,7 +167,7 @@ try {
     await expect(page.locator(`.hand [data-card="${selected}"]`)).toHaveClass(/selected/);
     await screenshotStable(page,{ path: `${out}/${prefix}-expanded.png` });
     await handControl(page, '#hand-expand');
-    await page.locator('#cancel-card').click();
+    await cancelOnBlankTable(page);
     await expect(page.locator('#confirm-play')).toBeDisabled();
     await selectHandCard(page,page.locator('.hand .playable').first(),width<851);
     await page.locator('#confirm-play').click();
@@ -170,7 +183,7 @@ try {
     const id = await page.locator('.hand .selected').getAttribute('data-card');
     await handControl(page, '#hand-sort');
     await expect(page.locator(`.hand [data-card="${id}"]`)).toHaveClass(/selected/);
-    await page.locator('#cancel-card').click();
+    await cancelOnBlankTable(page);
     await expect(page.locator('#confirm-play')).toBeDisabled();
     await screenshotStable(page,{ path: `${out}/hand-${round}-${width}.png` });
     checks.push({ players: 3, cards: round, width, stableSelectionAcrossSort: true });
@@ -192,7 +205,7 @@ try {
     const layout = await bounds(page); expect(layout.played).toHaveLength(6);
     await screenshotStable(page,{ path:`${out}/six-card-trick-${width}.png` });
     fs.writeFileSync(`${out}/six-card-trick-${width}.json`, JSON.stringify(layout,null,2));
-    const overlap = (a,b) => Math.max(0,Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x)) *
+    const overlap = (a,b) => !a||!b ? 0 : Math.max(0,Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x)) *
       Math.max(0,Math.min(a.y+a.height,b.y+b.height)-Math.max(a.y,b.y));
     for (const card of layout.played) {
       for (const seat of layout.seats) expect(overlap(card,seat)).toBeLessThan(1);

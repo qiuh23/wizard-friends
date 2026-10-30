@@ -184,6 +184,16 @@ try {
     expect((await inspect(page)).cards.every(c => c.pose.collect === 0)).toBe(true);
     const close = page.locator('.close-scores'); if (await close.isVisible()) await close.click();
   }
+  // The final trick has no automatic-next deadline, but must still sweep to
+  // its winner while the authority keeps the result available for manual Next.
+  for (const page of [home, guest]) {
+    await page.waitForFunction(()=>[...window.__reviewMotion.entries.keys()].every(id=>window.__reviewMotion.pose(id).collect===1));
+    await expect.poll(async()=> (await inspect(page)).cards.every(card=>card.mesh ? !card.mesh.visible : card.opacity===0)).toBe(true);
+    const collected = await inspect(page);
+    expect(collected.phase).toBe('roundEnd'); expect(collected.cards).toHaveLength(3);
+    expect(collected.cards.every(card=>card.mesh ? !card.mesh.visible : card.opacity===0)).toBe(true);
+  }
+  checks.push('last-round collection completes in 2D/3D without advancing the manual result');
   await host.send({ type: 'action', action: { type: 'next' } });
   for (let step = 0; step < 8 && host.state.phase !== 'play'; step++) await act();
   await act();

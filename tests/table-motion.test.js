@@ -149,12 +149,84 @@ test('recovery and reduced motion show the final maximum immediately without rep
   assert.equal(motion.pose('jester-2').enter, 1);
 });
 
-test('practice keeps a manual review visible and a new trick discards old motion', () => {
+test('manual practice review collects once and the next trick discards old motion', () => {
   const s = setup(); s.play('red-1');
-  s.state.phase = 'trickEnd'; s.state.completedTricks = 1; s.sync();
-  s.advance(10000); assert.equal(s.motion.pose('red-1').collect, 0);
+  s.state.phase = 'trickEnd'; s.state.completedTricks = 1;
+  s.state.events.push({type:'trickEnd',round:2,completedTricks:1,time:1000}); s.sync();
+  s.advance(TRICK_REVIEW_MS - CARD_COLLECT_MS); assert.equal(s.motion.pose('red-1').collect, 0);
+  s.advance(CARD_COLLECT_MS / 2); assert.equal(s.motion.pose('red-1').collect, .5);
+  s.sync(); assert.equal(s.motion.pose('red-1').collect, .5);
+  s.advance(CARD_COLLECT_MS / 2); assert.equal(s.motion.pose('red-1').collect, 1);
+  assert.equal(s.state.phase, 'trickEnd'); assert.equal(s.state.trick.length, 1);
+  s.advance(10000); s.sync(); assert.equal(s.motion.pose('red-1').collect, 1);
   s.state.phase = 'play'; s.state.trick = []; s.sync();
   assert.equal(s.motion.entries.size, 0);
   s.state.round = 3; s.state.completedTricks = 0; s.play('red-1');
   assert.equal(s.motion.pose('red-1').enter, 0);
+});
+
+test('round and match final tricks collect toward the winner on the same event schedule', () => {
+  for (const phase of ['roundEnd', 'finished']) {
+    const s = setup(); s.play('red-1'); s.play('blue-2');
+    s.state.phase = phase; s.state.completedTricks = 1;
+    s.state.events.push({type:'trickEnd',round:2,completedTricks:1,time:1000});
+    s.advance(700); s.sync();
+    s.advance(TRICK_REVIEW_MS - CARD_COLLECT_MS - CARD_LABEL_FADE_MS / 2 - 700);
+    assert.equal(s.motion.labelOpacity(), .5);
+    s.advance(CARD_LABEL_FADE_MS / 2 + 400);
+    const before = s.motion.pose('red-1');
+    assert.ok(before.collect > 0 && before.collect < 1);
+    s.state.lifecycle = {paused:true}; s.sync();
+    s.advance(10000); s.sync(); assert.deepEqual(s.motion.pose('red-1'), before);
+    s.state.lifecycle.paused = false; s.sync();
+    s.advance(CARD_COLLECT_MS - 400);
+    assert.equal(s.motion.pose('red-1').collect, 1);
+    assert.equal(s.motion.pose('blue-2').opacity, 0);
+    assert.equal(s.state.phase, phase); assert.equal(s.state.trick.length, 2);
+  }
+});
+
+test('late manual-result snapshots use the actual trick event without replaying completed collection', () => {
+  const state = {phase:'roundEnd',round:2,completedTricks:1,trick:[{card:{id:'red-1'},player:0}],
+    events:[{type:'trickEnd',round:1,completedTricks:1,time:9000},
+      {type:'trickEnd',round:2,completedTricks:1,time:1000}]};
+  const during = new TableMotion(() => 0);
+  during.sync(state, {initial:true,serverNow:1000 + TRICK_REVIEW_MS - CARD_COLLECT_MS / 2});
+  assert.equal(during.pose('red-1').collect, .5);
+  const recovered = new TableMotion(() => 0);
+  recovered.sync(state, {initial:true,serverNow:10000});
+  assert.equal(recovered.pose('red-1').collect, 1);
+  assert.equal(recovered.pose('red-1').opacity, 0);
+  assert.equal(recovered.isAnimating(), false);
+  // Legacy saves without an event must not invent and replay a newly won trick.
+  recovered.sync({...state,events:[]}, {initial:true,serverNow:10000});
+  assert.equal(recovered.collectAt, null);
+  recovered.sync({...state,events:[]}, {serverNow:11000});
+  assert.equal(recovered.collectAt, null);
+});
+
+test('all settlement phases recover the persisted collection clock through pause and resume', () => {
+  for (const phase of ['trickEnd','roundEnd','finished']) {
+    let now = 3450;
+    const state = {phase,round:2,completedTricks:1,trick:[{player:0,card:{id:'blue-1'}}],
+      events:[{type:'trickEnd',round:2,completedTricks:1,time:1000}],
+      lifecycle:{paused:true,collectionAt:null,collectionRemainingMs:550}};
+    const motion = new TableMotion(() => now);
+    motion.sync(state,{initial:true,serverNow:now});
+    assert.equal(motion.pose('blue-1').collect,.5);
+    now += 10000;
+    motion.sync(state,{serverNow:now});
+    assert.equal(motion.pose('blue-1').collect,.5);
+    const recovered = new TableMotion(() => now);
+    recovered.sync(state,{initial:true,serverNow:now});
+    assert.deepEqual(recovered.pose('blue-1'),motion.pose('blue-1'));
+    state.lifecycle = {paused:false,collectionAt:now+550,collectionRemainingMs:550};
+    recovered.sync(state,{serverNow:now});
+    assert.equal(recovered.pose('blue-1').collect,.5);
+    now += 550;
+    recovered.sync(state,{serverNow:now});
+    assert.equal(recovered.pose('blue-1').collect,1);
+    assert.equal(recovered.pose('blue-1').opacity,0);
+    assert.equal(state.phase,phase);
+  }
 });

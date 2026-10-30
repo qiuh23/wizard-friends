@@ -10,6 +10,7 @@ import { CARD_COLLECT_MS } from '../src/table-motion.js';
 const base = process.env.GAME_URL || 'http://127.0.0.1:5173/';
 const out = 'output/playwright'; fs.mkdirSync(out, { recursive:true });
 const stamp = process.env.REVIEW_STAMP || '20261030';
+const wanted = name => !process.env.REVIEW_CASE || process.env.REVIEW_CASE === name;
 const checks = [], errors = [];
 const browser = await chromium.launch({ channel:process.env.BROWSER_CHANNEL || 'chrome', headless:true });
 
@@ -31,11 +32,21 @@ function fixture(round, phase, short = false, players = 3) {
   throw Error(`Fixture did not reach ${round}:${phase}`);
 }
 
-async function open(record, width, height, webgl = true, beforeNavigate = null) {
+async function open(record, width, height, webgl = true, beforeNavigate = null, controlledCollection = false) {
   const context = await browser.newContext({viewport:{width,height},hasTouch:width<851,reducedMotion:'no-preference'});
-  await context.addInitScript(({record,webgl})=>{
+  await context.addInitScript(({record,webgl,controlledCollection})=>{
+    const alreadySeeded=controlledCollection&&sessionStorage.getItem('wizard-interaction-seeded')==='true';
+    if(controlledCollection) {
+      const now=Date.now(), event=record.game.events.findLast(event=>event.type==='trickEnd'&&
+        event.round===record.game.round&&event.completedTricks===record.game.completedTricks);
+      if(!event)throw Error('Collection review requires an actual completed trick event');
+      if(!alreadySeeded)event.time=now;
+      window.__collectionServerTime=now;
+      Date.now=()=>window.__collectionServerTime;
+    }
     record.game.turnDeadline = Date.now()+30000;
-    sessionStorage.setItem('wizard-room-session',JSON.stringify(record));
+    if(!alreadySeeded)sessionStorage.setItem('wizard-room-session',JSON.stringify(record));
+    if(controlledCollection)sessionStorage.setItem('wizard-interaction-seeded','true');
     localStorage.setItem('wizard-low-graphics','true');
     localStorage.setItem('wizard-trump-motion','false');
     localStorage.setItem('wizard-turn-sound','false');
@@ -43,7 +54,7 @@ async function open(record, width, height, webgl = true, beforeNavigate = null) 
       const original = HTMLCanvasElement.prototype.getContext;
       HTMLCanvasElement.prototype.getContext = function(kind,...args) { return kind.startsWith('webgl') ? null : original.call(this,kind,...args); };
     }
-  },{record,webgl});
+  },{record,webgl,controlledCollection});
   const page = await context.newPage(); page.on('pageerror',error=>errors.push(error.message));
   for (const [file,exposure] of [['card-face','window.__reviewFaceModule={cardFaceCanvas,paintCardFace};'],['card-art','window.__reviewArtModule={cardImage,loadedCardImage};']]) {
     await page.route(new RegExp(`/src/${file}\\.js(?:\\?|$)`),async route=>{
@@ -57,11 +68,12 @@ async function open(record, width, height, webgl = true, beforeNavigate = null) 
         get state() { return state; },
         get scene() { return tableScene; },
         get motion() { return tableMotion; },
+        cardRect: playedCardRect,
         schedule() {
           let time = performance.now();
           tableMotion.now = () => time; tableMotion.last = time;
-          this.advance = ms => { time += ms; };
-          state.lifecycle = {...state.lifecycle, paused:false,nextTrickAt:Date.now()+3000};
+          this.advance = ms => { time += ms; window.__collectionServerTime += ms; };
+          broadcast();
           updateEventEffects(true); render();
         }
       };`});
@@ -98,11 +110,26 @@ async function blankPoint(page) {
 async function inspectCards(page) {
   return page.evaluate(()=>{
     const review = window.__interactionReview;
+    const winnerId = review.state.players[review.state.lastWinner]?.id;
+    const ownId = document.querySelector('.own-status')?.dataset.player;
+    const avatar = winnerId === ownId ? document.querySelector('.own-status .avatar')
+      : document.querySelector('.opponents [data-player="'+winnerId+'"] .avatar');
+    const winnerRect = avatar?.getBoundingClientRect();
+    const winnerCenter = winnerRect ? [winnerRect.left+winnerRect.width/2,winnerRect.top+winnerRect.height/2] : null;
     return [...document.querySelectorAll('.played[data-card-id]')].map(node=>{
       const label = node.querySelector(':scope > small'), style = getComputedStyle(label);
       const transform = new DOMMatrix(getComputedStyle(node.querySelector('.card')).transform);
       const group = review.scene?.cards.get(node.dataset.cardId);
+      const base = review.cardRect(node), face = node.querySelector('.card').getBoundingClientRect();
+      const endpoint = [base.x+parseFloat(node.style.getPropertyValue('--winner-dx')),
+        base.y+parseFloat(node.style.getPropertyValue('--winner-dy'))];
+      const screen = group?.position.clone().project(review.scene.camera), canvas = review.scene?.renderer.domElement.getBoundingClientRect();
+      const drawnCenter = group ? [canvas.left+(screen.x+1)*canvas.width/2,canvas.top+(1-screen.y)*canvas.height/2]
+        : [face.left+face.width/2,face.top+face.height/2];
       return {id:node.dataset.cardId,pose:review.motion.pose(node.dataset.cardId),
+        winnerId,winnerCenter,baseCenter:[base.x,base.y],drawnCenter,
+        endpointError:winnerCenter && Math.hypot(endpoint[0]-winnerCenter[0],endpoint[1]-winnerCenter[1]),
+        winnerDistance:winnerCenter && Math.hypot(drawnCenter[0]-winnerCenter[0],drawnCenter[1]-winnerCenter[1]),
         labelOpacity:Number(style.opacity),labelVisibility:style.visibility,
         cardOpacity:Number(getComputedStyle(node.querySelector('.card')).opacity),
         cardTranslation:[transform.m41,transform.m42],
@@ -125,7 +152,7 @@ async function advance(page,ms) {
 }
 
 try {
-  for (const [width,height] of [[1440,900],[390,844],[844,390]]) {
+  if(wanted('selection')) for (const [width,height] of [[1440,900],[390,844],[844,390]]) {
     const {context,page} = await open(fixture(19,'play'),width,height);
     const id = await selectLegal(page);
     await page.locator('#table-menu').click();
@@ -167,7 +194,7 @@ try {
   }
 
   const finished = fixture(0,'finished',true);
-  for (const [width,height,record] of [[1440,900,finished],[390,844,finished],[844,390,finished],[390,844,fixture(0,'finished',true,6)]]) {
+  if(wanted('finished')) for (const [width,height,record] of [[1440,900,finished],[390,844,finished],[844,390,finished],[390,844,fixture(0,'finished',true,6)]]) {
     const {context,page} = await open(record,width,height);
     const panel = page.locator('.settlement-panel[aria-label="整局结果"]');
     await expect(panel).toBeVisible(); await expect(page.locator('#rematch')).toBeVisible();
@@ -192,8 +219,9 @@ try {
     checks.push({finished:{width,height,players:record.game.players.length,round:record.game.round,geometry}}); await context.close();
   }
 
-  for (const webgl of [false,true]) {
-    const {context,page} = await open(fixture(2,'trickEnd'),webgl?1440:390,webgl?900:844,webgl);
+  if(wanted('collection')) for (const webgl of [false,true]) for(const phase of ['trickEnd','roundEnd','finished']) {
+    const record = fixture(phase==='finished'?0:2,phase,phase==='finished');
+    const {context,page} = await open(record,webgl?1440:390,webgl?900:844,webgl,null,true);
     await page.evaluate(()=>window.__interactionReview.schedule());
     const before = await inspectCards(page); expect(before).toHaveLength(3);
     expect(before.every(card=>card.pose.collect===0 && card.labelOpacity===1)).toBe(true);
@@ -206,19 +234,46 @@ try {
     }
     expect(hidden).not.toBeNull();
     expect(hidden.cards.every(card=>card.pose.collect===0 && (webgl?card.mesh.visible && card.mesh.opacity===1:card.cardOpacity===1))).toBe(true);
-    await page.screenshot({path:`${out}/collection-labels-first-${webgl?'3d':'2d'}-${stamp}.png`});
+    await page.screenshot({path:`${out}/collection-labels-first-${phase}-${webgl?'3d':'2d'}-${stamp}.png`});
     await advance(page,2450-elapsed);
     const moving = await inspectCards(page);
     expect(moving.every(card=>card.pose.collect>0 && card.pose.collect<1 && card.labelOpacity===0)).toBe(true);
     if (webgl) expect(moving.every(card=>card.mesh.distance>0 && card.mesh.visible),JSON.stringify(moving)).toBe(true);
     else expect(moving.every((card,index)=>card.cardOpacity>0 && Math.hypot(card.cardTranslation[0]-before[index].cardTranslation[0],card.cardTranslation[1]-before[index].cardTranslation[1])>1)).toBe(true);
-    await page.screenshot({path:`${out}/collection-moving-${webgl?'3d':'2d'}-${stamp}.png`});
+    expect(moving.every(card=>card.endpointError<2),JSON.stringify(moving)).toBe(true);
+    await page.screenshot({path:`${out}/collection-moving-${phase}-${webgl?'3d':'2d'}-${stamp}.png`});
+    // Pause and chat use the real practice controls; both redraw paths must
+    // retain the same collection progress on the shared presentation clock.
+    await page.locator('#room-pause').click();
+    const paused = await inspectCards(page);
+    await advance(page,10000);
+    await page.locator('#chat-toggle').click();
+    await page.locator('#chat-input').fill('收牌暂停后聊天重绘');
+    await page.locator('#chat-form button').click();
+    await page.locator('#close-chat').click();
+    await page.evaluate(()=>dispatchEvent(new Event('resize')));
+    const redrawn = await inspectCards(page);
+    expect(redrawn.map(card=>card.pose)).toEqual(paused.map(card=>card.pose));
+    await page.reload({waitUntil:'domcontentloaded'});
+    await page.locator('.table').waitFor();
+    await page.waitForFunction(()=>!!window.__interactionReview);
+    await expect(page.locator('body')).toHaveAttribute('data-paused','true');
+    if(webgl)await page.waitForFunction(()=>document.body.classList.contains('has-webgl'));
+    await page.evaluate(()=>window.__interactionReview.schedule());
+    await advance(page,0);
+    const recovered=await inspectCards(page);
+    expect(recovered.map(card=>card.pose)).toEqual(paused.map(card=>card.pose));
+    await page.screenshot({path:`${out}/collection-paused-reload-${phase}-${webgl?'3d':'2d'}-${stamp}.png`});
+    await page.locator('#room-pause').click();
     await advance(page,550);
     const collected = await inspectCards(page);
     expect(collected.every(card=>card.pose.collect===1 && card.labelOpacity===0 && (webgl?!card.mesh.visible:card.cardOpacity===0)),JSON.stringify(collected)).toBe(true);
-    checks.push({collection:{webgl,before,labelHiddenAt:hidden.elapsed,moving,collected}}); await context.close();
+    expect(collected.every(card=>card.winnerDistance<2),JSON.stringify(collected)).toBe(true);
+    expect(await page.locator('body').getAttribute('data-phase')).toBe(phase);
+    expect((await page.evaluate(()=>window.__interactionReview.state.trick.length))).toBe(3);
+    checks.push({collection:{webgl,phase,manual:true,before,labelHiddenAt:hidden.elapsed,moving,paused,redrawn,recovered,collected,chatAndPausePreserved:true,pausedReloadPreserved:true}}); await context.close();
   }
-  {
+  if(wanted('preloading')) {
     const requests = new Map();
     const {context,page} = await open(fixture(1,'roundEnd'),1440,900,true,async page=>{
       page.on('request',request=>{
@@ -255,5 +310,10 @@ try {
   }
   expect(errors).toEqual([]);
   fs.writeFileSync(`${out}/table-interaction-review.json`,JSON.stringify({checks,errors},null,2));
-  console.log(JSON.stringify({checks,errors}));
+  console.log(JSON.stringify({checks:checks.map(check=>check.collection ? {collection:{
+    webgl:check.collection.webgl,phase:check.collection.phase,manual:true,
+    labelHiddenAt:check.collection.labelHiddenAt,
+    maxWinnerEndpointError:Math.max(...check.collection.collected.map(card=>card.winnerDistance)),
+    chatAndPausePreserved:check.collection.chatAndPausePreserved,
+    pausedReloadPreserved:check.collection.pausedReloadPreserved}} : check),errors}));
 } finally { await browser.close(); }
