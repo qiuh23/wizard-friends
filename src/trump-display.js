@@ -77,7 +77,9 @@ export function layoutTrumpDisplay(table) {
   }
 }
 
-export const TRUMP_REVEAL_MS = 1160;
+const EXTRACT_MS = 300, FLIP_MS = 400, HOLD_MS = 1200, RETURN_MS = 500;
+const HOLD_AT = EXTRACT_MS + FLIP_MS, RETURN_AT = HOLD_AT + HOLD_MS;
+export const TRUMP_REVEAL_MS = RETURN_AT + RETURN_MS;
 const clamp = n => Math.max(0, Math.min(1, n));
 const smooth = n => { const t = clamp(n); return t * t * (3 - 2 * t); };
 
@@ -162,18 +164,18 @@ export class TrumpReveal {
       else if (this.root && this.geometry && this.icon?.isConnected) {
         const { width, center, origin } = this.geometry;
         const target = this.icon.getBoundingClientRect();
-        const extract = smooth(elapsed / 200), returning = smooth((elapsed - 760) / 400);
+        const extract = smooth(elapsed / EXTRACT_MS), returning = smooth((elapsed - RETURN_AT) / RETURN_MS);
         const end = { x:target.left + target.width/2, y:target.top + target.height/2 };
         const x = returning ? (1-returning)**2*center.x + 2*(1-returning)*returning*(center.x+(end.x-center.x)*.45) + returning**2*end.x : origin.x + (center.x-origin.x)*extract;
         const y = returning ? (1-returning)**2*center.y + 2*(1-returning)*returning*(Math.min(center.y,end.y)-24) + returning**2*end.y : origin.y + (center.y-origin.y)*extract;
         const scale = returning ? 1-(1-target.width/width)*returning : .65+.35*extract;
-        this.root.dataset.phase = elapsed < 200 ? 'extract' : elapsed < 440 ? 'flip' : elapsed < 760 ? 'hold' : 'return';
+        this.root.dataset.phase = elapsed < EXTRACT_MS ? 'extract' : elapsed < HOLD_AT ? 'flip' : elapsed < RETURN_AT ? 'hold' : 'return';
         this.card.style.transform = `translate3d(${x-width/2}px,${y-width*.75}px,0) scale(${scale}) rotate(${(1-extract)*-10}deg)`;
         this.card.style.opacity = String(1-smooth((returning-.65)/.35));
-        this.rotor.style.transform = `rotateY(${180 * (1-smooth((elapsed-200)/240))}deg)`;
-        this.label.style.opacity = String(smooth((elapsed-440)/70) * (1-clamp((elapsed-760)/100)));
-        this.sheen.style.opacity = String(Math.sin(clamp((elapsed-300)/210)*Math.PI)*.65);
-        this.sheen.style.backgroundPosition = `${100-clamp((elapsed-300)/210)*200}% 0`;
+        this.rotor.style.transform = `rotateY(${180 * (1-smooth((elapsed-EXTRACT_MS)/FLIP_MS))}deg)`;
+        this.label.style.opacity = String(smooth((elapsed-HOLD_AT)/70) * (1-clamp((elapsed-RETURN_AT)/100)));
+        this.sheen.style.opacity = String(Math.sin(clamp((elapsed-EXTRACT_MS)/FLIP_MS)*Math.PI)*.65);
+        this.sheen.style.backgroundPosition = `${100-clamp((elapsed-EXTRACT_MS)/FLIP_MS)*200}% 0`;
       }
     }
     if (this.icon && this.pulseAt !== null) {

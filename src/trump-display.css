@@ -11,7 +11,7 @@ body[data-screen="game"] .table .trump-display .table-trump {
 }
 body[data-screen="game"] .table .trump-display .table-trump::before { display:none; }
 body[data-screen="game"] .table .trump-display .table-trump:hover { transform:none; }
-.trump-suit-icon { display:inline-grid;place-items:center;width:22px;height:22px;flex-shrink:0;font-size:19px; }
+.trump-suit-icon { display:inline-grid;place-items:center;width:22px;height:22px;flex-shrink:0;font-size:19px;line-height:1;transform:translateY(-2px); }
 /* Prediction/choice remains usable beside the reveal, including when motion
    is disabled. Public card slots and settlement keep their existing layout. */
 body[data-screen="game"][data-table-layout="strip"]:is([data-phase="bid"],[data-phase="trump"]) .action-panel:not(.settlement-panel) {
