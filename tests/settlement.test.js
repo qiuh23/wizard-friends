@@ -20,7 +20,7 @@ test('trick settlement separates concise winner and next action from folded winn
   assert.doesNotMatch(settlementHTML(g,{me:'a',isHost:true}),/id="next"/);
   assert.match(settlementHTML(g,{me:'a',isHost:true}),/id="trick-review-timer"/);
 });
-test('round settlement has two-line personal score and keeps formula/history folded', () => {
+test('round settlement groups score, prediction and next action with formula/history folded', () => {
   const html=settlementHTML(game('roundEnd'),{me:'a',isHost:true});
   assert.match(html,/预测命中<\/b><strong>\+20 分/);
   assert.match(html,/预测 0 · 实赢 0 · 累计 20/);
