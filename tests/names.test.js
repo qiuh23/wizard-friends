@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateName, uniqueRandomName, resolveName } from '../src/player-names.js';
+import { BOT_NAMES, validateName, uniqueBotName, resolveName } from '../src/player-names.js';
 
 test('names trim and normalize display while preserving case and full-width characters', () => {
   assert.equal(validateName('  Alice  '), 'Alice');
@@ -22,43 +22,60 @@ test('manual duplicates compare trimmed NFKC and case-insensitive keys for every
   assert.equal(resolveName('  ALICE  ', ['另一个名字']), 'ALICE');
 });
 
-test('random names contain a readable Chinese combination and short tail and stay within limits', () => {
+test('bot nicknames are curated short names with distinct avatar initials and no random tails', () => {
+  assert.equal(new Set(BOT_NAMES).size, BOT_NAMES.length);
+  assert.equal(new Set(BOT_NAMES.map(name => [...name][0])).size, BOT_NAMES.length);
+  for (const name of BOT_NAMES) {
+    assert.match(name, /^[\u4e00-\u9fff]{2}$/);
+    assert.equal(validateName(name), name);
+  }
   const samples = [0, 0.01, 0.5, 0.999999];
   for (const sample of samples) {
-    const name = uniqueRandomName([], () => sample);
-    assert.match(name, /^[\u4e00-\u9fff]+-[0-9a-z]{4}$/);
-    assert.equal(validateName(name), name);
-    assert.ok(name.length <= 16);
+    assert.ok(BOT_NAMES.includes(uniqueBotName([], () => sample)));
   }
 });
 
-test('collision retries are bounded even with a constant random function', () => {
+test('a constant random source picks directly from unused candidates without retries', () => {
   let calls = 0;
   const random = () => { calls++; return 0; };
-  const generated = uniqueRandomName([], random);
-  calls = 0;
-  const fallback = uniqueRandomName([generated, '星河旅人-1', '星河旅人-2'], random);
-  assert.equal(fallback, '星河旅人-3');
-  assert.equal(calls, 32 * 3);
-  assert.equal(validateName(fallback), fallback);
+  const remaining = BOT_NAMES.at(-1);
+  assert.equal(uniqueBotName(BOT_NAMES.slice(0, -1).map(name => ` ${name} `), random), remaining);
+  assert.equal(calls, 1);
+});
+
+test('bot selection prefers distinct initials but still uses available names before numbering', () => {
+  const name = uniqueBotName(['小王', '阿乐'], () => 0);
+  assert.ok(!['小', '阿'].includes([...name][0]));
+  assert.equal(uniqueBotName(BOT_NAMES.map(name => `${[...name][0]}客`), () => 0), BOT_NAMES[0]);
+});
+
+test('an exhausted pool uses bounded simple numbering with the same normalized duplicate keys', () => {
+  const name = uniqueBotName([...BOT_NAMES, '牌友２', ' 牌友3 '], () => { throw Error('no random retry'); });
+  assert.equal(name, '牌友4');
+  assert.equal(validateName(name), name);
 });
 
 test('repeated additions remain unique and removed names may be reused', () => {
   const names = [];
-  for (let i = 0; i < 100; i++) names.push(uniqueRandomName(names, () => 0));
+  for (let i = 0; i < 100; i++) names.push(uniqueBotName(names, () => 0));
   assert.equal(new Set(names).size, 100);
   const removed = names.splice(0, 1)[0];
-  assert.equal(uniqueRandomName(names, () => 0), removed);
+  assert.equal(uniqueBotName(names, () => 0), removed);
 });
 
-test('empty names and colliding automatic names receive Web Crypto generated replacements', () => {
-  const occupied = ['星河巫师-0000'];
-  for (const name of ['', '   ', occupied[0]]) {
-    const resolved = resolveName(name, occupied, { automatic: true });
-    assert.equal(validateName(resolved), resolved);
+test('only bots receive generated names; human names must be supplied and never silently change', () => {
+  const occupied = [BOT_NAMES[0], 'Alice'];
+  for (const automatic of [false, true]) {
+    for (const name of ['', '   ', null, undefined]) {
+      assert.throws(() => resolveName(name, occupied, { automatic }), /昵称/);
+    }
+    assert.throws(() => resolveName('ＡＬＩＣＥ', occupied, { automatic }), /已被使用/);
+    assert.equal(resolveName('  老名字-9yce  ', occupied, { automatic }), '老名字-9yce');
+  }
+  for (const [name, automatic] of [['', false], ['机器人', true]]) {
+    const resolved = resolveName(name, occupied, { bot: true, automatic });
+    assert.ok(BOT_NAMES.includes(resolved));
     assert.ok(!occupied.includes(resolved));
   }
-  assert.match(resolveName('', occupied), /^[\u4e00-\u9fff]+-[0-9a-z]+$/);
-  assert.equal(resolveName('唯一旅人', occupied, { automatic: true }), '唯一旅人');
-  assert.throws(() => resolveName('换\n行', occupied, { automatic: true }), /昵称/);
+  assert.equal(resolveName('旧机器人-9yce', occupied, { bot: true }), '旧机器人-9yce');
 });

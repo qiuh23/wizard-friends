@@ -32,6 +32,13 @@ test('short landscape reserves six fixed slots including owner and maximum empha
   assert.equal(shortSeatName('某某',0,true),'1 你');
 });
 
+test('short owner labels keep everyday nicknames and the complete fallback number', () => {
+  assert.equal(shortSeatName('小林', 1), '2 小林');
+  assert.equal(shortSeatName('牌友2', 2), '3 牌友2');
+  assert.equal(shortSeatName('牌友123', 3), '4 牌友123');
+  assert.notEqual(shortSeatName('牌友2', 1), shortSeatName('牌友3', 1));
+});
+
 test('trump yields to an opposite seat and never leaves the available table', () => {
   const area = {left:8,right:382,top:64,bottom:410};
   const seats = [{left:158,right:232,top:140,bottom:210},{left:20,right:92,top:275,bottom:345}];

@@ -1,5 +1,10 @@
-const FIRST = ['星河', '晨雾', '月光', '青山', '流云', '松风', '落霞', '微雨', '晴空', '暖阳', '冰湖', '花海', '远帆', '秋叶', '晚星', '白露'];
-const LAST = ['巫师', '旅人', '诗人', '信使', '学徒', '游侠', '画师', '船长', '精灵', '骑士', '观星者', '寻梦人', '守林人', '拾光者', '吟游者', '探险家'];
+// Short everyday nicknames with varied initials for the existing seat avatars.
+export const BOT_NAMES = Object.freeze([
+  '小林', '阿宁', '老周', '木子', '橙子', '麦子', '石头', '可乐',
+  '豆豆', '团子', '果果', '栗子', '桃子', '布丁', '花生', '南瓜',
+  '米粒', '圆圆', '皮皮', '大熊', '安安', '乐乐', '晨晨', '暖暖',
+  '东东', '西西', '悠悠', '夏夏', '七七', '点点', '贝贝', '冬冬',
+]);
 const nameKey = name => name.trim().normalize('NFKC').toLowerCase();
 const randomValue = () => globalThis.crypto.getRandomValues(new Uint32Array(1))[0] / 0x100000000;
 
@@ -12,26 +17,25 @@ export function validateName(name) {
   return normalized;
 }
 
-export function uniqueRandomName(existingNames = [], random = randomValue) {
+export function uniqueBotName(existingNames = [], random = randomValue) {
   const used = new Set(existingNames.map(nameKey));
-  for (let attempt = 0; attempt < 32; attempt++) {
-    const first = FIRST[Math.floor(random() * FIRST.length)];
-    const last = LAST[Math.floor(random() * LAST.length)];
-    const tail = Math.floor(random() * 36 ** 4).toString(36).padStart(4, '0');
-    const name = `${first}${last}-${tail}`;
-    if (!used.has(nameKey(name))) return name;
+  const available = BOT_NAMES.filter(name => !used.has(nameKey(name)));
+  if (available.length) {
+    const initials = new Set([...used].map(name => [...name][0]));
+    const distinct = available.filter(name => !initials.has([...name][0]));
+    const choices = distinct.length ? distinct : available;
+    return choices[Math.floor(random() * choices.length)];
   }
-  // A broken or deterministic RNG must still let a new player take a unique name.
-  for (let suffix = 1; suffix <= used.size + 1; suffix++) {
-    const name = `星河旅人-${suffix.toString(36)}`;
+  // Exhaustion never retries random picks or consumes the game's deal stream.
+  for (let suffix = 2; suffix <= used.size + 2; suffix++) {
+    const name = `牌友${suffix}`;
     if (!used.has(nameKey(name))) return name;
   }
 }
 
-export function resolveName(name, existingNames = [], { automatic = false } = {}) {
-  if (typeof name === 'string' && !name.trim()) return uniqueRandomName(existingNames);
+export function resolveName(name, existingNames = [], { bot = false, automatic = false } = {}) {
+  if (bot && (automatic || typeof name === 'string' && !name.trim())) return uniqueBotName(existingNames);
   const normalized = validateName(name);
   if (!existingNames.some(existing => nameKey(existing) === nameKey(normalized))) return normalized;
-  if (automatic) return uniqueRandomName(existingNames);
   throw new Error('昵称已被使用，请换一个名字。');
 }

@@ -396,3 +396,13 @@
 - 保留改进的定向复核：六人桌面及横屏的固定出牌槽、实际三维投影、两次领先更替及二维回退共 3 项通过；`card-face-review.mjs` 的桌面／横竖屏 × 二维／三维 6 组及实体纹理检查通过，含静态徽章查看真实原牌、无分离角标、归属标签与赢家状态。既有 `variant-browser-smoke.mjs --motion-only` 通过，确认系统减少动态优先、偏好持久化与设置变化不补播当前轮。
 - 本地日志：`.local/trump-check.log`、`trump-build.log`、`trump-unit.log`、`trump-reveal-review.log`、`trump-network-review.log`、`trump-playfield-desktop.log`、`trump-playfield-landscape.log`、`trump-card-face.log`、`trump-motion-preference.log`；详细浏览器结果在忽略提交的 `output/playwright/`。未跑无关全量回归，也未新增 CI job 或矩阵。
 - 已实际复看并保存关键截图：[桌面揭示](../screenshots/trump-reveal-1440x900-20261030.png)、[桌面归位](../screenshots/trump-settled-1440x900-20261030.png)、[横屏揭示](../screenshots/trump-reveal-844x390-20261030.png)、[横屏归位](../screenshots/trump-settled-844x390-20261030.png)、[巫师待选](../screenshots/trump-wizard-pending-844x390-20261030.png)。手机均为本机 Chrome 设备模拟，未作真机 GPU／Safari 验证。代码、必要检查与开发记录一起提交；PR 创建结果与既有远端检查另在对话及附件核验，不提前声明通过。
+
+<a id="h-036"></a>
+## H-036 · 2026-10-30 · 机器人短昵称、真人必填与个人入口
+- 最终范围及用户追加选择见 [D-026](DECISIONS.md#d-026)。确认个人 PR #10 已合并，最新 origin/main 为 `efed15e`；起始工作区及暂存区干净，从此创建 `codex/natural-bot-names`。保留已完成的主牌揭示和牌桌动画，按用户授权提交中文 PR，不自动合并或部署。
+- 修改昵称生成入口、共享玩家创建入口和新建真人表单：32 个日常机器人候选、首字优先、全房间规范化查重、有限编号兜底；新真人留空且必须填写。机器人名字直接保存，练习及 RoomAuthority 复用原入口，不在显示层清洗旧尾码。shortSeatName 保留完整编号。README 开始游戏仅指向 `wizard-friends.qiuh23.workers.dev`，移除原入口与双入口说明。
+- 必要本地检查通过：`npm run check`、`npm run build`、`git diff --check`；定向执行 names、social、table-layout、game、room-session、room-authority、random 共 7 个测试文件，89/89 通过。覆盖规范化、所有占座名字、常量随机源、100 次添加及池耗尽、真人必填／重名、练习／联机同策略、不消耗发牌流、独立身份／认证、旧名和聊天保留、恢复及下一轮。构建保留已有 Three.js 大包提示，无新增依赖或 CI 配置。
+- 本地 Chrome 实际从空首页验证创建／加入／练习均要求昵称，填写「小满」后创建练习并加至六人，真实操作完成第一轮。大厅、头像、出牌标签、计分表均使用相同已存名字；样本为七七、大熊、南瓜、米粒、桃子，头像首字各异。1440×900 三维桌面及同桌 844×390 横屏均验证标签未截断、座位配色一致，并实际复看截图：[桌面](../screenshots/bot-names-table-1440-20261030.png)、[横屏](../screenshots/bot-names-table-844-20261030.png)。
+- 对同桌保存状态建立仅本地的编号显示样本，确认「牌友2」「牌友12」在六人横屏头像旁及出牌标签均保留完整编号；刷新、下一轮保持原名和 ID。另确认旧自动昵称偏好不预填新真人表单。
+- 真实本地 Durable Objects／WebSocket 创建房主加五机器人，并从独立观众页读取：双方名字和 ID 一致，均来自新池。清除房主昵称偏好后刷新，依原认证恢复成功，不要求重新命名，所有名字与观众一致。浏览器 errors=[]；详细结果在忽略提交的 `output/playwright/bot-names-review.json`，日志为 `.local/bot-names-browser.log`；语法／单测／构建日志分别为 `bot-names-check.log`、`bot-names-tests.log`、`bot-names-build.log`。
+- 验证脚本的两次初始失败均已纠正并重跑：最初 `.seat` 把空位占位也计入，改数实际姓名节点；随后刷新前写入编号样本被 pagehide 的正常存档覆盖，改在下次载入前初始化样本。没有放宽姓名一致、标签宽度或恢复断言。脚本只在 `.local/`，未新增远端浏览器检查；手机为浏览器横屏模拟。远端 PR／CI 状态在交付时另行核验。

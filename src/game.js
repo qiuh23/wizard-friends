@@ -79,9 +79,9 @@ export function normalizeGame(g) {
 export function addPlayer(g, id, name, bot = false, automatic = false) {
   if (g.phase !== 'lobby' || g.players.length >= 6) throw new Error('房间已开始或已满员。');
   if (g.players.some(p => p.id === id)) throw new Error('玩家已在房间。');
-  if (!automatic) validateName(name);
-  const resolved = resolveName(name, g.players.map(p => p.name), { automatic });
-  g.players.push({ id, name: resolved, automaticName: automatic, bot, ...(bot ? { botDifficulty: 'smart' } : {}), score: 0, matchWins: 0, bid: null, won: 0, hand: [], online: true });
+  const automaticName = bot && (automatic || typeof name === 'string' && !name.trim());
+  const resolved = resolveName(name, g.players.map(p => p.name), { bot, automatic: automaticName });
+  g.players.push({ id, name: resolved, automaticName, bot, ...(bot ? { botDifficulty: 'smart' } : {}), score: 0, matchWins: 0, bid: null, won: 0, hand: [], online: true });
 }
 function deal(g, random) {
   g.round++;
