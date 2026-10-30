@@ -3,6 +3,6 @@
   "relayOrigin": null,
   "backends": [
     { "id": "cloudflare", "origin": "", "enabled": true },
-    { "id": "aliyun", "origin": "http://115.29.188.62:8081", "enabled": false }
+    { "id": "aliyun", "origin": "http://115.29.188.62:8081", "enabled": true }
   ]
 }
