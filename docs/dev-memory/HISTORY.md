@@ -406,3 +406,10 @@
 - 对同桌保存状态建立仅本地的编号显示样本，确认「牌友2」「牌友12」在六人横屏头像旁及出牌标签均保留完整编号；刷新、下一轮保持原名和 ID。另确认旧自动昵称偏好不预填新真人表单。
 - 真实本地 Durable Objects／WebSocket 创建房主加五机器人，并从独立观众页读取：双方名字和 ID 一致，均来自新池。清除房主昵称偏好后刷新，依原认证恢复成功，不要求重新命名，所有名字与观众一致。浏览器 errors=[]；详细结果在忽略提交的 `output/playwright/bot-names-review.json`，日志为 `.local/bot-names-browser.log`；语法／单测／构建日志分别为 `bot-names-check.log`、`bot-names-tests.log`、`bot-names-build.log`。
 - 验证脚本的两次初始失败均已纠正并重跑：最初 `.seat` 把空位占位也计入，改数实际姓名节点；随后刷新前写入编号样本被 pagehide 的正常存档覆盖，改在下次载入前初始化样本。没有放宽姓名一致、标签宽度或恢复断言。脚本只在 `.local/`，未新增远端浏览器检查；手机为浏览器横屏模拟。远端 PR／CI 状态在交付时另行核验。
+
+<a id="h-037"></a>
+## H-037 · 2026-10-30 · 修复 PR #11 的 Worker 协议测试
+- 来源：用户要求修复远端 CI。核实 [PR #11](https://github.com/qiuh23/wizard-friends/pull/11) 开放且未合并，head 为 `386efb3`；起始工作区和暂存区干净，在同一分支修复，不创建重复 PR、不合并。
+- 精确失败证据：[Verify game #29](https://github.com/qiuh23/wizard-friends/actions/runs/40994313261)，job `123863763196` 的 `npm test` 失败，后续构建、Worker 打包和浏览器冒烟未执行。8 项失败均来自 `tests/relay-worker.test.js`：共用 hello 测试辅助未传 name，新真人被必填校验拒绝为 fatal，后续状态及权限断言连带失败。本地完整复现 238 项中 230 通过、8 失败；H-036 的 89 项定向范围没有覆盖此文件。
+- 修复：为正常测试握手显式提供唯一昵称，保留原有权限、目录、保留期限、迁移和错误关联断言。新增协议测试直接发送缺省、空串和纯空白昵称，分别覆盖新房主和新访客、旧 automatic 标记，确认拒绝且不注册座位、认证或房主。原休眠恢复测试仍不传昵称，并加强原名、ID 和认证映射保持不变的断言；伪造迁移请求提供合法名字，并检查明确的不能导入原因，避免空昵称提前拒绝掩盖迁移权限验证。
+- 本地修复后 `node --test tests/relay-worker.test.js` 12/12、`npm test` 239/239、`npm run check` 和 Git 空白检查通过。日志为 `.local/pr11-ci-before.log`、`pr11-ci-worker.log`、`pr11-ci-after.log`、`pr11-ci-check.log`。本次只调整测试及记录，不修改产品命名规则、依赖、CI 工作流、job、超时或检查强度；未重复无关界面矩阵。代码和记录推送同一 PR，替代远端检查的最终结果在 PR 描述与对话核验。
