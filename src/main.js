@@ -35,6 +35,12 @@ import { playedCardRect, playedCardSlots, playedCardLink, tableLayoutMode, strip
 import { seatPosition, relativeSeat, followSuitHint, playBlockedReason, sortCards, isSwipe } from './hand-model.js';
 import { readRoomRecoveries, saveRoomRecovery, removeRoomRecovery } from './room-recovery.js';
 import { PRACTICE_SAVE_KEY, PRACTICE_KEEP_MS, readPractice, savePractice } from './practice-save.js';
+import { uuidV4 } from './uuid.js';
+import { backendId, backendStorage, entryURL, invitationURL, parseRoomCode, publicRoomCode, runtimeConfig } from './backend-entry.js';
+import { copyInvitation } from './share-link.js';
+
+const sessionStore = backendStorage(globalThis.sessionStorage);
+const localStore = backendStorage(globalThis.localStorage);
 
 let onlinePresence = { count: null, status: 'connecting' };
 function updateOnlineCount() {
@@ -56,7 +62,7 @@ const tableLayoutObserver = new ResizeObserver(() => {
   });
 });
 const motionMedia = matchMedia('(prefers-reduced-motion: reduce)');
-let trumpMotionPreference = localStorage.getItem('wizard-trump-motion');
+let trumpMotionPreference = localStore.getItem('wizard-trump-motion');
 function updateTrumpMotion() {
   const enabled = trumpMotionPreference === null ? !motionMedia.matches : trumpMotionPreference === 'true';
   document.body.dataset.trumpMotion = enabled ? 'on' : 'off';
@@ -123,19 +129,25 @@ const handMotion = new HandMotion(showHoveredCard);
 const tableMotion = new TableMotion();
 const trumpReveal = new TrumpReveal();
 let selectedCard = null, handExpanded = false, handCollapsed = false, handSort = 'suit', handScroll = 0, gridScroll = 0, selectionContext = '';
-let seenEventSeq = null, lastTurnCue = '', turnSound = localStorage.getItem('wizard-turn-sound') !== 'false';
+let seenEventSeq = null, lastTurnCue = '', turnSound = localStore.getItem('wizard-turn-sound') !== 'false';
 let practicePaused = false, practiceRemaining = null;
-let practiceSaved = readPractice(localStorage);
+let practiceSaved = readPractice(localStore);
 
 const tokenKey = 'wizard-player-token';
-let token = sessionStorage.getItem(tokenKey);
-if (!token) { token = crypto.randomUUID(); sessionStorage.setItem(tokenKey, token); }
-let nickname = sessionStorage.getItem('wizard-name-automatic') === 'true' ? '' : sessionStorage.getItem('wizard-name') || '';
+let token = sessionStore.getItem(tokenKey);
+if (!token) { token = uuidV4(); sessionStore.setItem(tokenKey, token); }
+let nickname = sessionStore.getItem('wizard-name-automatic') === 'true' ? '' : sessionStore.getItem('wizard-name') || '';
 let automaticName = false;
 persistName();
 const roomFromURL = (new URLSearchParams(location.search).get('room') || '').trim().toUpperCase();
 const watchFromURL = new URLSearchParams(location.search).get('watch') === '1';
-const savedSession = readRoomSession(sessionStorage, roomFromURL);
+const initialCode = parseRoomCode(roomFromURL);
+const invitedRoom = initialCode?.backendId === backendId() ? initialCode.room : roomFromURL;
+// A foreign invitation must not move a recovering in-progress room to another
+// pool. Keep its original authority and credentials; switching stays on home.
+const currentSession = readRoomSession(sessionStore);
+const savedSession = initialCode && initialCode.backendId !== backendId() && currentSession
+  ? currentSession : readRoomSession(sessionStore, invitedRoom);
 const storedRoom = savedSession?.room || '';
 function notify(message) {
   clearTimeout(noticeTimer);
@@ -157,8 +169,8 @@ function showHoveredCard(id) {
 function pendingContext(value=state) {return value ? `${value.round}:${value.completedTricks}:${value.phase}:${value.turn}:${!!value.lifecycle?.paused}:${networkReady}` : '';}
 
 function persistName() {
-  sessionStorage.setItem('wizard-name', nickname);
-  sessionStorage.setItem('wizard-name-automatic', String(automaticName));
+  sessionStore.setItem('wizard-name', nickname);
+  sessionStore.setItem('wizard-name-automatic', String(automaticName));
 }
 function cardLabel(c) {
   return c.kind === 'wizard' ? '巫师 W' : c.kind === 'jester' ? '小丑 J' : `${SUIT_NAMES[c.suit].split(' · ')[0]} ${c.rank}`;
@@ -216,13 +228,15 @@ function render() {
   const scoreScroll = { top: scorePanel?.scrollTop || 0, left: ledger?.scrollLeft || 0, row: ledger?.scrollTop || 0 };
   if (!state) {
     if (automaticName) { nickname = ''; automaticName = false; persistName(); }
-    const returnSession = readRoomSession(sessionStorage,roomFromURL);
-    const recoveryHandles=readRoomRecoveries(localStorage,roomFromURL);
+    const invitedRoom = parseRoomCode(roomFromURL)?.backendId === backendId() ? parseRoomCode(roomFromURL).room : roomFromURL;
+    const returnSession = readRoomSession(sessionStore,invitedRoom);
+    const recoveryHandles=readRoomRecoveries(localStore,invitedRoom);
     const returnRooms=returnSession && returnSession.role !== 'practice' ? [{...returnSession,token},...recoveryHandles.filter(r=>r.room!==returnSession.room || r.token!==token)] : recoveryHandles;
     app.innerHTML = shell(`<main class="home-screen">
       <section class="hero home-scene" aria-label="烛光牌桌"><div class="hero-cards">${cardHTML({ kind: 'number', suit: 'blue', rank: 13 })}${cardHTML({ kind: 'wizard' })}${cardHTML({ kind: 'number', suit: 'red', rank: 7 })}</div></section>
       <section class="home-menu" aria-label="主菜单">
         <div class="home-title"><span class="title-ornament" aria-hidden="true">✦</span><h1>巫师牌</h1><span class="home-wordmark">W I Z A R D</span></div>
+        <nav class="backend-entries" aria-label="游戏入口">${(runtimeConfig()?.backends || []).map(entry => `<button type="button" data-entry="${entry.id}" ${busy || entry.id === backendId() || !entry.enabled ? 'disabled' : ''} ${entry.id === backendId() ? 'aria-current="page"' : ''}>${entry.id === 'cloudflare' ? 'Cloudflare' : '阿里云国内'}${entry.id === backendId() ? ' · 当前' : !entry.enabled ? ' · 尚未开放' : ''}</button>`).join('')}<small>两端房间独立，邀请会打开房间所属入口。</small></nav>
         <nav class="menu-options" aria-label="开始游戏">
           ${returnRooms.map((r,i)=>`<button ${i===0 ? 'id="resume-room"' : ''} data-return-room="${i}" class="menu-choice">返回 ${escape(r.room)} · ${r.role==='host' ? '房主' : r.role==='spectator' ? '观战' : '玩家'}</button>`).join('')}<button id="create" class="menu-choice menu-primary" ${busy ? 'disabled' : ''}>${busy ? '正在连接…' : '创建房间'}<span aria-hidden="true">↗</span></button>
           <button id="join-menu" class="menu-choice" aria-expanded="${joinOpen}" aria-controls="join-form" ${busy ? 'disabled' : ''}>加入房间<span aria-hidden="true">＋</span></button>
@@ -236,9 +250,14 @@ function render() {
       </section></main>`);
     bindCommon();handMotion.attach(null,previousHand,null);
     $('#create').onclick = () => launch(true);
+    document.querySelectorAll('[data-entry]').forEach(button => button.addEventListener('click', () => {
+      if (busy || state) return;
+      const target = entryURL(button.dataset.entry);
+      if (target) location.assign(target);
+    }));
     document.querySelectorAll('[data-return-room]').forEach(button=>button.addEventListener('click',()=>{
       const recovery=returnRooms[Number(button.dataset.returnRoom)];if(!recovery)return;
-      token=recovery.token;sessionStorage.setItem(tokenKey,token);restoreRoom(recovery);
+      token=recovery.token;sessionStore.setItem(tokenKey,token);restoreRoom(recovery);
     }));
     $('#join-form').onsubmit = e => { e.preventDefault(); launch(false); };
     $('#room-input').oninput = e => { joinDraft = e.target.value; };
@@ -249,7 +268,7 @@ function render() {
       if (joinOpen) $('#room-input').focus();
     };
     $('#practice').onclick = startPractice;
-    $('#resume-practice')?.addEventListener('click', () => restoreRoom(readPractice(localStorage)));
+    $('#resume-practice')?.addEventListener('click', () => restoreRoom(readPractice(localStore)));
     $('#cancel-connect')?.addEventListener('click', () => leaveRoom());
     $('#nickname').oninput = e => { nickname = e.target.value; automaticName = false; persistName(); };
     return;
@@ -265,8 +284,8 @@ function render() {
   const oldHand = $('.hand'); if (oldHand && oldHand.offsetParent!==null) { if (oldHand.classList.contains('hand-grid')) gridScroll = oldHand.scrollTop; else handScroll = oldHand.scrollLeft; }
   const myTurn = !spectating && state.players[state.turn]?.id === me;
   const hostName = state.players[0]?.name;
-  const invitation = `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}${spectating ? '&watch=1' : ''}`;
-  const head = `<div class="room-heading"><div class="room-identity"><span>${practice ? '练习牌桌' : spectating ? '观战房间' : '房间'}</span><span class="room-code">${practice ? '' : escape(room)}</span><span class="seat-count">${state.players.length} / 6${!practice ? ` · ${state.spectatorCount || 0} 人观战` : ''}</span></div><div class="room-buttons">${!practice ? `<button id="invite">${spectating ? '分享观战' : '邀请好友'}</button>` : ''}<button id="leave" class="text-button">${spectating ? '退出观战' : '离开'}</button></div></div>`;
+  const invitation = practice ? '' : invitationURL(room, spectating);
+  const head = `<div class="room-heading"><div class="room-identity"><span>${practice ? '练习牌桌' : spectating ? '观战房间' : '房间'}</span><span class="room-code">${practice ? '' : escape(publicRoomCode(room))}</span><span class="seat-count">${state.players.length} / 6${!practice ? ` · ${state.spectatorCount || 0} 人观战` : ''}</span></div><div class="room-buttons">${!practice ? `<button id="invite">${spectating ? '分享观战' : '邀请好友'}</button>` : ''}<button id="leave" class="text-button">${spectating ? '退出观战' : '离开'}</button></div></div>`;
   let body;
   if (state.phase === 'lobby') {
     const startHint = state.players.length < 3 ? `还差 ${3 - state.players.length} 人` : state.players.some(p => !p.online) ? '等待玩家重连' : state.options.deckMode === 'mono' && state.players.length > 4 ? '单色限 3–4 人，请选择标准牌库' : '';
@@ -313,11 +332,11 @@ function render() {
   if (updatedLedger) { updatedLedger.scrollLeft = scoreScroll.left; updatedLedger.scrollTop = scoreScroll.row; }
   handMotion.attach($('.hand'),previousHand,selectedCard);
   $('#invite')?.addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(invitation); notify('邀请链接已复制，发给朋友吧。'); } catch { notify(`复制这个邀请链接：${invitation}`); }
+    if (await copyInvitation(invitation)) notify('邀请链接已复制，发给朋友吧。');
   });
   $('#leave').onclick = requestLeave;
   $('#room-pause')?.addEventListener('click', () => roomControl(state.lifecycle?.paused ? 'resume' : 'pause'));
-  $('#room-dissolve')?.addEventListener('click', () => { if (confirm('解散后所有成员会收到通知，旧链接无法恢复。确定解散房间？')) { if (practice) { localStorage.removeItem(PRACTICE_SAVE_KEY); leaveRoom('练习已解散。', false, false); } else roomControl('dissolve'); } });
+  $('#room-dissolve')?.addEventListener('click', () => { if (confirm('解散后所有成员会收到通知，旧链接无法恢复。确定解散房间？')) { if (practice) { localStore.removeItem(PRACTICE_SAVE_KEY); leaveRoom('练习已解散。', false, false); } else roomControl('dissolve'); } });
   $('#continue-yes')?.addEventListener('click', () => roomControl('continuationVote', {accept:true}));
   $('#continue-no')?.addEventListener('click', () => roomControl('continuationVote', {accept:false}));
   $('#confirm-results')?.addEventListener('click', () => submitSettlement('confirmResults'));
@@ -328,7 +347,7 @@ function render() {
   $('#start')?.addEventListener('click', () => send({ type: 'start', options: selectedOptions() }));
   $('#addbot')?.addEventListener('click', () => {
     if (!practice) return roomControl('addbot',{difficulty:$('#bot-difficulty')?.value || 'smart'});
-    try { const id=crypto.randomUUID();addPlayer(game, id, '', true, true);game.players.find(p=>p.id===id).botDifficulty=$('#bot-difficulty')?.value || 'smart'; broadcast(); } catch (error) { notify(error.message); }
+    try { const id=uuidV4();addPlayer(game, id, '', true, true);game.players.find(p=>p.id===id).botDifficulty=$('#bot-difficulty')?.value || 'smart'; broadcast(); } catch (error) { notify(error.message); }
   });
   document.querySelectorAll('[data-remove]').forEach(b => b.onclick = () => {
     if (!isHost || state.phase !== 'lobby') return;
@@ -365,12 +384,12 @@ function bindCommon() {
   $('.top-actions').append(motion);
   motion.onclick = () => {
     trumpMotionPreference = String(document.body.dataset.trumpMotion !== 'on');
-    localStorage.setItem('wizard-trump-motion', trumpMotionPreference);
+    localStore.setItem('wizard-trump-motion', trumpMotionPreference);
     updateTrumpMotion();
   };
   updateTrumpMotion();
   const soundButton = document.createElement('button'); soundButton.id = 'turn-sound'; soundButton.textContent = `行动提示音：${turnSound ? '开' : '关'}`;
-  $('.top-actions').append(soundButton); soundButton.onclick = () => { turnSound = !turnSound; localStorage.setItem('wizard-turn-sound', String(turnSound)); soundButton.textContent = `行动提示音：${turnSound ? '开' : '关'}`; };
+  $('.top-actions').append(soundButton); soundButton.onclick = () => { turnSound = !turnSound; localStore.setItem('wizard-turn-sound', String(turnSound)); soundButton.textContent = `行动提示音：${turnSound ? '开' : '关'}`; };
   if (state && !pregame) setupGameHUD(graphics);
   music.mount(state && !pregame ? $('#table-menu-panel') : $('.top-actions'));
   social.update(state, me, pregame ? $('.room-buttons') : $('.game-toolbar'), { connected: practice || (networkReady && seenEventSeq != null), room });
@@ -674,9 +693,9 @@ function updateSpectatorActivity() {
 function persistRoom() {
   if (!room || !me) return;
   const saved = practice ? { role: 'practice', room, me, game, identities, paused:practicePaused, remainingMs:practicePaused ? practiceRemaining : Number.isFinite(game.turnDeadline) ? Math.max(0,game.turnDeadline-Date.now()) : null } : { role: isHost ? 'host' : spectating ? 'spectator' : 'guest', authoritative: true, room, me, state };
-  if (practice) savePractice(localStorage, {...saved,paused:practicePaused});
-  else saveRoomRecovery(localStorage,{room,me,token,role:saved.role});
-  if (!saveRoomSession(sessionStorage, saved)) notify('浏览器存储不可用，刷新后可能无法恢复牌局。');
+  if (practice) savePractice(localStore, {...saved,paused:practicePaused});
+  else saveRoomRecovery(localStore,{room,me,token,role:saved.role});
+  if (!saveRoomSession(sessionStore, saved)) notify('浏览器存储不可用，刷新后可能无法恢复牌局。');
 }
 function stopRoomTransport() {
   roomEpoch++;
@@ -691,17 +710,17 @@ function leaveRoom(message = '', announce = true, keep = true) {
   if (announce && !practice) transport?.send({type:'leave'});
   if (practice && keep && game) {
     const saved = {role:'practice',room,me,game,identities,paused:practicePaused,remainingMs:practicePaused ? practiceRemaining : Math.max(0,game.turnDeadline-Date.now()),leftAt:Date.now()};
-    savePractice(localStorage,saved,Date.now(),true);saveRoomSession(sessionStorage,saved);
+    savePractice(localStore,saved,Date.now(),true);saveRoomSession(sessionStore,saved);
   }
   const previous = transport;
   roomEpoch++; transport = null; clearTimeout(botTimer); clearTimeout(turnTimer);
   trumpReveal.finish();
   previous?.stop();
-  if (!keep) { clearRoomSession(sessionStorage); if (!practice) removeRoomRecovery(localStorage,room,token); }
+  if (!keep) { clearRoomSession(sessionStore); if (!practice) removeRoomRecovery(localStore,room,token); }
   game = state = undefined; room = me = ''; identities = {};
   isHost = practice = spectating = networkReady = busy = false;
   scoresOpen = menuOpen = rulesOpen = false; selectedCard = null; pendingPlay=null;pendingSettlement=null;seenEventSeq = null;
-  practiceSaved = readPractice(localStorage); handExpanded = false;handCollapsed=false;
+  practiceSaved = readPractice(localStore); handExpanded = false;handCollapsed=false;
   history.replaceState(null, '', location.pathname);
   notify(message); render();
 }
@@ -723,7 +742,7 @@ function roomControl(type, extra = {}) {
 function submitSettlement(type) {
   const context = `${room}:${state.round}:${state.completedTricks}:${state.phase}`;
   if (pendingSettlement?.context === context) return;
-  const requestId = crypto.randomUUID();
+  const requestId = uuidV4();
   pendingSettlement = {context,requestId};
   const sent = type === 'confirmResults' ? roomControl(type, {requestId}) : send({type}, requestId);
   if (!sent) pendingSettlement = null;
@@ -750,7 +769,7 @@ function bindHand() {
   $('#confirm-play')?.addEventListener('click', () => {
     const card = state.players.find(p => p.id === me)?.hand?.find(c => c.id === selectedCard);
     if (pendingPlay || !card || playBlockedReason(state,me,card)) return;
-    const id=selectedCard;pendingPlay={id,context:pendingContext(),requestId:crypto.randomUUID()};
+    const id=selectedCard;pendingPlay={id,context:pendingContext(),requestId:uuidV4()};
     const button=$('#confirm-play');button.disabled=true;button.textContent='正在提交…';
     if(!send({type:'play',card:id},pendingPlay.requestId))pendingPlay=null;
     render();
@@ -805,20 +824,28 @@ function send(action, requestId = null) {
 }
 function startPractice() {
   if (!saveName()) return;
-  stopRoomTransport(); clearRoomSession(sessionStorage); identities = {};
+  stopRoomTransport(); clearRoomSession(sessionStore); identities = {};
   spectating = false;
-  practice = true; isHost = true; me = crypto.randomUUID(); room = '离线练习';
+  practice = true; isHost = true; me = uuidV4(); room = '离线练习';
   game = createGame(); addPlayer(game, me, nickname, false, automaticName);
-  addPlayer(game, crypto.randomUUID(), '', true, true); addPlayer(game, crypto.randomUUID(), '', true, true);
+  addPlayer(game, uuidV4(), '', true, true); addPlayer(game, uuidV4(), '', true, true);
   networkReady = true; busy = false; game.options.short = true; practicePaused = false; practiceRemaining = null; pendingSettlement = null; seenEventSeq = null;
   notify(''); broadcast();
 }
 function launch(host, restored = null) {
   const watching = !host && restored?.role === 'spectator';
   if (!restored && !watching && !saveName()) return;
-  const entered = restored?.room || $('#room-input')?.value.trim().toUpperCase();
-  if (!host && !/^[A-Z2-9]{8}$/.test(entered)) return notify('请输入有效的 8 位房间码。');
   if (busy) return;
+  const input = restored?.room || $('#room-input')?.value.trim().toUpperCase();
+  const code = parseRoomCode(input);
+  if (!host && !code) return notify('请输入有效的 8 位房间码，也可带 C- 或 A- 前缀。');
+  if (!host && code.backendId !== backendId()) {
+    if (state) return;
+    const target = entryURL(code.backendId, { room: code.room, watch: watching });
+    if (!target) return notify('该房间所属入口尚未开放，请稍后再试。');
+    location.assign(target); return;
+  }
+  const entered = host ? restored?.room : code.room;
   stopRoomTransport(); const epoch = roomEpoch, current = () => roomEpoch === epoch;
   busy = true; networkReady = false; isHost = host; practice = false; spectating = watching;
   game = undefined; state = undefined; me = restored?.me || '';
@@ -882,12 +909,12 @@ render();
 function startPresence() {
   let visitor;
   try {
-    visitor = localStorage.getItem('wizard-presence-id');
+    visitor = localStore.getItem('wizard-presence-id');
     if (!visitor) {
-      visitor = crypto.randomUUID();
-      localStorage.setItem('wizard-presence-id', visitor);
+      visitor = uuidV4();
+      localStore.setItem('wizard-presence-id', visitor);
     }
-  } catch { visitor = crypto.randomUUID(); }
+  } catch { visitor = uuidV4(); }
   presence = createPresence({
     visitor,
     onChange: value => { onlinePresence = value; updateOnlineCount(); directory.update({ rooms: value.rooms || [], status: value.status }); },
@@ -911,13 +938,13 @@ function restoreRoom(saved) {
 window.addEventListener('pagehide', () => {
   if (practice && game) {
     const saved={role:'practice',room,me,game,identities,paused:practicePaused,remainingMs:practicePaused ? practiceRemaining : Math.max(0,game.turnDeadline-Date.now()),leftAt:Date.now()};
-    savePractice(localStorage,saved,Date.now(),true);saveRoomSession(sessionStorage,saved);
+    savePractice(localStore,saved,Date.now(),true);saveRoomSession(sessionStore,saved);
   } else persistRoom();
   stopRoomTransport(); networkReady = false; busy = false;
   presence?.stop();
 });
 window.addEventListener('pageshow', event => {
-  if (event.persisted) { startPresence(); restoreRoom(readRoomSession(sessionStorage)); }
+  if (event.persisted) { startPresence(); restoreRoom(readRoomSession(sessionStore)); }
 });
 let resizeTimer;window.addEventListener('resize',()=>{trumpReveal.finish();clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(state)render();},120);});
 for(const query of ['(max-width:380px)','(max-width:850px)']) matchMedia(query).addEventListener('change',()=>{if(state)render();});
@@ -926,6 +953,6 @@ window.addEventListener('offline',()=>{
   presence?.wake();
 });
 window.addEventListener('online', () => { transport?.wake(); presence?.wake(); });
-restoreRoom(watchFromURL && /^[A-Z2-9]{8}$/.test(roomFromURL) && savedSession?.role !== 'host'
-  ? (savedSession?.role === 'spectator' ? savedSession : { role: 'spectator', room: roomFromURL, me: '' })
+restoreRoom(watchFromURL && initialCode?.backendId === backendId() && savedSession?.role !== 'host'
+  ? (savedSession?.role === 'spectator' ? savedSession : { role: 'spectator', room: initialCode.room, me: '' })
   : savedSession);

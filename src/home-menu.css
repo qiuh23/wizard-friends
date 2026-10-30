@@ -23,6 +23,10 @@ body[data-screen="home"] .page { max-width: none; padding: 0; }
 .title-ornament { display: block; color: #c9a467; font-size: 24px; margin: 0 0 18px 3px; text-shadow: 0 0 25px #d6a75c77; }
 .home-title h1 { margin: 0; font-size: clamp(56px, 5.4vw, 86px); font-weight: 500; line-height: 1.2; letter-spacing: .12em; color: #ebd9b4; text-shadow: 0 4px 35px #000; white-space: nowrap; }
 .home-wordmark { display: block; margin-top: 16px; font: 12px Georgia, serif; letter-spacing: .4em; color: #a58c60; }
+.backend-entries { display: flex; flex-wrap: wrap; gap: 7px; margin: -14px 0 20px; }
+.backend-entries button { padding: 7px 9px; font-size: 11px; letter-spacing: 0; }
+.backend-entries button[aria-current="page"] { opacity: 1; border-color: #c9a46788; color: #ecd2a0; }
+.backend-entries small { width: 100%; color: #a49b88; font-size: 10px; line-height: 1.6; }
 .menu-options { display: flex; flex-direction: column; gap: 4px; }
 .menu-options .menu-choice {
   display: flex; align-items: center; justify-content: space-between;

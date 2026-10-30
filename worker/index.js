@@ -46,11 +46,15 @@ export default {
 export class RoomRelay {
   constructor(ctx, env) {
     this.ctx = ctx; this.env = env; this.queue = Promise.resolve();
-    ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
+    if (typeof WebSocketRequestResponsePair !== 'undefined') ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
     this.initialized = ctx.blockConcurrencyWhile(async () => {
       const record = await ctx.storage.get('authority');
       this.authority = record ? new RoomAuthority(record) : null;
       if (this.authority && !this.authority.closed) {
+        // Recover a delayed service clock before disconnecting absent sockets;
+        // disconnect freezes the current budget and must not freeze an already
+        // expired deadline merely because the process was unavailable.
+        this.recoverClock(Date.now());
         const connected = new Set(this.sockets().map(ws => attachment(ws).playerId));
         for (const p of this.authority.game.players) if (!p.bot && p.online && !connected.has(p.id)) this.authority.disconnect(p.id);
       }
@@ -92,6 +96,10 @@ export class RoomRelay {
         if (!this.sockets().some(other => attachment(other).playerId === info.playerId)) this.authority.disconnect(info.playerId, now);
       }
     }
+    this.recoverClock(now);
+    this.authority.tick(now);
+  }
+  recoverClock(now) {
     const expected = this.authority.record.alarmAt;
     if (expected && now - expected > 15000) {
       if (this.authority.game.phase === 'play' && Number.isFinite(this.authority.game.turnDeadline)) {
@@ -100,7 +108,6 @@ export class RoomRelay {
       if (this.authority.record.task) this.authority.record.task.at = Math.max(now + 450, this.authority.record.task.at + now - expected);
       this.authority.record.alarmAt = now + 8000;
     }
-    this.authority.tick(now);
   }
   async authorize(ws, message) {
     const info = attachment(ws);
@@ -160,13 +167,12 @@ export class RoomRelay {
         host: message.host, name: message.name || '', automaticName: message.automaticName === true || !message.name,
         spectator: !message.host && message.spectator === true,
       });
-      if (message.host) await this.ctx.storage.put({ owner: hash, room: info.room });
+      if (message.host) this.pendingOwner = hash;
       ws.serializeAttachment({ ...info, authenticated: true, playerId: identity.id, host: identity.host, spectator: identity.spectator, lastSeen: Date.now() });
-      send(ws, { type: 'ready', authority: true });
-      await this.persistAndPublish(info.room);
+      await this.persistAndPublish(info.room, () => send(ws, { type: 'ready', authority: true }));
     } catch (error) { send(ws, { type: 'fatal', message: error.message }); close(ws, 1008); }
   }
-  async persistAndPublish(room) {
+  async persistAndPublish(room, committed = () => {}) {
     if (!this.authority) return;
     const now = Date.now();
     this.authority.record.savedAt = now;
@@ -176,9 +182,12 @@ export class RoomRelay {
     const next = this.authority.nextAlarm(now);
     const alarm = activeRoom || this.sockets().length ? Math.min(next ?? Infinity, now + 30000) : next;
     this.authority.record.alarmAt = alarm;
-    await this.ctx.storage.put('authority', this.authority.record);
+    await this.ctx.storage.put({ authority: this.authority.record, room,
+      ...(this.pendingOwner ? { owner: this.pendingOwner } : {}),
+      ...(this.authority.closed ? { closed: true } : {}) });
+    this.pendingOwner = null;
+    committed();
     if (this.authority.closed) {
-      await this.ctx.storage.put('closed', true);
       for (const ws of this.sockets()) {
         send(ws, { type: 'fatal', message: this.authority.life.closeReason || '房间已关闭。' }); this.remove(ws);
       }
@@ -226,7 +235,22 @@ export class RoomRelay {
             this.remove(ws);
             if (!this.sockets().some(other => attachment(other).playerId === info.playerId)) this.authority.disconnect(info.playerId, now);
           } else {
-            this.authority.handle({ id: info.playerId, spectator: info.spectator }, data, now);
+            // Optional request IDs make a retried operation idempotent across
+            // reconnects and process restarts. Never replay an old action with
+            // different content under the same identity/request pair.
+            const id = typeof data.requestId === 'string' && /^[A-Za-z0-9._:-]{1,80}$/.test(data.requestId) ? data.requestId : null;
+            const key = id ? `${info.playerId}:${id}` : null;
+            const receipt = key && this.authority.record.requests?.find(entry => entry.key === key);
+            const payload = JSON.stringify(data);
+            if (receipt && receipt.payload !== payload) throw new Error('操作编号已用于另一项操作。');
+            if (!receipt) {
+              this.authority.handle({ id: info.playerId, spectator: info.spectator }, data, now);
+              if (key) {
+                this.authority.record.requests ||= [];
+                this.authority.record.requests.push({ key, payload });
+                this.authority.record.requests = this.authority.record.requests.slice(-256);
+              }
+            }
             if (data.type === 'remove') for (const other of this.sockets()) if (attachment(other).playerId === data.id) {
               send(other, { type: 'data', data: { type: 'removed' } }); this.remove(other);
             }
@@ -260,7 +284,7 @@ export class RoomRelay {
 export class RoomDirectory {
   constructor(ctx) {
     this.ctx = ctx;
-    ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
+    if (typeof WebSocketRequestResponsePair !== 'undefined') ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
   }
   async fetch(request) {
     if (new URL(request.url).pathname === '/update' && request.method === 'POST') {

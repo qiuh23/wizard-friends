@@ -413,3 +413,12 @@
 - 精确失败证据：[Verify game #29](https://github.com/qiuh23/wizard-friends/actions/runs/40994313261)，job `123863763196` 的 `npm test` 失败，后续构建、Worker 打包和浏览器冒烟未执行。8 项失败均来自 `tests/relay-worker.test.js`：共用 hello 测试辅助未传 name，新真人被必填校验拒绝为 fatal，后续状态及权限断言连带失败。本地完整复现 238 项中 230 通过、8 失败；H-036 的 89 项定向范围没有覆盖此文件。
 - 修复：为正常测试握手显式提供唯一昵称，保留原有权限、目录、保留期限、迁移和错误关联断言。新增协议测试直接发送缺省、空串和纯空白昵称，分别覆盖新房主和新访客、旧 automatic 标记，确认拒绝且不注册座位、认证或房主。原休眠恢复测试仍不传昵称，并加强原名、ID 和认证映射保持不变的断言；伪造迁移请求提供合法名字，并检查明确的不能导入原因，避免空昵称提前拒绝掩盖迁移权限验证。
 - 本地修复后 `node --test tests/relay-worker.test.js` 12/12、`npm test` 239/239、`npm run check` 和 Git 空白检查通过。日志为 `.local/pr11-ci-before.log`、`pr11-ci-worker.log`、`pr11-ci-after.log`、`pr11-ci-check.log`。本次只调整测试及记录，不修改产品命名规则、依赖、CI 工作流、job、超时或检查强度；未重复无关界面矩阵。代码和记录推送同一 PR，替代远端检查的最终结果在 PR 描述与对话核验。
+
+<a id="h-038"></a>
+## H-038 · 2026-10-30 · Cloudflare＋阿里云双部署与独立发布准备
+- 来源及选择见 [D-027](DECISIONS.md#d-027)。用户授权完整实现、必要本地验证、ECS 准备和中文 PR，禁止自动合并／分支正式发布。起始工作区／索引干净，从拉取的最新 `origin/main` `13c8558352afe2206b4b29946202737b4045370b` 建 `codex/aliyun-dual-deployment`。未找到可用 dev-memory SKILL.md，遵循仓库现有记录策略。
+- 完成 Node WebSocket／SQLite 平台适配、共用 Worker 提交和请求去重调整、双入口／UUID／分享文本，以及独立安装、备份、回滚、OIDC 发布工作流和文档。Node24 同时由 Verify 与 `.node-version` 指定，保留原 Cloudflare Builds 命令。运动会仓库仅只读核验，无文件改动；其正式发布已与 main 一致，无需重复部署。
+- 本地 256 项测试、语法、前端构建、Worker dry-run 通过。实际 Node 三客户端一轮及下一轮首墩、非 localhost HTTP UUID／分享、Cloudflare 旧连接短回归均通过；真正 SIGKILL、写盘失败不确认、无人重连的时限恢复由真实 Node 集成测试覆盖。详细命令、断言与本机／云端边界统一记录在 [实际状态](../aliyun-readiness.md)，不重复整局或界面矩阵。
+- ECS 可访问，实查端口后安装独立且停用的巫师牌服务、用户、目录、站点文件、受限安装器和配置备份；独立权限及云助手用户验证通过，运动会原站点哈希与 HTTP／实时探测保持正常。RAM／GitHub 环境配置完成，`ALIYUN_AUTO_DEPLOY_ENABLED=false`；尚无巫师牌 current、公网 8081 未开放，无分支应用正式发布。真实 GitHub OIDC、Linux 正式产物和首次版本切换留待合并。
+- 过程修正：Nginx 临时主配置最初从 /dev/stdin 读取，第二次解析遇 EOF；改用临时普通文件后按相同语法要求通过。代理验证使用单独回环 Nginx／协议桩，不是游戏上线。HTTP 专项脚本修正旧 add-bot 选择器及 pagehide 覆盖测试样本的准备顺序后，保留原断言通过；未降低产品或检查要求。
+- 按仓库策略统一提交本任务代码和记录并创建中文 PR；远端 CI 与 PR 最终地址在交付时实时核验，不以此记录预先宣称成功。剩余首次发布操作及最新用户边界见实际状态末尾清单。

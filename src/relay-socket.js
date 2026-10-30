@@ -1,5 +1,6 @@
 // Reconnect obtains a fresh host snapshot; game actions are never replayed.
-export function relayURL(path, base = import.meta.env?.VITE_RELAY_URL || globalThis.location?.origin) {
+import { relayOrigin } from './backend-entry.js';
+export function relayURL(path, base = relayOrigin(import.meta.env?.VITE_RELAY_URL)) {
   const url = new URL(path, base);
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   return url.href;

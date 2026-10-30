@@ -1,0 +1,73 @@
+name: Deploy checked Wizard to Aliyun
+on:
+  workflow_run:
+    workflows: [Verify game]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      verification_run:
+        description: Successful current-main Verify game run ID (existing Linux artifact)
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+concurrency:
+  group: wizard-friends-aliyun-production
+  cancel-in-progress: false
+jobs:
+  release:
+    if: (github.event_name == 'workflow_run' && vars.ALIYUN_AUTO_DEPLOY_ENABLED == 'true') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    # Allow the bounded install plus a bounded rollback to finish; the release
+    # queue never cancels an active switch to make room for a newer commit.
+    timeout-minutes: 40
+    environment: production
+    env:
+      ALIYUN_PUBLIC_ORIGIN: ${{ vars.ALIYUN_PUBLIC_ORIGIN }}
+      ALIYUN_REGION_ID: ${{ vars.ALIYUN_REGION_ID }}
+      ALIYUN_INSTANCE_ID: ${{ vars.ALIYUN_INSTANCE_ID }}
+    steps:
+      # Only trusted main control code runs with release permissions.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Initialize trusted release record path
+        run: printf 'RELEASE_RECORD=%s/wizard-release.json\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - name: Recheck exact successful current main after the release queue
+        id: gate
+        run: node scripts/deploy/gate.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Set up existing Alibaba Cloud Assistant delivery
+        if: steps.gate.outputs.deploy == 'true'
+        uses: aliyun/setup-aliyun-cli-action@09a5f86915bb556e27bf050e9a5e339aeb073df5
+        with:
+          version: 3.5.2
+      - name: Obtain Wizard-only temporary deployment credentials
+        if: steps.gate.outputs.deploy == 'true'
+        uses: aliyun/configure-aliyun-credentials-action@1e5248c8d5d93a8781ac344a68e19a43341e79e6
+        with:
+          role-to-assume: ${{ vars.ALIYUN_ROLE_ARN }}
+          oidc-provider-arn: ${{ vars.ALIYUN_OIDC_PROVIDER_ARN }}
+          audience: sts.aliyuncs.com
+          role-session-name: wizard-production-${{ github.run_id }}
+          role-session-expiration: 3600
+      - name: Install the verified Linux artifact without rebuilding on ECS
+        if: steps.gate.outputs.deploy == 'true'
+        id: install
+        run: node scripts/deploy/release.mjs install
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Verify public frontend/backend SHA and WebSocket
+        if: steps.gate.outputs.deploy == 'true'
+        id: verify
+        run: node scripts/deploy/release.mjs verify
+      - name: Roll back only this Wizard attempt after public verification failure
+        if: failure() && steps.install.outcome == 'success' && steps.verify.outcome == 'failure'
+        run: node scripts/deploy/release.mjs rollback
