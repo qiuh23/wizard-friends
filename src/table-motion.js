@@ -1,3 +1,5 @@
+import { TRICK_REVIEW_MS } from './game.js';
+
 export const CARD_ENTER_MS = 260;
 export const CARD_COLLECT_MS = 1100;
 export const CARD_COLLECT_STAGGER_MS = 35;
@@ -18,6 +20,7 @@ export class TableMotion {
     this.entries = new Map();
     this.emphasis = new Map();
     this.collectAt = null;
+    this.manualCollectAt = null;
     this.emphasisScale = LEADING_CARD_SCALE;
   }
   clock() {
@@ -31,7 +34,9 @@ export class TableMotion {
     const time = this.clock();
     const done = ['trickEnd', 'roundEnd', 'finished'].includes(state?.phase);
     const scope = state ? `${state.round}:${state.completedTricks + (done ? 0 : 1)}` : '';
-    if (initial || scope !== this.scope) { this.entries.clear(); this.emphasis.clear(); }
+    if (initial || scope !== this.scope) {
+      this.entries.clear(); this.emphasis.clear(); this.manualCollectAt = null;
+    }
     this.scope = scope;
     this.paused = !!state?.lifecycle?.paused;
     this.leader = leader;
@@ -52,11 +57,30 @@ export class TableMotion {
     }
     for (const id of this.entries.keys()) if (!cards.has(id)) { this.entries.delete(id); this.emphasis.delete(id); }
     const life = state?.lifecycle;
+    const collectionRemaining = this.paused ? life?.collectionRemainingMs
+      : Number.isFinite(life?.collectionAt) ? life.collectionAt - serverNow : null;
     const remaining = this.paused ? life?.reviewRemainingMs
       : Number.isFinite(life?.nextTrickAt) ? life.nextTrickAt - serverNow : null;
-    // Practice waits for a manual Next action and must keep the complete trick.
-    this.collectAt = state?.phase === 'trickEnd' && Number.isFinite(remaining)
-      ? time + Math.max(0, remaining) - CARD_COLLECT_MS : null;
+    if (done && Number.isFinite(collectionRemaining)) {
+      this.collectAt = time + Math.max(0, collectionRemaining) - CARD_COLLECT_MS;
+    } else if (state?.phase === 'trickEnd' && Number.isFinite(remaining)) {
+      this.collectAt = time + Math.max(0, remaining) - CARD_COLLECT_MS;
+    } else if (done && cards.size) {
+      // Practice and the final trick have no automatic Next deadline. Their
+      // real trickEnd event still provides a shared review/collection origin.
+      // Keep it on this clock once observed so pause and redraw cannot move it.
+      if (this.manualCollectAt === null) {
+        const event = state.events?.findLast(event => event.type === 'trickEnd' &&
+          event.round === state.round && event.completedTricks === state.completedTricks);
+        if (Number.isFinite(event?.time)) {
+          const age = Math.max(0, serverNow - event.time);
+          this.manualCollectAt = time + TRICK_REVIEW_MS - CARD_COLLECT_MS - age;
+        }
+      }
+      this.collectAt = this.manualCollectAt;
+    } else {
+      this.collectAt = null;
+    }
   }
   // A new viewport may change emphasis without changing a card's arrival or
   // collection schedule. Read the current scale before retargeting the tween.

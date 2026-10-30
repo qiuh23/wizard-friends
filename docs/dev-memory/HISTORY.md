@@ -449,3 +449,15 @@
 - 隔离端口前端 5185、真实 Durable Objects 8794：`GAME_URL=http://127.0.0.1:5185/ RELAY_URL=http://127.0.0.1:8794/ node scripts/room-animation-review.mjs` 通过，errors=[]。覆盖三客户端、轮末保留、下一轮、聊天重绘、收牌中暂停、二维／三维转屏、暂停刷新、恢复同步清场和解散；日志 `.local/table-interaction-network.log`。
 - 过程修正：既有联机脚本仍按完整昵称、领先牌无抬升、横屏强调不变作断言；按当前真实短名并另验完整 aria-label、含抬升的姿态和紧凑强调精确校验，保留位置误差及冻结进度要求后通过。新脚本最初未等到省电 WebGL 真正绘制、以及 HMR 裸 import 引入第二份模块缓存；改为等待 renderer 帧和暴露实际产品导入引用，未放宽断言或添加产品调试接口。
 - 已人工查看新截图：[手机六人最终分数](../screenshots/table-final-score-mobile-six-20261030.png)、[桌面最终分数](../screenshots/table-final-score-desktop-20261030.png)、[姓名先消失再收牌](../screenshots/table-labels-before-collection-20261030.png)。代码、专项检查、截图和记录一起提交中文 PR，不自动合并或部署；远端 PR／CI 最终状态在交付时实时核验。
+
+<a id="h-042"></a>
+## H-042 · 2026-10-30 · 终局解散、手牌上方单一出牌按钮与完整收牌
+- 来源与采用方案见 [D-031](DECISIONS.md#d-031)。用户提供参考图并要求三项修复后提交 PR。起始工作区／暂存区干净；拉取 `origin/main` `e906687`，其树已含本地 `ee4d15c` 的 PR #15，从 main 新建 `codex/hand-actions-collection`。确认个人仓库具备 push 权限且没有重复开放 PR；未找到可用 dev-memory SKILL.md，按仓库既有记录和 Git 策略执行。
+- 实施：出牌操作放进原手牌容器、只留一个“出牌”按钮，非本人出牌／暂停／恢复连接时隐藏；空白取消、合法性和单次提交继续使用原逻辑。终局在房主结算操作旁外露“解散房间”，菜单原入口仍在，二者共用原确认和解散流程；观众／访客无新增权限。
+- 收牌原因：旧 TableMotion 仅在带自动 deadline 的 trickEnd 收牌，练习与轮末／终局均跳过。现在所有结算共用真实 trickEnd 和既有 3 秒阅读时段，标签先退、卡牌收向原赢家头像；手动结算状态及下一步仍保留。权威服务和练习存档保存展示截止／暂停剩余，避免新末墩动画在暂停刷新后跳到已收。没有增加自动任务，不改玩法、随机流或结算推进时限。
+- 实施中发现并修正：桌面初版离实际手牌 75px，按实际抬升牌面下移；展开容器裁掉上方按钮，改为外层可见溢出、grid 仍独立滚动。390／360 竖屏的提示／统计与按钮相撞，精简冗余本回合文字并压缩统计间距；横屏展开区下移按钮，公开牌为展开按钮保留区域。二维牌继承全局 button transform transition，时钟已完成而真实落点仍滞后，移除该重复过渡。未放宽实际牌面／身份／公开牌遮挡断言；复用证据原则见 [K-015](KNOWLEDGE.md#k-015--手牌关联操作和结算动画要验证真实几何与持久时钟)。
+- 最终本地单测 268/268、JavaScript 语法、生产构建与 Git 空白检查通过；保留既有 Three.js 分包提示。日志 `.local/hand-actions-unit.log`、`hand-actions-build.log`。没有新增依赖、远端工作流、job 或矩阵。
+- 独立 5186 Vite 的手牌／终局专项 v6 共 9 组通过，errors=[]：1440×900、390×844、844×390、360×640、844×300 的单一按钮、选牌／排序／展开实际几何、WebGL 投影／身份不遮挡、空白取消、一次出牌及非本人回合隐藏；四个视口六人终局双按钮可达，guest／spectator 权限与实际确认解散离房。另复用旧 layout-review 的桌面 4 项／手机 5 项手牌回归通过。手机为 Chrome 浏览器模拟，未声称真机验收。
+- 收牌专项六场景通过，errors=[]：练习普通墩／roundEnd／finished × 手机二维／桌面三维；1900ms 标签先退、2450ms 实际移动，暂停 10 秒、聊天和转屏不变，reload 从实际存档逐项恢复 pose，resume 剩余 550ms 收至赢家，结果 phase 和三张 trick 保持。二维实际端点最大误差 0.289px，三维约 1e-12px。部分早期测试被 HMR 中断、以及新联机断言早于低功耗 WebGL 真正绘制，不计通过；冻结源码、等待实际绘制后重跑原要求通过。
+- 独立前端 5187／真实 Durable Objects 8795 的 room-animation-review 通过，errors=[]：联机末墩二维／三维收牌后仍停留轮末，下一轮、聊天、resize 不重播；普通墩中暂停、转屏、暂停刷新和恢复同步清场；解散后目录移除。证据位于忽略提交的 `output/playwright/hand-actions-review-20261030-hand-actions-v6.json`、`table-interaction-review.json`、`room-animation-review.json`。
+- 已人工复看并独立保存：[桌面手牌上方出牌按钮](../screenshots/hand-action-above-cards-20261030-v6.png)、[手机终局解散](../screenshots/finished-dissolve-mobile-20261030-v6.png)，并复看末墩真实收牌中途截图。按仓库策略将代码、必要专项和记录一起提交并创建中文 PR；不自动合并或部署。PR 地址和远端检查在最终交付实时核验，本条不预先声明远端成功。

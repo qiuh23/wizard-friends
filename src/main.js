@@ -1,4 +1,4 @@
-import { createGame, addPlayer, viewFor, botAction, normalizeGame, TURN_MS, SUITS, SUIT_NAMES, winner } from './game.js';
+import { createGame, addPlayer, viewFor, botAction, normalizeGame, TURN_MS, TRICK_REVIEW_MS, SUITS, SUIT_NAMES, winner } from './game.js';
 import './style.css';
 import './cinematic.css';
 import './fullscreen.css';
@@ -144,7 +144,7 @@ document.addEventListener('click', event => {
   selectedCard = null; render();
 }, true);
 let seenEventSeq = null, lastTurnCue = '', turnSound = localStore.getItem('wizard-turn-sound') !== 'false';
-let practicePaused = false, practiceRemaining = null;
+let practicePaused = false, practiceRemaining = null, practiceCollection = null;
 let practiceSaved = readPractice(localStore);
 
 const tokenKey = 'wizard-player-token';
@@ -210,7 +210,7 @@ function ownStatusHTML(p) {
 function handHTML(p, myTurn) {
   const cards = sortCards(p?.hand || [], handSort), selected = cards.find(c => c.id === selectedCard);
   const reason = pendingPlay ? '正在提交，等待房间确认' : selected ? (!networkReady && !practice ? '连接恢复中，重新连接后再选择' : playBlockedReason(state, me, selected)) : '';
-  return `<div class="hover-preview" hidden aria-live="polite"></div>${selected ? `<div class="selected-preview" aria-live="polite">${cardHTML(selected)}<span>已选 ${escape(cardLabel(selected))}</span>${reason ? `<small>${escape(reason)}</small>` : ''}</div>` : ''}<section class="hand-section ${handExpanded ? 'expanded' : ''} ${handCollapsed ? 'collapsed' : ''}" aria-label="你的手牌"><div class="hand-heading"><b>手牌 · ${p?.count ?? cards.length} 张</b><span>${handExpanded ? '点击查看 · 确认出牌' : '选牌后确认'}</span><button id="hand-collapse" aria-expanded="${!handCollapsed}">${handCollapsed ? '展开手牌' : '收起手牌'}</button><button id="hand-sort" aria-label="切换手牌排序">${handSort === 'suit' ? '花色排序' : '点数排序'}</button><button id="hand-expand" aria-label="${handExpanded ? '收起展开手牌' : '展开全部手牌'}" title="${handExpanded ? '收起展开手牌' : '展开全部手牌'}" aria-expanded="${handExpanded}">${handExpanded ? '⌄' : '⤢'}</button></div><div class="hand ${handExpanded ? 'hand-grid' : 'hand-strip'}" tabindex="0">${cards.map(c => cardHTML(c, true, myTurn && state.legal.includes(c.id), c.id === selectedCard)).join('') || (state.foresightActive ? `<div class="concealed-hand"><strong>你的 ${p?.count || 0} 张手牌暂时保密</strong><span>先见之明 · 全员预估后揭开</span></div>` : '<p class="muted">本轮手牌已出完。</p>')}</div></section><div class="play-confirm" data-submitting="${!!pendingPlay}" aria-busy="${!!pendingPlay}"><span class="selection-name">${selected ? `已选 ${escape(cardLabel(selected))}` : '点击选牌 · 确认后出牌'}</span><button id="cancel-card" ${!selected || pendingPlay ? 'disabled' : ''}>取消</button><button id="confirm-play" class="primary" ${!selected || reason ? 'disabled' : ''}>${pendingPlay ? '正在提交…' : selected && !reason ? '确认出牌' : selected ? '当前不可出牌' : '请先选牌'}</button></div>`;
+  return `<div class="hover-preview" hidden aria-live="polite"></div>${selected ? `<div class="selected-preview" aria-live="polite">${cardHTML(selected)}<span>已选 ${escape(cardLabel(selected))}</span>${reason ? `<small>${escape(reason)}</small>` : ''}</div>` : ''}<section class="hand-section ${handExpanded ? 'expanded' : ''} ${handCollapsed ? 'collapsed' : ''}" aria-label="你的手牌"><div class="hand-heading"><b>手牌 · ${p?.count ?? cards.length} 张</b><span>${handExpanded ? '点击查看 · 确认出牌' : '选牌后确认'}</span><button id="hand-collapse" aria-expanded="${!handCollapsed}">${handCollapsed ? '展开手牌' : '收起手牌'}</button><button id="hand-sort" aria-label="切换手牌排序">${handSort === 'suit' ? '花色排序' : '点数排序'}</button><button id="hand-expand" aria-label="${handExpanded ? '收起展开手牌' : '展开全部手牌'}" title="${handExpanded ? '收起展开手牌' : '展开全部手牌'}" aria-expanded="${handExpanded}">${handExpanded ? '⌄' : '⤢'}</button></div><div class="hand ${handExpanded ? 'hand-grid' : 'hand-strip'}" tabindex="0">${cards.map(c => cardHTML(c, true, myTurn && state.legal.includes(c.id), c.id === selectedCard)).join('') || (state.foresightActive ? `<div class="concealed-hand"><strong>你的 ${p?.count || 0} 张手牌暂时保密</strong><span>先见之明 · 全员预估后揭开</span></div>` : '<p class="muted">本轮手牌已出完。</p>')}</div>${state.phase === 'play' && myTurn && !state.lifecycle?.paused && !state.lifecycle?.continuationVote && (practice || networkReady) ? `<div class="play-confirm" data-submitting="${!!pendingPlay}" aria-busy="${!!pendingPlay}"><button id="confirm-play" class="primary" ${!selected || reason ? 'disabled' : ''} title="${escape(reason || (selected ? `打出 ${cardLabel(selected)}` : '请先选择手牌'))}">${pendingPlay ? '正在提交…' : '出牌'}</button></div>` : ''}</section>`;
 }
 function lifecycleHTML() {
   const life = state.lifecycle || {}, vote = life.continuationVote;
@@ -351,7 +351,9 @@ function render() {
   });
   $('#leave').onclick = requestLeave;
   $('#room-pause')?.addEventListener('click', () => roomControl(state.lifecycle?.paused ? 'resume' : 'pause'));
-  $('#room-dissolve')?.addEventListener('click', () => { if (confirm('解散后所有成员会收到通知，旧链接无法恢复。确定解散房间？')) { if (practice) { localStore.removeItem(PRACTICE_SAVE_KEY); leaveRoom('练习已解散。', false, false); } else roomControl('dissolve'); } });
+  const dissolve = () => { if (confirm('解散后所有成员会收到通知，旧链接无法恢复。确定解散房间？')) { if (practice) { localStore.removeItem(PRACTICE_SAVE_KEY); leaveRoom('练习已解散。', false, false); } else roomControl('dissolve'); } };
+  $('#room-dissolve')?.addEventListener('click', dissolve);
+  $('#finished-dissolve')?.addEventListener('click', dissolve);
   $('#continue-yes')?.addEventListener('click', () => roomControl('continuationVote', {accept:true}));
   $('#continue-no')?.addEventListener('click', () => roomControl('continuationVote', {accept:false}));
   $('#confirm-results')?.addEventListener('click', () => submitSettlement('confirmResults'));
@@ -532,7 +534,7 @@ function updateLayoutMetrics() {
   const area = {left:rect.left+side,right:rect.right-rightSide,
     top:rect.top+(strip ? low ? 82 : rect.height>=420 ? 154 : 126 : shortPortrait ? 154 : rect.width<600 ? 194 : 158),
     bottom:rect.bottom-(strip ? low ? 88 : 104 : shortPortrait ? 210 : rect.width<600 ? 260 : 280)};
-  for (const dock of document.querySelectorAll('.own-status,.hand-section,.action-panel')) {
+  for (const dock of document.querySelectorAll('.own-status,.hand-section,.action-panel,.hand-section.expanded > .play-confirm')) {
     const r = dock.getBoundingClientRect(), style = getComputedStyle(dock);
     if (r.height && style.display !== 'none' && style.visibility !== 'hidden') area.bottom = Math.min(area.bottom,r.top-8);
   }
@@ -551,7 +553,7 @@ function updateLayoutMetrics() {
   layoutTrumpDisplay(table);
   if (played && avatars.size) {
     const shown = selector => [...document.querySelectorAll(selector)].filter(node => node.offsetWidth && node.offsetHeight && getComputedStyle(node).visibility !== 'hidden');
-    const obstacles = shown('.opponents .player,.trump-display,.foresight-hands,.lifecycle-banner').map(node=>node.getBoundingClientRect());
+    const obstacles = shown('.opponents .player,.trump-display,.foresight-hands,.lifecycle-banner,.play-confirm').map(node=>node.getBoundingClientRect());
     const center={x:(area.left+area.right)/2,y:(area.top+area.bottom)/2};
     const seats=ordered.map(player=>{
       const r=avatars.get(player.id)?.getBoundingClientRect();
@@ -717,7 +719,7 @@ function updateSpectatorActivity() {
 }
 function persistRoom() {
   if (!room || !me) return;
-  const saved = practice ? { role: 'practice', room, me, game, identities, paused:practicePaused, remainingMs:practicePaused ? practiceRemaining : Number.isFinite(game.turnDeadline) ? Math.max(0,game.turnDeadline-Date.now()) : null } : { role: isHost ? 'host' : spectating ? 'spectator' : 'guest', authoritative: true, room, me, state };
+  const saved = practice ? { role: 'practice', room, me, game, identities, collection:practiceCollection, paused:practicePaused, remainingMs:practicePaused ? practiceRemaining : Number.isFinite(game.turnDeadline) ? Math.max(0,game.turnDeadline-Date.now()) : null } : { role: isHost ? 'host' : spectating ? 'spectator' : 'guest', authoritative: true, room, me, state };
   if (practice) savePractice(localStore, {...saved,paused:practicePaused});
   else saveRoomRecovery(localStore,{room,me,token,role:saved.role});
   if (!saveRoomSession(sessionStore, saved)) notify('浏览器存储不可用，刷新后可能无法恢复牌局。');
@@ -734,7 +736,7 @@ function stopRoomTransport() {
 function leaveRoom(message = '', announce = true, keep = true) {
   if (announce && !practice) transport?.send({type:'leave'});
   if (practice && keep && game) {
-    const saved = {role:'practice',room,me,game,identities,paused:practicePaused,remainingMs:practicePaused ? practiceRemaining : Math.max(0,game.turnDeadline-Date.now()),leftAt:Date.now()};
+    const saved = {role:'practice',room,me,game,identities,collection:practiceCollection,paused:practicePaused,remainingMs:practicePaused ? practiceRemaining : Math.max(0,game.turnDeadline-Date.now()),leftAt:Date.now()};
     savePractice(localStore,saved,Date.now(),true);saveRoomSession(sessionStore,saved);
   }
   const previous = transport;
@@ -758,9 +760,15 @@ function requestLeave() {
 function roomControl(type, extra = {}) {
   if (!practice) { if (!networkReady) return notify('连接恢复中，请稍候。'); return transport?.send({type,...extra}); }
   if (type === 'pause') {
+    syncPracticeCollection();
+    if (practiceCollection) practiceCollection.remainingMs = Math.max(0, practiceCollection.at - Date.now());
     practicePaused = true; practiceRemaining = Number.isFinite(game.turnDeadline) ? Math.max(0,game.turnDeadline-Date.now()) : null;
     clearTimeout(botTimer); clearTimeout(turnTimer); broadcast();
   } else if (type === 'resume') {
+    if (practiceCollection && Number.isFinite(practiceCollection.remainingMs)) {
+      practiceCollection.at = Date.now() + practiceCollection.remainingMs;
+      practiceCollection.remainingMs = null;
+    }
     practicePaused = false; if (Number.isFinite(practiceRemaining) && game.phase === 'play') game.turnDeadline = Date.now() + practiceRemaining; broadcast();
   }
 }
@@ -790,7 +798,6 @@ function bindHand() {
   $('#hand-expand')?.addEventListener('click', () => {handCollapsed=false;handExpanded = !handExpanded; render(); });
   $('#hand-collapse')?.addEventListener('click',()=>{handCollapsed=!handCollapsed;render();});
   $('#hand-sort')?.addEventListener('click', () => { handSort = handSort === 'suit' ? 'rank' : 'suit'; render(); });
-  $('#cancel-card')?.addEventListener('click', () => { selectedCard = null; render(); });
   $('#confirm-play')?.addEventListener('click', () => {
     const card = state.players.find(p => p.id === me)?.hand?.find(c => c.id === selectedCard);
     if (pendingPlay || !card || playBlockedReason(state,me,card)) return;
@@ -816,11 +823,22 @@ function updateEventEffects(initial = false) {
   lastTurnCue = cue;
 }
 
+function syncPracticeCollection() {
+  if (!['trickEnd','roundEnd','finished'].includes(game.phase)) { practiceCollection = null; return; }
+  const scope = `${game.round}:${game.completedTricks}`;
+  if (practiceCollection?.scope === scope && Number.isFinite(practiceCollection.at)) return;
+  const event = game.events?.findLast(event => event.type === 'trickEnd' && event.round === game.round && event.completedTricks === game.completedTricks);
+  practiceCollection = Number.isFinite(event?.time) ? {scope, at:event.time + TRICK_REVIEW_MS, remainingMs:null} : null;
+  if (practicePaused && practiceCollection) practiceCollection.remainingMs = Math.max(0,practiceCollection.at - Date.now());
+}
 function broadcast(socialOnly = false) {
   serverClockOffset = 0;
+  syncPracticeCollection();
   state = viewFor(game, me);
   state.spectatorCount = 0;
-  state.lifecycle = {paused:practicePaused,pauseReason:'房主主动暂停',remainingMs:practiceRemaining,retentionMs:PRACTICE_KEEP_MS};
+  state.lifecycle = {paused:practicePaused,pauseReason:'房主主动暂停',remainingMs:practiceRemaining,retentionMs:PRACTICE_KEEP_MS,
+    collectionAt:practicePaused ? null : practiceCollection?.at ?? null,
+    collectionRemainingMs:practiceCollection ? practicePaused ? practiceCollection.remainingMs : Math.max(0,practiceCollection.at-Date.now()) : null};
   updateEventEffects();
   persistRoom();
   render();
@@ -854,7 +872,7 @@ function startPractice() {
   practice = true; isHost = true; me = uuidV4(); room = '离线练习';
   game = createGame(); addPlayer(game, me, nickname, false, automaticName);
   addPlayer(game, uuidV4(), '', true, true); addPlayer(game, uuidV4(), '', true, true);
-  networkReady = true; busy = false; game.options.short = true; practicePaused = false; practiceRemaining = null; pendingSettlement = null; seenEventSeq = null;
+  networkReady = true; busy = false; game.options.short = true; practicePaused = false; practiceRemaining = null; practiceCollection = null; pendingSettlement = null; seenEventSeq = null;
   notify(''); broadcast();
 }
 function launch(host, restored = null) {
@@ -952,6 +970,7 @@ function restoreRoom(saved) {
   if (saved.role === 'practice') {
     stopRoomTransport();
     ({ game, identities, room, me } = saved);
+    practiceCollection = saved.collection ?? null;
     practicePaused = saved.paused === true; practiceRemaining = saved.remainingMs;
     if (Number.isFinite(saved.remainingMs) && game.phase === 'play') game.turnDeadline = Date.now() + saved.remainingMs;
     normalizeGame(game);
@@ -962,7 +981,7 @@ function restoreRoom(saved) {
 }
 window.addEventListener('pagehide', () => {
   if (practice && game) {
-    const saved={role:'practice',room,me,game,identities,paused:practicePaused,remainingMs:practicePaused ? practiceRemaining : Math.max(0,game.turnDeadline-Date.now()),leftAt:Date.now()};
+    const saved={role:'practice',room,me,game,identities,collection:practiceCollection,paused:practicePaused,remainingMs:practicePaused ? practiceRemaining : Math.max(0,game.turnDeadline-Date.now()),leftAt:Date.now()};
     savePractice(localStore,saved,Date.now(),true);saveRoomSession(sessionStore,saved);
   } else persistRoom();
   stopRoomTransport(); networkReady = false; busy = false;

@@ -204,6 +204,22 @@ test('practice is recoverable, while leave and removal clear all versions of the
   assert.equal(tab.getItem('wizard-player-token'), 'keep-this-identity');
 });
 
+test('practice snapshots retain only a valid collection clock across reload', () => {
+  const tab = storage(), saved = { ...hostSession(), role:'practice', room:'离线练习', paused:true,
+    collection:{scope:'2:2',at:4000,remainingMs:550,extra:'discard'} };
+  assert.equal(saveRoomSession(tab,saved),true);
+  const restored = readRoomSession(tab);
+  assert.deepEqual(restored.collection,{scope:'2:2',at:4000,remainingMs:550});
+  assert.equal(restored.paused,true);
+  assert.deepEqual(restored.game,saved.game);
+  const malformed = {...restored,collection:{scope:'2:2',at:'4000',remainingMs:550}};
+  tab.setItem(ROOM_SESSION_KEY,JSON.stringify(malformed));
+  assert.equal(readRoomSession(tab).collection,undefined);
+  assert.deepEqual(readRoomSession(tab).game,saved.game,'bad presentation metadata cannot discard the game');
+  assert.equal(saveRoomSession(tab,{...saved,collection:{scope:'2:2',at:4000,remainingMs:null}}),true);
+  assert.equal(readRoomSession(tab).collection.remainingMs,null);
+});
+
 test('unavailable or full browser storage does not crash the game', () => {
   const blocked = { getItem() { throw Error('blocked'); }, setItem() { throw Error('full'); }, removeItem() { throw Error('blocked'); } };
   assert.equal(saveRoomSession(blocked, hostSession()), false);
@@ -272,13 +288,15 @@ test('server-authoritative hosts cache only their permitted view, lifecycle, and
   const saved = setupSession(), tab = storage();
   act(saved.game,'host',{type:'configure',options:DEFAULT_OPTIONS});
   const state=viewFor(saved.game,'host');
-  state.lifecycle={paused:true,pauseReason:'休息',remainingMs:12000,retentionDeadline:123456,continuationVote:null,privateKey:'never-cache'};
+  state.lifecycle={paused:true,pauseReason:'休息',remainingMs:12000,retentionDeadline:123456,collectionAt:null,collectionRemainingMs:550,continuationVote:null,privateKey:'never-cache'};
   state.privateSeed='never-cache';
   assert.equal(saveRoomSession(tab,{...saved,authoritative:true,state}),true);
   const restored=readRoomSession(tab);
   assert.equal(restored.game,undefined);assert.equal(restored.identities,undefined);
   assert.equal(restored.state.lifecycle.paused,true);
   assert.equal(restored.state.lifecycle.remainingMs,12000);
+  assert.equal(restored.state.lifecycle.collectionAt,null);
+  assert.equal(restored.state.lifecycle.collectionRemainingMs,550);
   assert.equal(restored.state.lifecycle.privateKey,undefined);
   assert.equal(restored.state.vote,undefined);
   assert.equal(restored.state.players[1].hand,undefined);

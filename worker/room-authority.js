@@ -24,6 +24,7 @@ export class RoomAuthority {
     normalizeGame(this.record.game);
     this.record.reconnectUntil ||= {};
     this.record.lifecycle.resultsConfirmed ||= [];
+    this.syncCollection(now);
   }
   get game() { return this.record.game; }
   get life() { return this.record.lifecycle; }
@@ -71,17 +72,39 @@ export class RoomAuthority {
     return this.life.paused || !!this.life.continuationVote ||
       (this.game.phase === 'play' && current && !current.online && (this.record.reconnectUntil[current.id] || 0) > now);
   }
+  syncCollection(now) {
+    const done = ['trickEnd', 'roundEnd', 'finished'].includes(this.game.phase);
+    if (!done || !this.game.trick.length || this.closed) {
+      this.record.collection = null;
+      if (this.record.frozen) this.record.frozen.collectionRemaining = null;
+      return;
+    }
+    const scope = `${this.game.round}:${this.game.completedTricks}`;
+    if (this.record.collection?.scope === scope && Number.isFinite(this.record.collection.at)) return;
+    const event = this.game.events?.findLast(event => event.type === 'trickEnd' &&
+      event.round === this.game.round && event.completedTricks === this.game.completedTricks);
+    const at = this.game.phase === 'trickEnd' && Number.isFinite(this.record.task?.at)
+      ? this.record.task.at : Number.isFinite(event?.time) ? event.time + TRICK_REVIEW_MS : null;
+    this.record.collection = Number.isFinite(at) ? { scope, at } : null;
+    // Old records have no persisted presentation remainder. Their event age
+    // gives a settled pose rather than starting a fresh animation on recovery.
+    if (this.record.frozen) this.record.frozen.collectionRemaining = this.game.phase === 'trickEnd' && Number.isFinite(this.record.frozen.taskRemaining)
+      ? this.record.frozen.taskRemaining : this.record.collection ? Math.max(0, this.record.collection.at - now) : null;
+  }
   syncClock(now) {
+    this.syncCollection(now);
     const held = this.held(now);
     if (held && !this.record.frozen) {
       this.record.frozen = {
         remaining: this.game.phase === 'play' && Number.isFinite(this.game.turnDeadline) ? Math.max(0, this.game.turnDeadline - now) : null,
         taskRemaining: this.record.task ? Math.max(0, this.record.task.at - now) : null,
+        collectionRemaining: this.record.collection ? Math.max(0, this.record.collection.at - now) : null,
       };
       this.game.turnDeadline = null;
     } else if (!held && this.record.frozen) {
       if (this.game.phase === 'play') this.game.turnDeadline = now + (this.record.frozen.remaining ?? TURN_MS);
       if (this.record.task && this.record.frozen.taskRemaining != null) this.record.task.at = now + this.record.frozen.taskRemaining;
+      if (this.record.collection && this.record.frozen.collectionRemaining != null) this.record.collection.at = now + this.record.frozen.collectionRemaining;
       this.record.frozen = null;
     }
   }
@@ -196,7 +219,7 @@ export class RoomAuthority {
   close(reason) {
     this.life.closed = true; this.life.closeReason = reason;
     this.life.paused = false; this.life.continuationVote = null;
-    this.game.turnDeadline = null; this.record.task = null; this.record.frozen = null;
+    this.game.turnDeadline = null; this.record.task = null; this.record.frozen = null; this.record.collection = null;
   }
   expire(now) {
     if (this.closed) return;
@@ -280,6 +303,8 @@ export class RoomAuthority {
       remainingMs: this.record.frozen?.remaining ?? (Number.isFinite(this.game.turnDeadline) ? Math.max(0, this.game.turnDeadline - now) : null),
       nextTrickAt: this.game.phase === 'trickEnd' ? this.record.task?.at ?? null : null,
       reviewRemainingMs: this.game.phase === 'trickEnd' ? this.record.frozen?.taskRemaining ?? Math.max(0, (this.record.task?.at ?? now) - now) : null,
+      collectionAt: this.record.frozen ? null : this.record.collection?.at ?? null,
+      collectionRemainingMs: this.record.frozen?.collectionRemaining ?? (this.record.collection ? Math.max(0, this.record.collection.at - now) : null),
       reconnecting: this.held(now) && !this.life.paused && !this.life.continuationVote,
       closed: this.closed,
     };

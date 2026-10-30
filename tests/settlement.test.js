@@ -36,9 +36,11 @@ test('finished, host, guest, spectator, offline and continuation keep distinct a
   const g=game('finished');
   let html=settlementHTML(g,{me:'a',isHost:true});
   assert.match(html,/青川 赢得本局/);assert.match(html,/id="rematch"/);assert.doesNotMatch(html,/id="next"/);
-  html=settlementHTML(g,{me:'a'});assert.doesNotMatch(html,/id="rematch"|id="next"/);
+  assert.match(html,/<div class="settlement-actions">[\s\S]*id="finished-dissolve" class="danger">解散房间/);
+  html=settlementHTML(g,{me:'a'});assert.doesNotMatch(html,/id="rematch"|id="next"|id="finished-dissolve"/);
+  assert.doesNotMatch(settlementHTML(g,{me:'',isHost:true,spectating:true}),/id="finished-dissolve"/);
   g.phase='roundEnd';g.players[1].online=false;
-  html=settlementHTML(g,{me:'a',isHost:true});assert.match(html,/id="next" class="primary" disabled>等待玩家重连/);
+  html=settlementHTML(g,{me:'a',isHost:true});assert.match(html,/id="next" class="primary" disabled>等待玩家重连/);assert.doesNotMatch(html,/id="finished-dissolve"/);
   assert.doesNotMatch(settlementHTML(g,{me:'',spectating:true}),/id="next"|personal-result/);
   g.lifecycle={closeAfterRound:true,resultsConfirmed:[]};
   html=settlementHTML(g,{me:'a',isHost:true});assert.match(html,/id="confirm-results"/);assert.doesNotMatch(html,/id="next"/);

@@ -15,7 +15,8 @@ body[data-screen="game"] .settlement-summary .action-title small { display:block
 body[data-screen="game"] .settlement-panel .personal-result { display:flex;flex-direction:column;align-items:flex-start;flex:0 0 auto;gap:3px;padding:0;border:0;font-size:12px;line-height:1.4; }
 body[data-screen="game"] .settlement-panel .personal-result > div { display:flex;align-items:baseline;gap:10px; }
 body[data-screen="game"] .settlement-panel .personal-result strong { font-size:24px;color:#f0d292;white-space:nowrap; }
-body[data-screen="game"] .settlement-actions { display:flex;align-items:center;justify-content:flex-end;min-width:0; }
+body[data-screen="game"] .settlement-actions { display:flex;align-items:center;justify-content:flex-end;min-width:0;gap:8px; }
+body[data-screen="game"] #finished-dissolve { min-height:44px;padding:8px 14px;font-size:14px;white-space:nowrap; }
 body[data-screen="game"] .settlement-actions .primary { margin:0;min-height:44px;padding:8px 14px;font-size:15px;line-height:1.25;white-space:normal;max-width:190px; }
 .settlement-wait { font-size:12px;color:#c7d5c2; }
 .settlement-details { min-width:0; }
@@ -43,6 +44,7 @@ body[data-screen="game"]:has(.settlement-panel) .hand-section,
 body[data-screen="game"]:has(.settlement-panel) .play-confirm,
 body[data-screen="game"]:has(.settlement-panel) .selected-preview { display:none; }
 @media(max-width:850px) {
+  body[data-screen="game"][data-phase="finished"] .settlement-actions { flex-wrap:wrap; }
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .action-panel.settlement-panel { left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;padding:8px 10px; }
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .settlement-summary { grid-column:1 / -1;justify-content:space-between;gap:8px; }
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .settlement-summary .action-title h3 { font-size:14px; }

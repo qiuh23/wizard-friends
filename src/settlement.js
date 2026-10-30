@@ -28,6 +28,7 @@ export function settlementHTML(state, { me, isHost = false, practice = false, sp
     const offline = roundEnd && state.players.some(p => !p.online);
     action = isHost && !spectating ? `<button id="next" class="primary" ${offline ? 'disabled' : disabled}>${offline ? '等待玩家重连' : pending ? '正在提交…' : roundEnd ? '开始下一轮 →' : '继续下一墩 →'}</button>` : '<span class="settlement-wait">等待房主继续</span>';
   } else action = '<span id="trick-review-timer" role="timer">看清胜负后继续</span>';
+  if (finished && isHost && !spectating) action += '<button id="finished-dissolve" class="danger">解散房间</button>';
   const reason = winnerReason(state.trick, state.trump, state.options.deckMode);
   const finalRound = state.history.at(-1)?.round === state.round ? state.history.at(-1) : null;
   const ranking = [...state.players].sort((a, b) => b.score - a.score);

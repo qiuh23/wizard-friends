@@ -51,7 +51,7 @@ if (!await waitingCards.evaluateAll(cards => cards.every(card => {
 }))) throw new Error('Waiting cards must retain full brightness and saturation');
 if (!await waitingCards.first().isEnabled()) throw new Error('Waiting cards must remain inspectable');
 await waitingCards.first().click();
-if (!await page.locator('.selected-preview').isVisible() || await page.locator('#confirm-play').isEnabled()) throw new Error('Inspecting a waiting card must show its preview without permitting a play');
+if (!await page.locator('.selected-preview').isVisible() || await page.locator('#confirm-play').count()) throw new Error('Inspecting a waiting card must show its preview without a play control');
 await page.screenshot({ path: '.local/smoke-fullscreen-table.png', fullPage: true });
 for (let step = 0; step < 400; step++) {
   const trumpDisplay = await page.locator('.table').evaluate(el => ({

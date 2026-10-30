@@ -52,7 +52,7 @@ function lifecycleView(life) {
   if (!life || typeof life !== 'object') return undefined;
   const clean = {};
   for (const key of ['paused','hostOffline','closeAfterRound','closed','reconnecting']) if (typeof life[key] === 'boolean') clean[key] = life[key];
-  for (const key of ['retentionDeadline','retentionMs','resultsDeadline','remainingMs','nextTrickAt','reviewRemainingMs']) if (life[key] === null || Number.isFinite(life[key])) clean[key] = life[key];
+  for (const key of ['retentionDeadline','retentionMs','resultsDeadline','remainingMs','nextTrickAt','reviewRemainingMs','collectionAt','collectionRemainingMs']) if (life[key] === null || Number.isFinite(life[key])) clean[key] = life[key];
   if (typeof life.pauseReason === 'string') clean.pauseReason = life.pauseReason.slice(0,300);
   if (Array.isArray(life.resultsConfirmed)) clean.resultsConfirmed = life.resultsConfirmed.filter(id=>typeof id==='string');
   const vote=life.continuationVote;
@@ -62,6 +62,11 @@ function lifecycleView(life) {
 function withLifecycle(view, source) {
   const lifecycle=lifecycleView(source.lifecycle);
   return lifecycle ? {...view,lifecycle} : view;
+}
+export function sanitizeCollectionClock(collection) {
+  if (!collection || typeof collection.scope !== 'string' || !collection.scope || collection.scope.length > 200 ||
+    !Number.isFinite(collection.at) || !(collection.remainingMs === null || Number.isFinite(collection.remainingMs))) return null;
+  return {scope:collection.scope,at:collection.at,remainingMs:collection.remainingMs};
 }
 export function sanitizeClientView(source, me, spectator = false) {
   if (spectator) return withLifecycle(spectatorView(source),source);
@@ -98,6 +103,8 @@ export function saveRoomSession(storage, saved) {
       record.game = saved.game;
       record.identities = saved.identities;
       for (const key of ['leftAt','remainingMs','paused']) if (Object.hasOwn(saved,key)) record[key] = saved[key];
+      const collection = saved.role === 'practice' ? sanitizeCollectionClock(saved.collection) : null;
+      if (collection) record.collection = collection;
     }
     if (!validSession(record)) return false;
     storage.setItem(ROOM_SESSION_KEY, JSON.stringify(record));
@@ -124,6 +131,11 @@ export function readRoomSession(storage, invitedRoom = '') {
           const clean={version:1,role:'guest',room:saved.room,me:saved.me};
           if(saved.state)clean.state=sanitizeClientView(saved.state,saved.me);
           saved=clean;
+        }
+        if (saved?.role === 'practice') {
+          const collection = sanitizeCollectionClock(saved.collection);
+          if (collection) saved.collection = collection;
+          else delete saved.collection;
         }
         if (saved?.role === 'practice' && saved.leftAt != null && Date.now()-saved.leftAt >= 10*60*1000) saved = null;
       } catch { saved = null; }

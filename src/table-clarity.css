@@ -49,7 +49,7 @@ body[data-screen="game"][data-table-layout] .table .played-cards .played {
 body[data-screen="game"][data-table-layout] .table .played-cards .played .card {
   position:absolute;left:50%;top:calc(var(--played-width,56px) * .75 * (var(--leader-scale) - 1) + 22px);
   width:var(--played-width,56px);min-width:var(--played-width,56px);height:calc(var(--played-width,56px) * 1.5);
-  margin:0 0 0 calc(var(--played-width,56px) / -2);transform:none;border-radius:3px;
+  margin:0 0 0 calc(var(--played-width,56px) / -2);transform:none;border-radius:3px;transition:none;
 }
 body[data-screen="game"][data-table-layout] .table .played-cards .played > small {
   position:absolute;left:50%;bottom:0;transform:translateX(-50%);margin:0;display:flex;align-items:center;justify-content:center;
@@ -89,7 +89,19 @@ body[data-screen="game"] .bid-options .bid:first-child { margin-inline-start:aut
 body[data-screen="game"] .bid-options .bid:last-child { margin-inline-end:auto; }
 body[data-screen="game"] .bid-options .bid:hover { background:#e6c486;color:#211c11; }
 .lead-callout { display:block;color:#a8e6ea;font-size:13px;line-height:1.5; }
-body[data-screen="game"] .play-confirm:not([data-submitting="true"]):has(#cancel-card:disabled) { visibility:hidden;pointer-events:none; }
+/* The sole play action belongs to the hand and appears only on your turn. */
+body[data-screen="game"][data-table-layout] .hand-section.expanded { overflow:visible; }
+body[data-screen="game"][data-table-layout] .hand-section > .play-confirm {
+  position:absolute;left:50%;right:auto;top:-52px;bottom:auto;transform:translateX(-50%);
+  width:max-content;height:44px;gap:0;visibility:visible;pointer-events:auto;
+}
+body[data-screen="game"][data-table-layout] .hand-section > .play-confirm #confirm-play {
+  min-width:120px;min-height:44px;height:44px;padding:6px 24px;font-size:16px;
+}
+@media(min-width:851px) and (min-height:541px) {
+  body[data-screen="game"][data-table-layout] .hand-section > .play-confirm { top:-24px; }
+}
+body[data-screen="game"][data-table-layout="strip"] .hand-section.expanded > .play-confirm { top:-40px; }
 body[data-screen="game"] .hand-heading > b { display:none; }
 body[data-screen="game"] #hand-expand { border:0;background:none;min-width:44px;font-size:22px; }
 body[data-screen="game"] #notice { top:auto;bottom:58px;max-width:80vw;padding:4px 8px;background:#10251ee0;border:0;box-shadow:none;font-size:12px;pointer-events:none; }
@@ -104,6 +116,8 @@ body[data-screen="game"] #chat-toggle { width:44px;min-width:44px;min-height:44p
 /* Portrait keeps a ring and a separate lower hand/action area. */
 body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]):has(.own-action) .own-action { max-width:220px; }
 @media(max-width:599px) {
+  body[data-screen="game"]:has(.play-confirm) .own-action > span:first-child { display:none; }
+  body[data-screen="game"][data-table-layout] .hand-section.expanded > .play-confirm { top:-44px; }
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) { --hand-height:116px;--hand-bottom:60px; }
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .hand-section:not(.expanded) { bottom:var(--hand-bottom);height:var(--hand-height); }
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .hand-section:not(.expanded) .hand-heading { display:none; }
@@ -111,6 +125,8 @@ body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portr
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]).hand-expanded { --hand-height:min(43dvh,350px); }
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .hand-section.expanded { left:10px;right:10px;bottom:60px;height:var(--hand-height); }
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .own-status { left:10px;right:10px;bottom:196px;width:auto;grid-template-columns:44px 70px 1fr; }
+  body[data-screen="game"]:has(.play-confirm) .own-status { grid-template-columns:44px 58px 1fr;column-gap:6px; }
+  body[data-screen="game"]:has(.play-confirm) .own-metrics { gap:6px; }
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .own-action { grid-column:3;grid-row:1;justify-content:flex-end; }
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .own-action b { font-size:12px; }
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .table .opponents .player { width:68px;max-width:68px; }
