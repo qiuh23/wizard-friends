@@ -1,5 +1,9 @@
 import { chromium, expect } from '@playwright/test';
 import fs from 'node:fs';
+import { relativeSeat } from '../src/hand-model.js';
+import { shortSeatName } from '../src/table-layout.js';
+import { SUIT_NAMES, winner } from '../src/game.js';
+import { COMPACT_LEADING_CARD_SCALE } from '../src/table-motion.js';
 
 // Local/manual: real Durable Objects and legal actions. Renderer references are
 // exposed only by browser response interception, never by production endpoints.
@@ -79,13 +83,18 @@ async function inspect(page) {
       cards: state.trick.map(({ card, player }, index) => {
         const node = document.querySelectorAll('.played .card')[index];
         const group = scene?.cards.get(card.id), pose = window.__reviewMotion.pose(card.id);
+        const expectedPosition = group?.userData.from?.clone().lerp(group.userData.target, pose.enter);
+        if (expectedPosition && pose.collect) expectedPosition.lerp(group.userData.collectTo, pose.collect);
+        if (expectedPosition && group.userData.collectLift) expectedPosition.addScaledVector(group.userData.collectLift, pose.lift);
         return { id: card.id, player, pose, enterMs: window.__reviewMotion.timing(card.id).enterMs,
           label: node?.parentElement.querySelector('.played-name')?.textContent,
+          ariaLabel: node?.parentElement.getAttribute('aria-label'),
           opacity: node && Number(getComputedStyle(node).opacity),
           animations: node?.getAnimations().map(a => ({ name: a.animationName, state: a.playState, delay: a.effect.getTiming().delay, time: a.currentTime })),
           transform: node && getComputedStyle(node).transform,
           mesh: group && { visible: group.visible, scale: group.scale.x / group.userData.baseScale.x,
-            distance: group.position.distanceTo(group.userData.target), opacity: group.userData.face.material.opacity },
+            distance: group.position.distanceTo(group.userData.target), positionError: group.position.distanceTo(expectedPosition),
+            opacity: group.userData.face.material.opacity },
         };
       }),
       domCards: document.querySelectorAll('.played .card').length,
@@ -185,13 +194,24 @@ try {
   await home.waitForTimeout(140);
   for (const page of [home, guest]) {
     const during = await inspect(page);
+    const record = await saved(page), visible = record.state;
+    const play = visible.trick[0], owner = visible.players[play.player];
+    const self = visible.players.findIndex(player => player.id === record.me);
+    const seat = relativeSeat(play.player, self, visible.players.length);
+    const cardLabel = play.card.kind === 'wizard' ? '巫师 W' : play.card.kind === 'jester' ? '小丑 J'
+      : `${SUIT_NAMES[play.card.suit].split(' · ')[0]} ${play.card.rank}`;
+    const leading = winner(visible.trick, visible.trump, visible.options.deckMode) === play.player;
+    const done = ['trickEnd','roundEnd','finished'].includes(visible.phase);
     expect(during.cards[0].id).toBe(id);
     expect(during.cards[0].enterMs).toBeGreaterThanOrEqual(before.cards[0].enterMs);
-    expect(during.cards[0].label).toBe(host.state.players[host.state.trick[0].player].name);
+    expect(during.cards[0].label).toBe(shortSeatName(owner.name, seat, owner.id === record.me));
+    expect(during.cards[0].ariaLabel).toBe(`${owner.name}：${cardLabel}${leading ? done ? '，赢墩' : '，当前最大' : ''}`);
     expect(during.overflow).toBe(false);
   }
   await home.waitForTimeout(450);
-  expect((await inspect(home)).cards[0].mesh.distance).toBeLessThan(.001);
+  const arrived = (await inspect(home)).cards[0];
+  expect(arrived.pose.enter).toBe(1); expect(arrived.pose.collect).toBe(0);
+  expect(arrived.mesh.positionError).toBeLessThan(.001);
   checks.push('last-round result, next-round bidding, card arrival survives chat and resize, stable identity labels');
   for (let step = 0; step < 4 && host.state.phase === 'play'; step++) await act();
   expect(host.state.phase).toBe('trickEnd');
@@ -206,8 +226,15 @@ try {
   await guest.setViewportSize({ width: 844, height: 390 });
   await home.waitForTimeout(350);
   const redrawn = await inspect(home);
-  expect(redrawn.cards.map(c => c.pose)).toEqual(paused.cards.map(c => c.pose));
-  for (const card of redrawn.cards) expect(card.mesh.scale).toBeCloseTo(card.pose.scale, 5);
+  const progressOnly = ({ scale, ...pose }) => pose;
+  expect(redrawn.cards.map(c => progressOnly(c.pose))).toEqual(paused.cards.map(c => progressOnly(c.pose)));
+  for (const card of redrawn.cards) {
+    const emphasis = card.player === host.state.lastWinner ? COMPACT_LEADING_CARD_SCALE : 1;
+    const expectedScale = (1 - .65 * card.pose.collect) * (1 + (emphasis - 1) * (1 - card.pose.collect));
+    expect(card.pose.scale).toBeCloseTo(expectedScale, 12);
+    expect(card.mesh.scale).toBeCloseTo(card.pose.scale, 5);
+    expect(card.mesh.positionError).toBeLessThan(.001);
+  }
   const fallback = await inspect(guest);
   await guest.waitForTimeout(150);
   const still = await inspect(guest);

@@ -28,7 +28,7 @@ import './table-clarity.css';
 import './settlement.css';
 import './trump-display.css';
 import { settlementHTML } from './settlement.js';
-import { cardMark, cardMarksHTML } from './card-face.js';
+import { cardMark, cardMarksHTML, preloadCardFaces } from './card-face.js';
 import { captureHand, HandMotion } from './hand-motion.js';
 import { CARD_ENTER_MS, LEADING_CARD_SCALE, COMPACT_LEADING_CARD_SCALE, TableMotion } from './table-motion.js';
 import { playedCardRect, playedCardSlots, playedCardLink, tableLayoutMode, stripCardSlots, compactCardSlots, shortSeatName } from './table-layout.js';
@@ -129,6 +129,20 @@ const handMotion = new HandMotion(showHoveredCard);
 const tableMotion = new TableMotion();
 const trumpReveal = new TrumpReveal();
 let selectedCard = null, handExpanded = false, handCollapsed = false, handSort = 'suit', handScroll = 0, gridScroll = 0, selectionContext = '';
+let selectionPointer = null;
+document.addEventListener('pointerdown', event => {
+  selectionPointer = { id:event.pointerId, x:event.clientX, y:event.clientY, dragged:false };
+}, {capture:true, passive:true});
+document.addEventListener('pointermove', event => {
+  if (selectionPointer?.id === event.pointerId && isSwipe(selectionPointer, {x:event.clientX,y:event.clientY})) selectionPointer.dragged = true;
+}, {capture:true, passive:true});
+document.addEventListener('pointercancel', () => { if (selectionPointer) selectionPointer.dragged = true; }, {capture:true, passive:true});
+// Capture before a control's handler can redraw the hand and detach its target.
+document.addEventListener('click', event => {
+  if (!selectedCard || pendingPlay || event.button !== 0 || selectionPointer?.dragged) return;
+  if (!(event.target instanceof Element) || event.target.closest('button,a,input,select,textarea,summary,label,dialog,[role="dialog"],[role="button"],[contenteditable="true"],#table-menu-panel,#table-score-panel,#room-chat')) return;
+  selectedCard = null; render();
+}, true);
 let seenEventSeq = null, lastTurnCue = '', turnSound = localStore.getItem('wizard-turn-sound') !== 'false';
 let practicePaused = false, practiceRemaining = null;
 let practiceSaved = readPractice(localStore);
@@ -274,6 +288,7 @@ function render() {
     return;
   }
   const p = state.players.find(p => p.id === me);
+  if (['lobby','roundEnd','finished'].includes(state.phase)) void preloadCardFaces();
   const settlementContext = `${room}:${state.round}:${state.completedTricks}:${state.phase}`;
   if (pendingSettlement && (pendingSettlement.context !== settlementContext || !networkReady && !practice)) pendingSettlement = null;
   const selfIndex = state.players.findIndex(p => p.id === me);
@@ -460,8 +475,18 @@ function bindCommon() {
   $('#close-rules')?.addEventListener('click', () => { rulesOpen = false; render(); $('#rules')?.focus(); });
 }
 function drawHTMLCards() {
-  if (!state?.trick.length || document.hidden || document.body.classList.contains('has-webgl')) return;
+  if (!state?.trick.length || document.hidden) return;
+  const labelOpacity = tableMotion.labelOpacity();
+  const links = document.querySelector('.played-links');
+  if (links) links.style.opacity = String(labelOpacity);
   for (const node of document.querySelectorAll('.played[data-card-id]')) {
+    node.style.setProperty('--played-label-opacity', String(labelOpacity));
+    const label = node.querySelector(':scope > small');
+    if (label) {
+      label.style.opacity = String(labelOpacity);
+      label.style.visibility = labelOpacity === 0 ? 'hidden' : '';
+    }
+    if (document.body.classList.contains('has-webgl')) continue;
     const card = node.querySelector('.card'), id = node.dataset.cardId;
     const pose = tableMotion.pose(id);
     if (motionMedia.matches) Object.assign(pose, { enter:1, collect:0, lift:0, opacity:1, scale:tableMotion.emphasisAt(id) });

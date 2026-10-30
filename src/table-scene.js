@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { cardImage, loadCardImage } from './card-art.js';
+import { cardImage, loadedCardImage } from './card-art.js';
 import { trumpStyle } from './trump-style.js';
-import { paintCardFace } from './card-face.js';
+import { cardFaceCanvas, loadCardFace, onCardFaceReady } from './card-face.js';
 import { playedCardRect } from './table-layout.js';
 import { winner } from './game.js';
 
@@ -131,18 +131,22 @@ export class TableScene {
   face(card) {
     const key=cardImage(card);
     if(!this.textures.has(key)){
-      const canvas = document.createElement('canvas'); canvas.width = 320; canvas.height = 480;
-      const ctx = canvas.getContext('2d');
-      paintCardFace(ctx, null, card);
+      const canvas = cardFaceCanvas(card);
       const texture = new THREE.CanvasTexture(canvas);
-      loadCardImage(card).then(image => {
-        paintCardFace(ctx, image, card); texture.needsUpdate = true;
-      }).catch(() => {}); // The readable fallback also covers an unavailable asset.
+      texture.userData.faceReady = !!loadedCardImage(card);
+      if (!texture.userData.faceReady) {
+        const unsubscribe = onCardFaceReady(card, () => {
+          texture.userData.faceReady = true; texture.needsUpdate = true;
+        });
+        texture.addEventListener('dispose', unsubscribe);
+      }
       texture.colorSpace=THREE.SRGBColorSpace;
       texture.anisotropy=Math.min(4,this.renderer.capabilities.getMaxAnisotropy());
       this.textures.set(key,texture);
     }
-    return this.textures.get(key);
+    const texture = this.textures.get(key);
+    if (!texture.userData.faceReady) loadCardFace(card).catch(() => {});
+    return texture;
   }
   buildTrump() {
     this.trump = new THREE.Group();

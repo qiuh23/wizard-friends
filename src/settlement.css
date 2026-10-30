@@ -31,6 +31,13 @@ body[data-screen="game"] .settlement-actions .primary { margin:0;min-height:44px
 .settlement-history th:first-child { text-align:left;max-width:200px;overflow-wrap:anywhere; }
 .settlement-history thead { color:#c4d3be; }
 .settlement-self { background:#d4bb7314; }
+.final-results { grid-column:1 / -1;max-height:min(38dvh,320px);overflow:auto;overscroll-behavior:contain;border-bottom:1px solid #c4a66e66;padding-bottom:8px; }
+.final-results h4 { margin:0 0 6px;font-size:15px;color:#f0d292; }
+.final-results table { width:100%;border-collapse:collapse;font-size:12px; }
+.final-results th,.final-results td { padding:6px 8px;border-bottom:1px solid #a99e6c44;text-align:right; }
+.final-results thead { color:#c4d3be; }
+.final-results .final-player { text-align:left;white-space:normal;overflow-wrap:anywhere; }
+.final-results .final-total { font-weight:700;color:#f0d292; }
 body[data-screen="game"][data-phase="finished"] .played-cards { opacity:1; }
 body[data-screen="game"]:has(.settlement-panel) .hand-section,
 body[data-screen="game"]:has(.settlement-panel) .play-confirm,
@@ -42,6 +49,8 @@ body[data-screen="game"]:has(.settlement-panel) .selected-preview { display:none
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .settlement-panel .personal-result { font-size:11px; }
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .settlement-panel .personal-result strong { font-size:20px; }
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .settlement-actions .primary { max-width:220px;font-size:14px; }
+  .final-results table { font-size:11px; }
+  .final-results th,.final-results td { padding:6px 3px; }
 }
 body[data-screen="game"][data-table-layout="strip"] .action-panel.settlement-panel { left:max(168px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));gap:6px;padding:6px 9px;min-height:58px;max-height:none;overflow:visible; }
 body[data-screen="game"][data-table-layout="strip"] .settlement-summary { gap:12px; }
