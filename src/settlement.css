@@ -62,3 +62,43 @@ body[data-screen="game"][data-table-layout="strip"] .settlement-panel .personal-
 body[data-screen="game"][data-table-layout="strip"] .settlement-panel .personal-result strong { font-size:21px; }
 body[data-screen="game"][data-table-layout="strip"] .settlement-actions .primary { max-width:170px;font-size:13px;padding:7px 10px; }
 body[data-screen="game"][data-table-layout="strip"] .settlement-details-body { max-height:calc(100dvh - 118px); }
+
+/* Round results are compact text on the felt; the next action stays adjacent.
+   Details still open in their own readable surface above this unframed dock. */
+body[data-screen="game"] .action-panel.settlement-panel.round-settlement {
+  left:auto;right:max(16px,env(safe-area-inset-right));width:max-content;
+  max-width:calc(100vw - 330px);min-height:0;padding:0;gap:12px 18px;
+  grid-template-columns:minmax(0,1fr) auto;border:0;border-radius:0;background:none;box-shadow:none;
+}
+body[data-screen="game"] .round-settlement-copy { display:flex;flex-wrap:wrap;align-items:center;gap:0 18px;min-width:0; }
+body[data-screen="game"] .round-settlement .settlement-summary {
+  grid-column:auto;display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:4px 12px;
+}
+body[data-screen="game"] .round-settlement .action-title h3 { white-space:nowrap; }
+body[data-screen="game"] .round-settlement .action-title { flex:0 0 auto; }
+body[data-screen="game"] .round-settlement-meta { display:flex;flex-wrap:wrap;align-items:center;gap:0 10px;min-width:0; }
+.round-settlement-stats { font-size:12px;line-height:1.4;color:#c7d5c2;white-space:nowrap; }
+@media(max-width:850px) {
+  body[data-screen="game"] .action-panel.settlement-panel.round-settlement {
+    left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));
+    width:auto;max-width:none;gap:8px 12px;
+  }
+  body[data-screen="game"][data-table-layout="strip"] .action-panel.settlement-panel.round-settlement {
+    left:max(168px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));
+  }
+  body[data-screen="game"] .round-settlement-copy { display:block; }
+  body[data-screen="game"] .round-settlement .settlement-summary { grid-column:auto; }
+  body[data-screen="game"] .round-settlement .personal-result > div { gap:6px; }
+  body[data-screen="game"] .round-settlement .personal-result strong { font-size:20px; }
+  .round-settlement-stats { font-size:11px; }
+  body[data-screen="game"] .round-settlement-meta { column-gap:4px; }
+  body[data-screen="game"][data-table-layout="strip"] .round-settlement-copy { display:flex;column-gap:14px; }
+}
+@media(max-width:380px) {
+  body[data-screen="game"] .action-panel.settlement-panel.round-settlement { gap:4px 8px; }
+  body[data-screen="game"] .round-settlement .settlement-summary { column-gap:8px; }
+  body[data-screen="game"] .round-settlement .settlement-summary .action-title h3 { font-size:12px; }
+  body[data-screen="game"] .action-panel.round-settlement .personal-result { font-size:10px; }
+  body[data-screen="game"] .action-panel.round-settlement .personal-result strong { font-size:18px; }
+  body[data-screen="game"] .round-settlement .settlement-actions .primary { padding:8px 10px;font-size:13px; }
+}

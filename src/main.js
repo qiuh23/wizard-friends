@@ -42,6 +42,9 @@ import { PRACTICE_SAVE_KEY, PRACTICE_KEEP_MS, readPractice, savePractice } from 
 import { uuidV4 } from './uuid.js';
 import { backendId, backendStorage, entryURL, invitationURL, parseRoomCode, publicRoomCode, runtimeConfig } from './backend-entry.js';
 import { copyInvitation } from './share-link.js';
+import { readNickname, saveNickname } from './nickname-preference.js';
+import { ScoreBubbles } from './score-bubbles.js';
+import './score-bubbles.css';
 
 const sessionStore = backendStorage(globalThis.sessionStorage);
 const localStore = backendStorage(globalThis.localStorage);
@@ -137,6 +140,7 @@ let pendingPlay = null, pendingSettlement = null, noticeTimer;
 const handMotion = new HandMotion(showHoveredCard);
 const tableMotion = new TableMotion();
 const trumpReveal = new TrumpReveal();
+const scoreBubbles = new ScoreBubbles();
 let selectedCard = null, handExpanded = false, handCollapsed = false, handSort = 'suit', handScroll = 0, gridScroll = 0, selectionContext = '';
 let renderedTableKey = null, renderedJournal = '';
 let selectionPointer = null;
@@ -160,7 +164,7 @@ let practiceSaved = readPractice(localStore);
 const tokenKey = 'wizard-player-token';
 let token = sessionStore.getItem(tokenKey);
 if (!token) { token = uuidV4(); sessionStore.setItem(tokenKey, token); }
-let nickname = sessionStore.getItem('wizard-name-automatic') === 'true' ? '' : sessionStore.getItem('wizard-name') || '';
+let nickname = readNickname(localStore, sessionStore);
 let automaticName = false;
 persistName();
 const roomFromURL = (new URLSearchParams(location.search).get('room') || '').trim().toUpperCase();
@@ -193,8 +197,7 @@ function showHoveredCard(id) {
 function pendingContext(value=state) {return value ? `${value.round}:${value.completedTricks}:${value.phase}:${value.turn}:${!!value.lifecycle?.paused}:${networkReady}` : '';}
 
 function persistName() {
-  sessionStore.setItem('wizard-name', nickname);
-  sessionStore.setItem('wizard-name-automatic', String(automaticName));
+  saveNickname(localStore, sessionStore, nickname, automaticName);
 }
 function cardLabel(c) {
   return c.kind === 'wizard' ? '巫师 W' : c.kind === 'jester' ? '小丑 J' : `${SUIT_NAMES[c.suit].split(' · ')[0]} ${c.rank}`;
@@ -247,7 +250,7 @@ function tableDecorHTML() {
 function render() {
   const tableKey = tableViewKey(state, [roomEpoch,me,isHost,practice,spectating,networkReady,!!pendingSettlement]);
   if (tableKey && tableKey === renderedTableKey && $('.table')) {
-    updateSocialRegions(); refreshSelection(); htmlFrame.request();
+    updateSocialRegions(); refreshSelection(); scoreBubbles.mount(app); htmlFrame.request();
     return;
   }
   renderedTableKey = tableKey;
@@ -481,6 +484,7 @@ function bindCommon() {
     played.querySelector(':scope > small')?.append(label);
   });
   decorateHand();
+  scoreBubbles.mount(app);
   $('#rules').onclick = () => { settingsOpen = false; menuOpen = false; setRulesOpen(true); };
   $('#close-rules')?.addEventListener('click', () => setRulesOpen(false));
 }
@@ -519,7 +523,8 @@ const htmlFrame = frameScheduler.add(frameTime => {
   const sample = tableMotion.snapshot(frameTime);
   drawHTMLCards(sample);
   const revealDelay = trumpReveal.nextUpdateDelay();
-  return revealDelay === null ? sample.nextDelay : sample.nextDelay === null ? revealDelay : Math.min(revealDelay,sample.nextDelay);
+  const delays = [sample.nextDelay, revealDelay, scoreBubbles.draw()].filter(delay => delay !== null);
+  return delays.length ? Math.min(...delays) : null;
 });
 function cacheHTMLCards() {
   htmlLinks = $('.played-links');
@@ -684,6 +689,7 @@ function persistRoom() {
 function stopRoomTransport() {
   roomEpoch++;
   trumpReveal.finish();
+  scoreBubbles.finish();
   const previous = transport;
   transport = null;
   clearTimeout(botTimer); clearTimeout(turnTimer);
@@ -699,6 +705,7 @@ function leaveRoom(message = '', announce = true, keep = true) {
   const previous = transport;
   roomEpoch++; transport = null; clearTimeout(botTimer); clearTimeout(turnTimer);
   trumpReveal.finish();
+  scoreBubbles.finish();
   previous?.stop();
   if (!keep) { clearRoomSession(sessionStore); if (!practice) removeRoomRecovery(localStore,room,token); }
   game = state = undefined; room = me = ''; identities = {};
@@ -814,6 +821,7 @@ function bindHand() {
 }
 function updateEventEffects(initial = false) {
   const seq = state?.eventSeq || 0;
+  scoreBubbles.sync(state, {initial:initial || seenEventSeq == null, scope:roomEpoch, serverNow:Date.now() + serverClockOffset});
   trumpReveal.sync(state, { initial: initial || seenEventSeq == null, scope: roomEpoch,
     serverNow: Date.now() + serverClockOffset, motion: document.body.dataset.trumpMotion !== 'off' && !motionMedia.matches });
   const leader = state?.trick.length ? state.trick.find(entry => entry.player === winner(state.trick, state.trump, state.options.deckMode))?.card.id : null;
@@ -906,7 +914,7 @@ function launch(host, restored = null) {
     onStatus(value) {
       if (!current()) return;
       networkReady = value === 'connected'; busy = !networkReady;
-      if (!networkReady) { selectedCard = null;pendingPlay=null; seenEventSeq = null; trumpReveal.finish(); }
+      if (!networkReady) { selectedCard = null;pendingPlay=null; seenEventSeq = null; trumpReveal.finish(); scoreBubbles.finish(); }
       notify(networkReady ? '' : '房间服务连接恢复中，正在同步牌局与计时…'); render();
     },
     onData(msg) {

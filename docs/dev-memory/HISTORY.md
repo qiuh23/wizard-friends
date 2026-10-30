@@ -470,3 +470,23 @@
 - 实施修正：局部社交更新需复用原按钮，布局创建连接线后更新 HTML 引用，静止倒计时避免同值写入，转屏在新布局模式后更新 HandMotion，WebGL 丢失／恢复显式唤醒 HTML。主牌早期测试捕获绕过原 clock 及先测旧牌堆再布局的问题，均已修正；旧本地图形脚本的场景探针改为成功构造锚点，不增加产品调试 API 或删除行为断言。
 - 额外 legacy graphics-smoke 的独立阈值在 main 基线和重构后同样失败，实际像素差及投影宽度完全相同；没有放宽断言、改牌面分辨率或扩大本轮视觉范围来掩盖。具体失败、已通过的实际产品验证与测量限制见报告。初期 HMR 中断不计通过，冻结源码后完成专项。
 - 按仓库策略将代码、必要测试与本记录一起提交，随后向本仓库 main 创建中文 PR；不自动合并或部署。PR 地址与远端检查以最终实时核验为准，本条不预先宣称远端成功。
+
+<a id="h-044"></a>
+## H-044 · 2026-10-30 · 昵称记忆、数字得分气泡、菜单单行及无边框轮末结算
+- 用户要求与采用方案见 [D-033](DECISIONS.md#d-033)。起始工作区／暂存区干净，从执行时最新 `origin/main` `5fb4783`（已含 PR #17）建立 `codex/nickname-score-bubbles`，核实无开放 PR。未找到可用 dev-memory SKILL.md，按 AGENTS／.dev-memory.json 维护记录并统一提交。只读参考运动会 `src/client/App.tsx` 的浏览器昵称读写，没有修改该仓库。
+- 完成四项交付：解散文字保持单行且与离开同排；昵称跨标签页与重新打开保留、改名回写并兼容旧手动名；公开结算数字在所有头像上显示 1.8 秒，按用户追加只保留正负号和数字；按后续截图要求移除轮末结算外框、背景和宽大留白，文字与下一轮按钮相邻。详情、最终分数和各角色操作权限沿用原规则。没有规则、服务端协议、随机流、依赖或发布机制改动。
+- 最终本地 `node --test tests/*.test.js` 285/285、`node scripts/check-syntax.mjs`、Vite 生产构建／build-info、Wrangler deploy --dry-run 和 Git 空白检查通过。构建只有既有 Three.js 分包大小提示；日志在 `.local/nickname-score-unit.log`、`nickname-score-build.log`、`nickname-score-worker.log`。
+- 独立 Vite 5193 的 `node scripts/nickname-score-review.mjs` 最终 8 组通过，errors=[]，证据 `output/playwright/nickname-score-review.json`。覆盖真实填写、改名、离房、刷新、新标签页与认证 token 独立；保存／恢复 localStorage 的新上下文模拟再开；旧手动／自动名迁移。1440×900、1280×720、390×844、320×568、844×390 覆盖六人正负数字、本人／他人／观众、普通轮末／终局、二维／三维、减少动态、到期清理、重复快照及恢复不重播。
+- 同一专项实测轮末桌面高 44px、390px 竖屏高 72px，边框 0、背景透明、无阴影；窄屏继续可达。实际展开六人成绩／计分公式，关闭详情、刷新后点击下一轮成功到第二轮；下一轮按钮均在视口内、中心命中、至少 44px。人工查看桌面、320／390px 竖屏、844px 横屏和菜单截图；手机均为 Chrome 浏览器模拟，未声称实体手机验证。
+- 最终构建在独立 Durable Objects 8796 上通过原三真人＋一观众联机冒烟，errors=[]，日志 `.local/nickname-score-network.log`。新增观察器记录实际出现的数字，与同一权威 history 的各人 delta 精确匹配；原秘密预测／私有手牌隔离、暂停／聊天、关闭房主标签页并返回、刷新恢复、下一轮、3 秒复盘与解散墓碑均保留。没有增加远端工作流、job 或浏览器矩阵。
+- 过程证据：早期昵称脚本未先展开现有“设置”，以及夹具缺少完整规则选项，修正操作／合法夹具后通过；320px 初版气泡左越界约 0.54px，收紧字体／边距并按用户要求去单位后通过。flex-basis:auto 首版受 width:100% 影响将菜单改成两行，补 width:auto 后恢复同排；轮末标题原 flex:1 也已局部重置。最终联机复跑曾因构建覆盖 dist 触发 Wrangler watcher EPERM，旧资源清单返回空白 SPA；重启本轮独立服务后相同验证通过，没有改产品或放宽断言。
+- 已人工查看并保存：[单行菜单](../screenshots/room-menu-single-line-20261030.png)、[桌面数字气泡](../screenshots/round-score-bubbles-desktop-20261030.png)、[手机数字气泡](../screenshots/round-score-bubbles-mobile-20261030.png)、[桌面无边框结算](../screenshots/round-settlement-compact-desktop-20261030.png)、[手机无边框结算](../screenshots/round-settlement-compact-mobile-20261030.png)。代码、专项、截图及本记录一起提交中文 PR，不自动合并或部署；PR 地址与远端检查以最终实时核验为准。
+
+<a id="h-045"></a>
+## H-045 · 2026-10-30 · Node 24 CI 清理与生产构建直连 Wrangler
+- 用户边界及采用方案见 [D-034](DECISIONS.md#d-034)。当前分支 codex/nickname-score-bubbles／752a761，工作区和暂存区起始干净；核实个人仓库 PR #18 开放，前次 Verify game 41029742260 成功，但 job 123976283645 的完整日志含 Vite ws proxy socket error／write EPIPE，以及三个 v4 actions 的 Node 20 弃用警告。未找到可用 dev-memory SKILL.md，按 AGENTS／.dev-memory.json 执行。
+- 只调整现有 verify／deploy-aliyun 工作流和 authority-smoke；版本及隔离选择见 D-034。官方核对来源：[checkout v6](https://github.com/actions/checkout/blob/v6/action.yml)、[setup-node v6](https://github.com/actions/setup-node/blob/v6/action.yml)、[cache v5](https://github.com/actions/cache/blob/v5/action.yml) 及对应 README。没有改业务代码、依赖、Vite 本地开发配置，或新增 CI job、矩阵、重复构建／检查。
+- 本地 Node 24.19.0 的 JavaScript 语法、285/285 单测（0 skipped）、一次生产构建／build-info 和 Worker dry-run 均通过；只有既有 Three.js 分包提示。当前 shell 没有 npm，使用 package.json 中等价的 Node CLI 命令；日志 `.local/ci-cleanup-{syntax,unit,build,worker-check}.log`。首次 YAML 检查因未安装 yaml Node 包未执行，改用已有 Python PyYAML 后成功解析全部三个工作流，并逐项比较原触发器、job、一次构建、产物、发布门禁与回滚步骤保持一致，没有新增依赖。
+- 唯一一次本地构建显式带入 https://ci-relay-must-not-be-used.invalid 作为非本地 VITE_RELAY_URL。独立 Wrangler 8797 实际提供带哈希 assets 的 dist 页面与版本 2 健康接口；原三真人＋一观众完整冒烟通过，errors=[]，记录 6 次页面请求和 13 条 WebSocket 全部同源本地。关闭房主标签页／新标签返回、暂停剩余时间、真实刷新、私有状态隔离、得分气泡、轮末同步、下一轮、复盘和解散墓碑均保留。日志 `.local/ci-cleanup-smoke.log` 和 `ci-cleanup-wrangler.log`。
+- Playwright 的本地 Chromium 下载未安装，首次启动尚未进入场景即失败；改用已有 Chrome 完成同一个冒烟，没有安装额外浏览器或修改／跳过断言。远端沿用原有 Chromium 安装与单浏览器测试。本地冒烟前后 dist 全部 63 个文件 SHA-256 一致，原 runtime-config 的 relayOrigin 仍为 null、build-info 中非本地 relay 不变；服务和冒烟日志无 EPIPE。指纹及验证结果在 `.local/ci-cleanup-artifact-verification.json`。
+- 按仓库策略把代码与记录统一提交，推送当前分支并更新 PR #18；远端检查完成后在 PR 与最终交付报告实时结果，本条不预先声明成功。不自动合并或主动部署；未执行 Pages／Aliyun／Cloudflare 生产发布与实际回滚，未新增真机或跨浏览器验收。
