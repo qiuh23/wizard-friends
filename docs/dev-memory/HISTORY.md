@@ -430,3 +430,11 @@
 - Cloudflare 仍旧版本，未取得 Builds 详情；Computer Use 因 Windows 当前浏览器 URL 无法可靠识别而停止，未继续桌面输入。使用已有发布权限将精确已检查 main 源码／前端产物同步，记录公开配置覆盖与旧 Worker 版本，未改原自动构建设置。两端最新 main SHA 与公开协议、Cloudflare 短协议回归、桌面／手机双向导航均通过；不声称查明或修复 Cloudflare 自动构建触发原因。
 - 本轮代码仅启用公开生产入口配置、README 双链接、首页可见选择提示／44px 控件、移除 Google 字体 import。语法、12 项相关测试、一次前端构建、Git 空白检查与桌面／手机布局检查通过；不新增 CI 或完整对局矩阵，不发布本轮未合并界面代码。证据、产物摘要、线上版本与边界统一见 [实际状态](../aliyun-readiness.md)。
 - 按仓库策略提交本轮代码及记录，推送中文后续 PR，未自动合并。线上当前 main 已可双向切换；本轮 README／控件细节等待该 PR 合并，再由已启用的阿里云流程发布。远端 PR／CI 状态在最终交付实时核验。
+
+<a id="h-040"></a>
+## H-040 · 2026-10-30 · 开局翻牌放慢与主牌徽章对齐
+- 用户要求及采用方案见 [D-029](DECISIONS.md#d-029)。从已包含 PR #13 的最新 `origin/main` `17bde9f` 建立 `codex/slower-trump-reveal`；起始工作区、暂存区干净，核对无开放个人 PR。仅调整主牌展示时长、符号 CSS 及已有专项检查，不改规则、权威计时、依赖或远端工作流。
+- 实现：翻牌总长由 1160ms 延长至 2400ms，正面停留 1200ms；抽出、翻面、归位同步放慢。符号独立行高并上移，390px 手机浏览器截图中的黄色字形与文字中心偏差由约 3.5px 缩小至约 0.5px。先在浏览器注入局部样式比较，再落入源码；桌面／手机四花色共 8 个徽章截图均已人工查看，errors=[]。
+- 本地验证：语法检查、`tests/trump-display.test.js` 与 `tests/table-motion.test.js` 共 17/17、生产构建及 Git 空白检查通过。沿用既有 Three.js 分包大小提示。`CLARITY_CASE=trump GAME_URL=http://127.0.0.1:5183/ node scripts/table-clarity-review.mjs` 的 12 组专项检查通过，errors=[]：5 个桌面／手机横竖屏二维／三维视口检查延长后的停留、实际归位、真实时间自动结束、遮挡、预测点击、去重及刷新；其余覆盖 W／J／无翻牌、三个阶段真实转屏、减少动态与关闭动效。手机为浏览器视口模拟，未声称 iPhone 真机验收。
+- 新截图：[手机徽章对齐](../screenshots/trump-icon-mobile-aligned-20261030.png)、[桌面翻牌停留](../screenshots/trump-reveal-slower-1440x900-20261030.png)。完整本机证据在 `output/playwright/trump-reveal-review.json`、`trump-icon-alignment-20261030.json` 及带 `slower`／`aligned` 的截图；使用独立 5183 端口及新文件名避免旧服务／旧图片混淆。
+- 按仓库策略将本任务代码、专项检查和记录一起提交并创建中文 PR；不自动合并或部署。远端 CI 结果在最终交付实时核验，本条不预先宣称远端通过。

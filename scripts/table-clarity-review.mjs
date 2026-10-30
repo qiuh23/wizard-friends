@@ -4,6 +4,7 @@ import { createGame, addPlayer, act, viewFor, winner } from '../src/game.js';
 import { createRandomStream } from '../src/random.js';
 import { DEFAULT_OPTIONS } from '../src/rules-options.js';
 import { leadInfo } from '../src/table-summary.js';
+import { TRUMP_REVEAL_MS } from '../src/trump-display.js';
 
 // Local/manual layout coverage; use legal engine actions and browser-only
 // renderer inspection rather than adding state injection to the application.
@@ -516,7 +517,7 @@ async function beginReveal(page,lobby,next) {
     await window.__clarityApply(copy);
   },{lobby,next});
 }
-async function holdReveal(page,elapsed=620) {
+async function holdReveal(page,elapsed=1200) {
   await page.evaluate(elapsed=>{
     const reveal=window.__clarityReveal;if(!reveal.effect)throw Error('Expected a live reveal');
     const at=reveal.effect.start+elapsed;reveal.clock=()=>at;reveal.draw();
@@ -560,7 +561,7 @@ async function reviewTrump() {
     await expect(page.locator('.trump-reveal')).toHaveAttribute('data-phase','extract');
     expect(await page.locator('.trump-reveal-rotor').evaluate(node=>node.style.transform)).toBe('rotateY(180deg)');
     if(width===1440)await page.screenshot({path:`${out}/trump-extract-desktop.png`});
-    await holdReveal(page,320);await expect(page.locator('.trump-reveal')).toHaveAttribute('data-phase','flip');
+    await holdReveal(page,500);await expect(page.locator('.trump-reveal')).toHaveAttribute('data-phase','flip');
     await holdReveal(page);
     const data=await revealGeometry(page);
     expect(data.phase).toBe('hold');expect(data.overlayCount).toBe(1);expect(data.physical).not.toBe(true);
@@ -574,8 +575,11 @@ async function reviewTrump() {
     if(data.deck)expect(data.origin).toEqual({x:data.deck.left+data.deck.width/2,y:data.deck.top+data.deck.height/2});
     if(data.domDeck)expect(data.origin).toEqual({x:data.domDeck.left+data.domDeck.width/2,y:data.domDeck.top+data.domDeck.height/2});
     if(data.hiddenDeck)expect(data.origin).toEqual({x:data.center.x,y:data.center.y+32});
-    if(webgl&&[1440,844].includes(width)&&height!==300)
-      await page.screenshot({path:`${out}/trump-reveal-${width}x${height}-20261030.png`});
+    await holdReveal(page,1800);
+    await expect(page.locator('.trump-reveal')).toHaveAttribute('data-phase','hold');
+    await expect(page.locator('.trump-reveal-label')).toHaveCSS('opacity','1');
+    if([1440,390,844].includes(width)&&height!==300)
+      await page.screenshot({path:`${out}/trump-reveal-${width}x${height}-${webgl?'3d':'2d'}-slower-20261030.png`});
     // Re-render, duplicate the same state and open the real menu mid-reveal.
     const start=await page.evaluate(()=>{window.__heldReveal=document.querySelector('.trump-reveal');return window.__clarityReveal.effect.start;});
     await page.evaluate(()=>window.__clarityRedraw());await page.locator('#table-menu').click();await page.locator('#table-menu').click();
@@ -585,17 +589,17 @@ async function reviewTrump() {
     // Hit a normal prediction control through the reveal layer.
     await page.locator('[data-bid="0"]').click();await expect(page.locator('.bid-options')).toHaveCount(0);
     expect(await page.evaluate(()=>JSON.parse(sessionStorage.getItem('wizard-room-session')).game.players[0].bid)).toBe(0);
-    await holdReveal(page,1150);const landing=await revealGeometry(page);
+    await holdReveal(page,TRUMP_REVEAL_MS-10);const landing=await revealGeometry(page);
     expect(Math.hypot((landing.card.left+landing.card.right-landing.icon.left-landing.icon.right)/2,
       (landing.card.top+landing.card.bottom-landing.icon.top-landing.icon.bottom)/2)).toBeLessThan(2);
-    await holdReveal(page,1160);await page.evaluate(()=>{const r=window.__clarityReveal;r.clock=()=>r.pulseAt+321;r.draw();});
+    await holdReveal(page,TRUMP_REVEAL_MS);await page.evaluate(()=>{const r=window.__clarityReveal;r.clock=()=>r.pulseAt+321;r.draw();});
     await assertSettled(page,'主牌：黄色');
-    if(webgl&&[1440,844].includes(width)&&height!==300)
-      await page.screenshot({path:`${out}/trump-settled-${width}x${height}-20261030.png`});
+    if([1440,390,844].includes(width)&&height!==300)
+      await page.screenshot({path:`${out}/trump-settled-${width}x${height}-${webgl?'3d':'2d'}-slower-20261030.png`});
     // A fresh real-time run must also finish without the controlled screenshot clock.
     await beginReveal(page,normal.lobby,normal.record.game);
     await expect(page.locator('.trump-reveal')).toHaveCount(1);
-    await expect(page.locator('.trump-reveal')).toHaveCount(0,{timeout:2000});
+    await expect(page.locator('.trump-reveal')).toHaveCount(0,{timeout:TRUMP_REVEAL_MS+1000});
     await expect.poll(()=>page.locator('.trump-suit-icon').evaluate(node=>node.style.filter)).toBe('');
     await page.reload();await page.locator('.own-status').waitFor();await assertSettled(page,'主牌：黄色');
     checks.push({width,height,webgl,ordinary:true,actualLanding:true,oneLayer:true,duplicatesAndMenu:true,bidDuringReveal:true,reloadedWithoutReplay:true});
@@ -615,7 +619,7 @@ async function reviewTrump() {
       expect(overlaps(geometry.badge,obstacle),'pending badge avoids players and toolbar').toBe(false);
     }
   }
-  await page.screenshot({path:`${out}/trump-wizard-pending-844x390-20261030.png`});
+  await page.screenshot({path:`${out}/trump-wizard-pending-844x390-slower-20261030.png`});
   // Actual dealer action cancels a pending reveal and emphasizes the new suit.
   await page.locator('[data-trump="yellow"]').click();
   await expect(page.locator('.trump-reveal')).toHaveCount(0);
@@ -627,7 +631,7 @@ async function reviewTrump() {
   await beginReveal(page,jester.lobby,jester.record.game);await holdReveal(page);
   await expect(page.locator('.trump-reveal-front')).toHaveCSS('background-image',/jester\.svg/);
   await expect(page.locator('.trump-reveal-label')).toContainText('本轮无主牌');
-  await holdReveal(page,1160);await page.evaluate(()=>{const r=window.__clarityReveal;r.clock=()=>r.pulseAt+321;r.draw();});
+  await holdReveal(page,TRUMP_REVEAL_MS);await page.evaluate(()=>{const r=window.__clarityReveal;r.clock=()=>r.pulseAt+321;r.draw();});
   await assertSettled(page,'本轮无主牌');checks.push({jesterRealFace:true,noTrump:true});
   for(const game of [fixture(6,10,'bid').game,(()=>{
     const g=createGame();for(let i=0;i<3;i++)addPlayer(g,`p${i}`,`单色${i}`);
@@ -645,13 +649,13 @@ async function reviewTrump() {
   await bids.evaluate(row=>{row.scrollLeft=0;});
   const first=await page.locator('[data-bid]').first().getAttribute('data-bid');await visibleButton(page,`[data-bid="${first}"]`);
   checks.push({narrowPredictionDockBothEndsReachable:true});
-  for(const phase of [100,600,900]) {
+  for(const phase of [100,1200,2100]) {
     await beginReveal(page,normal.lobby,normal.record.game);await holdReveal(page,phase);
-    await page.setViewportSize(phase===100?{width:932,height:430}:phase===600?{width:844,height:390}:{width:390,height:844});
+    await page.setViewportSize(phase===100?{width:932,height:430}:phase===1200?{width:844,height:390}:{width:390,height:844});
     await expect(page.locator('.trump-reveal')).toHaveCount(0);await assertSettled(page,'主牌：黄色');
   }
   checks.push({resizeDuringExtractionHoldReturn:true});
-  await beginReveal(page,normal.lobby,normal.record.game);await holdReveal(page,600);
+  await beginReveal(page,normal.lobby,normal.record.game);await holdReveal(page);
   await page.emulateMedia({reducedMotion:'reduce'});await assertSettled(page,'主牌：黄色');
   await beginReveal(page,normal.lobby,normal.record.game);await assertSettled(page,'主牌：黄色');
   await page.emulateMedia({reducedMotion:'no-preference'});
