@@ -7,6 +7,9 @@ import { winnerReason } from '../src/table-summary.js';
 // This is a networking/authority check. Software WebGL on GPU-less CI runners
 // can starve input handling across the clients; graphics have their own checks.
 const base = process.env.GAME_URL || 'http://127.0.0.1:8787/';
+const gameURL = new URL(base);
+const local = ['127.0.0.1', 'localhost', '[::1]'].includes(gameURL.hostname);
+const requestOrigins = [], socketURLs = [];
 const backend = process.env.GAME_BACKEND || 'cloudflare';
 const sessionKey = backend === 'aliyun' ? 'wizard-room-session:aliyun' : 'wizard-room-session';
 const evidence = 'output/playwright';
@@ -30,6 +33,22 @@ const recordScoreBubbles = context => context.addInitScript(() => {
     }
   }).observe(document, { childList:true, subtree:true });
 });
+async function prepareContext(context) {
+  await recordScoreBubbles(context);
+  if (!local) return;
+  // The one release build may embed a public VITE_RELAY_URL for Pages. Select
+  // the local relay only in this browser, leaving dist and its metadata intact.
+  await context.route(new URL('runtime-config.json', base).href, async route => {
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    await route.fulfill({ response, json: { ...await response.json(), relayOrigin: '' } });
+  });
+  context.on('request', request => {
+    const url = new URL(request.url());
+    if (request.isNavigationRequest() || url.pathname.startsWith('/api/')) requestOrigins.push(url.origin);
+  });
+  context.on('page', page => page.on('websocket', socket => socketURLs.push(socket.url())));
+}
 const session = page => page.evaluate(key => JSON.parse(sessionStorage.getItem(key) || 'null'), sessionKey);
 const state = async page => { const saved = await session(page); return saved?.state || saved?.game; };
 async function connected(page) {
@@ -95,7 +114,7 @@ try {
     const context = await browser.newContext(i === 0
       ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'reduce' }
       : { viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
-    await recordScoreBubbles(context);
+    await prepareContext(context);
     const page = await context.newPage(); page.setDefaultTimeout(15000);
     page.on('pageerror', error => errors.push(error.message));
     page.on('dialog', dialog => dialog.accept());
@@ -133,7 +152,7 @@ try {
     expect(saved.state.players.filter(p => p.id !== saved.me).every(p => p.bid == null)).toBe(true);
   }
   const watcherContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  await recordScoreBubbles(watcherContext);
+  await prepareContext(watcherContext);
   watcher = await watcherContext.newPage(); watcher.on('dialog', dialog => dialog.accept());
   watcher.on('pageerror', error => errors.push(error.message));
   await watcher.goto(`${base}?room=${room}&watch=1`); await connected(watcher);
@@ -235,8 +254,14 @@ try {
   await guest.locator('#room-input').fill(room);
   await guest.locator('#join').click();
   await expect(guest.locator('#notice')).toContainText(/关闭|解散/);
+  if (local) {
+    expect([...new Set(requestOrigins)]).toEqual([gameURL.origin]);
+    expect(socketURLs.some(url => /^\/api\/rooms\/[^/]+\/ws$/.test(new URL(url).pathname))).toBe(true);
+    expect([...new Set(socketURLs.map(url => new URL(url).origin))]).toEqual([gameURL.origin.replace(/^http/, 'ws')]);
+  }
   expect(errors).toEqual([]);
   console.log(JSON.stringify({ clients: 3, graphics: '2D', transport: backend === 'aliyun' ? 'Node + SQLite + WebSockets' : 'local Durable Objects + WebSockets',
+    localTraffic: local ? { origin: gameURL.origin, requests: requestOrigins.length, sockets: socketURLs.length } : undefined,
     verified: ['secret-bid privacy', 'host cache privacy', 'read-only spectator privacy', 'pause freezes gameplay', 'chat while paused',
       'host tab close and explicit new-tab return', 'resume remaining deadline', 'host refresh', 'round scores synchronized', 'signed score bubbles for all clients and spectator', 'host-only whole-game rules', 'live chat bubble and click-to-open', 'three-second trick review and next leader', 'dissolve tombstone'], errors }));
 } catch (error) {
