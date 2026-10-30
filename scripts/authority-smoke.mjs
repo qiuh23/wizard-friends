@@ -7,13 +7,15 @@ import { winnerReason } from '../src/table-summary.js';
 // This is a networking/authority check. Software WebGL on GPU-less CI runners
 // can starve input handling across the clients; graphics have their own checks.
 const base = process.env.GAME_URL || 'http://127.0.0.1:8787/';
+const backend = process.env.GAME_BACKEND || 'cloudflare';
+const sessionKey = backend === 'aliyun' ? 'wizard-room-session:aliyun' : 'wizard-room-session';
 const evidence = 'output/playwright';
 fs.mkdirSync(evidence, { recursive: true });
 const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'chrome', headless: true,
   args: ['--disable-webgl'] });
 const pages = [], errors = [];
 let watcher;
-const session = page => page.evaluate(() => JSON.parse(sessionStorage.getItem('wizard-room-session') || 'null'));
+const session = page => page.evaluate(key => JSON.parse(sessionStorage.getItem(key) || 'null'), sessionKey);
 const state = async page => { const saved = await session(page); return saved?.state || saved?.game; };
 async function connected(page) {
   await page.locator('body[data-connection="connected"]').waitFor({ timeout: 30000 });
@@ -213,7 +215,7 @@ try {
   await guest.locator('#join').click();
   await expect(guest.locator('#notice')).toContainText(/关闭|解散/);
   expect(errors).toEqual([]);
-  console.log(JSON.stringify({ clients: 3, graphics: '2D', transport: 'local Durable Objects + WebSockets',
+  console.log(JSON.stringify({ clients: 3, graphics: '2D', transport: backend === 'aliyun' ? 'Node + SQLite + WebSockets' : 'local Durable Objects + WebSockets',
     verified: ['secret-bid privacy', 'host cache privacy', 'read-only spectator privacy', 'pause freezes gameplay', 'chat while paused',
       'host tab close and explicit new-tab return', 'resume remaining deadline', 'host refresh', 'round scores synchronized', 'host-only whole-game rules', 'live chat bubble and click-to-open', 'five-second trick review and next leader', 'dissolve tombstone'], errors }));
 } catch (error) {

@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start:node": "node server/index.js",
     "dev": "vite --host 127.0.0.1",
     "build": "vite build && node scripts/build-info.mjs",
     "test:layout": "node scripts/layout-review.mjs",
@@ -29,7 +30,8 @@
     "test:offline": "node scripts/offline-smoke.mjs"
   },
   "dependencies": {
-    "three": "^0.186.1"
+    "three": "^0.186.1",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
