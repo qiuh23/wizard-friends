@@ -4,10 +4,12 @@ import { trumpStyle } from './trump-style.js';
 import { cardFaceCanvas, loadCardFace, onCardFaceReady } from './card-face.js';
 import { playedCardRect } from './table-layout.js';
 import { winner } from './game.js';
+import { frameScheduler } from './frame-scheduler.js';
 
 const motionMedia = matchMedia('(prefers-reduced-motion: reduce)');
 export class TableScene {
-  constructor() {
+  constructor({ onInvalidate } = {}) {
+    this.onInvalidate = onInvalidate;
     const qualityPreference = localStorage.getItem('wizard-low-graphics');
     this.low = qualityPreference === null ? matchMedia('(max-width: 600px)').matches : qualityPreference === 'true';
     this.scene = new THREE.Scene();
@@ -24,7 +26,29 @@ export class TableScene {
     this.textures = new Map(); this.cards = new Map(); this.flames = []; this.candles = [];
     this.mode = 'hero'; this.key = ''; this.frame = 0;
     this.trumpMotion = !motionMedia.matches;
-    this.observer = new ResizeObserver(() => this.resize());
+    this.drawFrame = frameScheduler.add(time => {
+      this.drawing = true;
+      const ready = !this.lost && this.host?.isConnected && !this.host.classList.contains('ready');
+      try {
+        // Apply WebGL geometry only inside the frame that will draw it. Until
+        // then the readable HTML fallback remains visible on the first paint.
+        if (ready) {
+          this.host.classList.add('ready'); document.body.classList.add('has-webgl');
+          this.resizePending = true;
+        }
+        if (this.resizePending) this.resize();
+        const delay = this.animate(time);
+        if (ready) this.onInvalidate?.();
+        return delay;
+      } finally { this.drawing = false; }
+    }, { priority: 10 });
+    this.observer = new ResizeObserver(entries => {
+      const box = entries[0]?.contentRect;
+      const key = box && `${box.width}:${box.height}`;
+      if (key === this.observedSize) return;
+      this.observedSize = key;
+      this.requestResize();
+    });
     this.scene.add(new THREE.HemisphereLight('#b6d6df', '#2f1c12', 2.0));
     const light = new THREE.DirectionalLight('#ffd4a1', 3.5);
     light.position.set(-4, 9, 4); light.castShadow = true;
@@ -35,14 +59,21 @@ export class TableScene {
     const rim = new THREE.DirectionalLight('#729dc4', 2); rim.position.set(5, 4, -6); this.scene.add(rim);
     this.buildTable();
     this.buildTrump();
-    this.renderer.domElement.addEventListener('webglcontextlost', e => {
+    this.onContextLost = e => {
       e.preventDefault(); this.lost = true; this.host?.classList.remove('ready');
       document.body.classList.remove('has-webgl');
-    });
-    this.renderer.domElement.addEventListener('webglcontextrestored', () => {
-      this.lost = false; this.host?.classList.add('ready'); document.body.classList.add('has-webgl');
-    });
-    this.animate(0);
+      this.drawFrame.cancel();
+      this.onInvalidate?.();
+    };
+    this.onContextRestored = () => {
+      this.lost = false;
+      this.requestResize();
+      this.onInvalidate?.();
+    };
+    this.renderer.domElement.addEventListener('webglcontextlost', this.onContextLost);
+    this.renderer.domElement.addEventListener('webglcontextrestored', this.onContextRestored);
+    this.onMotionChange = () => { this.cardsDirty = true; this.requestDraw(); };
+    motionMedia.addEventListener?.('change', this.onMotionChange);
   }
   material(color, options = {}) { return new THREE.MeshStandardMaterial({ color, roughness: .7, ...options }); }
   mesh(geometry, material, x, y, z, parent = this.scene) {
@@ -137,6 +168,7 @@ export class TableScene {
       if (!texture.userData.faceReady) {
         const unsubscribe = onCardFaceReady(card, () => {
           texture.userData.faceReady = true; texture.needsUpdate = true;
+          this.requestDraw?.();
         });
         texture.addEventListener('dispose', unsubscribe);
       }
@@ -176,13 +208,14 @@ export class TableScene {
       }
     }
   }
-  attach(host, state) {
-    if(!host) {this.host=null;this.observer.disconnect();return;}
+  attach(host, state, { deferResize = false } = {}) {
+    if(!host) {this.host=null;this.observer.disconnect();this.drawFrame.cancel();return;}
     if(host!==this.host){
       this.observer.disconnect();this.host=host;host.append(this.renderer.domElement);this.observer.observe(host);
-      if (!this.lost) { host.classList.add('ready');document.body.classList.add('has-webgl'); }
     }
-    this.paused = !!state?.lifecycle?.paused;
+    const paused = !!state?.lifecycle?.paused;
+    if (this.paused !== paused) this.frame = 0;
+    this.paused = paused;
     this.state = state;
     this.mode=state && !['lobby','rules'].includes(state.phase) ? 'game' : 'hero';
     this.lobby = ['lobby','rules'].includes(state?.phase);
@@ -198,9 +231,11 @@ export class TableScene {
       this.key=newKey;this.updateCards(cards,state);
     }
     for (const group of this.cards.values()) group.visible = true;
-    this.resize();
+    this.cardsDirty = true;
+    if (deferResize) this.requestResize(); else this.resize();
   }
   updateCards(entries,state) {
+    this.cardLayoutKey = null;
     const currentWinner = this.mode === 'game' && entries.length
       ? winner(entries, state.trump, state.options.deckMode) : null;
     const keys=new Set(entries.map(x=>x.card.id));
@@ -235,17 +270,22 @@ export class TableScene {
     });
   }
   resize() {
+    this.resizePending = false;
     if(!this.host)return;
     const {width,height}=this.host.getBoundingClientRect();
     if(!width||!height)return;
+    const compact = this.host.closest('.table')?.dataset.layoutMode === 'strip';
+    const layoutKey = [width,height,compact,this.mode,this.foresight,this.lobby].join(':');
+    const changed = layoutKey !== this.layoutKey;
+    this.layoutKey = layoutKey;
     if (width !== this.width || height !== this.height) {
       this.width = width; this.height = height;
       this.renderer.setSize(width,height,false);
     }
+    if (changed) {
     this.camera.aspect=width/height;
     this.camera.clearViewOffset();
     this.trump.quaternion.identity();
-    const compact = this.host.closest('.table')?.dataset.layoutMode === 'strip';
     const touchTable = this.mode === 'game' && (width <= 850 || compact);
     for (const surface of this.tableSurface) surface.visible = !touchTable;
     // On a phone the felt is the playfield, rather than a small table model
@@ -274,9 +314,29 @@ export class TableScene {
     this.trump.userData.baseHeight = this.trump.position.y;
     this.camera.lookAt(0,0,0);this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld();
     this.layoutDecorations(width, height);
+    }
     if (this.mode === 'game') { this.alignCardSeats(); this.alignTrump(); }
-    this.drawCards();
-    this.renderer.render(this.scene,this.camera);
+    this.cardsDirty = true;
+    this.requestDraw();
+  }
+  requestDraw() { if (!this.drawing) this.drawFrame?.request(); }
+  requestResize() { this.resizePending = true; this.requestDraw(); }
+  dispose() {
+    this.observer.disconnect(); this.drawFrame.dispose();
+    this.renderer.domElement.removeEventListener('webglcontextlost', this.onContextLost);
+    this.renderer.domElement.removeEventListener('webglcontextrestored', this.onContextRestored);
+    motionMedia.removeEventListener?.('change', this.onMotionChange);
+    const materials = new Set(), textures = new Set(this.textures.values());
+    this.scene.traverse(object => {
+      object.geometry?.dispose();
+      for (const material of Array.isArray(object.material) ? object.material : object.material ? [object.material] : []) materials.add(material);
+    });
+    for (const material of materials) {
+      if (material.map) textures.add(material.map);
+      material.dispose();
+    }
+    for (const texture of textures) texture.dispose();
+    this.renderer.dispose(); this.renderer.domElement.remove(); this.host = null;
   }
   deckScreenRect() {
     if (this.mode !== 'game' || !this.deck.visible || !this.host?.isConnected) return null;
@@ -333,6 +393,18 @@ export class TableScene {
     const table = this.host.closest('.table');
     if (!canvas.width || !table) return;
     const self = Math.max(0,this.state.players.findIndex(p=>p.id===this.viewer));
+    const anchors = [...this.cards.values()].map(group => {
+      const seat = (group.userData.player-self+this.state.players.length)%this.state.players.length;
+      const node = table.querySelector(`.played[data-play-seat="${seat}"]`);
+      if (!node?.querySelector('.card')) return null;
+      const rect = playedCardRect(node);
+      const offsets = ['--from-x','--from-y','--winner-dx','--winner-dy'].map(name => parseFloat(node.style.getPropertyValue(name)) || 0);
+      return { group, ...rect, offsets };
+    }).filter(Boolean);
+    const key = [this.layoutKey,canvas.left,canvas.top,canvas.width,canvas.height,
+      ...anchors.flatMap(({x,y,width,offsets}) => [x,y,width,...offsets])].join(':');
+    if (key === this.cardLayoutKey) return;
+    this.cardLayoutKey = key;
     // Upright faces must sit completely above the felt, including the lower
     // half. Re-project this raised center so the screen anchor stays exact.
     const plane = new THREE.Plane(new THREE.Vector3(0,1,0),-2);
@@ -341,11 +413,7 @@ export class TableScene {
       ray.setFromCamera(new THREE.Vector2((x-canvas.left)/canvas.width*2-1,-(y-canvas.top)/canvas.height*2+1),this.camera);
       return ray.ray.intersectPlane(plane,new THREE.Vector3());
     };
-    for (const group of this.cards.values()) {
-      const seat = (group.userData.player-self+this.state.players.length)%this.state.players.length;
-      const node = table.querySelector(`.played[data-play-seat="${seat}"]`);
-      const face = node?.querySelector('.card'); if(!node || !face) continue;
-      const { x, y, width: cardWidth } = playedCardRect(node);
+    for (const { group, x, y, width: cardWidth, offsets } of anchors) {
       const target = pointAt(x,y); if(!target) continue;
       group.userData.target.copy(target);
       // Faces remain physical meshes with thickness, tilted toward the viewer
@@ -362,22 +430,20 @@ export class TableScene {
       const scale = Math.max(.1,cardWidth/Math.max(1,width));
       group.scale.set(scale,1,scale);
       group.userData.rotation=0;
-      const offset = name => parseFloat(node.style.getPropertyValue(name)) || 0;
-      group.userData.from = pointAt(x + offset('--from-x'), y + offset('--from-y')) || target;
-      group.userData.collectTo = pointAt(x + offset('--winner-dx'), y + offset('--winner-dy')) || target;
+      group.userData.from = pointAt(x + offsets[0], y + offsets[1]) || target;
+      group.userData.collectTo = pointAt(x + offsets[2], y + offsets[3]) || target;
       group.userData.collectLift = (pointAt(x, y - 1) || target.clone()).sub(target);
       group.userData.baseScale = group.scale.clone();
       if (!this.motion) group.position.copy(target);
     }
   }
-  drawCards() {
+  drawCards(sample = this.motion?.snapshot()) {
     if (this.mode !== 'game' || !this.motion) return;
     for (const [id, group] of this.cards) {
       const data = group.userData;
       if (!data.from || !data.baseScale) continue;
-      const pose = this.motion.pose(id);
-      if (motionMedia.matches) Object.assign(pose, { enter: 1, collect: 0, lift: 0, opacity: 1,
-        scale: this.motion.emphasisAt(id) });
+      const sharedPose = sample.poses.get(id) || this.motion.pose(id, sample.time);
+      const pose = motionMedia.matches ? { enter:1,collect:0,lift:0,opacity:1,scale:this.motion.emphasisAt(id,sample.time) } : sharedPose;
       group.position.lerpVectors(data.from, data.target, pose.enter);
       if (pose.collect) group.position.lerp(data.collectTo, pose.collect);
       if (data.collectLift) group.position.addScaledVector(data.collectLift, pose.lift);
@@ -400,10 +466,9 @@ export class TableScene {
     this.resize();
   }
   animate(time) {
-    requestAnimationFrame(t=>this.animate(t));
-    if(this.lost||document.hidden||!this.host?.isConnected)return;
-    const interval=this.motion?.isAnimating() && !motionMedia.matches ? this.low ? 33 : 16 : this.low ? 50 : 33;
-    if(time-this.frame<interval)return;
+    if(this.lost||document.hidden||!this.host?.isConnected)return null;
+    const sample = this.motion?.snapshot(time);
+    const interval = sample?.animating && !motionMedia.matches ? this.low ? 33 : 0 : this.low ? 50 : 33;
     const elapsed = Math.max(0, Math.min(100, time - (this.frame || time)));
     this.frame=time;
     if (!this.paused) this.animationTime = (this.animationTime || 0) + elapsed;
@@ -420,10 +485,14 @@ export class TableScene {
       this.trumpCard.rotation.y = this.mode === 'game' ? -.12 + Math.sin(trumpTime * .65) * .22 : -.25 + trumpTime * Math.PI / 8;
     }
     for(const group of this.paused || this.mode === 'game' && this.motion ? [] : this.cards.values()){
+      if (motionMedia.matches) { group.position.copy(group.userData.target); group.rotation.y = group.userData.rotation; continue; }
       group.position.lerp(group.userData.target,.19);
       group.rotation.y=THREE.MathUtils.lerp(group.rotation.y,group.userData.rotation,.15);
     }
-    this.drawCards();
+    if (this.cardsDirty || sample?.animating || this.cardsAnimating) this.drawCards(sample);
+    this.cardsDirty = false; this.cardsAnimating = sample?.animating;
     this.renderer.render(this.scene,this.camera);
+    if (!this.paused && !motionMedia.matches) return interval;
+    return null;
   }
 }

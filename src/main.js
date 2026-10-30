@@ -31,7 +31,11 @@ import { settlementHTML } from './settlement.js';
 import { cardMark, cardMarksHTML, preloadCardFaces } from './card-face.js';
 import { captureHand, HandMotion } from './hand-motion.js';
 import { CARD_ENTER_MS, LEADING_CARD_SCALE, COMPACT_LEADING_CARD_SCALE, TableMotion } from './table-motion.js';
-import { playedCardRect, playedCardSlots, playedCardLink, tableLayoutMode, stripCardSlots, compactCardSlots, shortSeatName } from './table-layout.js';
+import { tableLayoutMode, shortSeatName } from './table-layout.js';
+import { frameScheduler } from './frame-scheduler.js';
+import { createLayoutScheduler } from './layout-scheduler.js';
+import { updateTableLayout } from './table-layout-dom.js';
+import { tableViewKey, updateHandSelection, reorderHand } from './ui-regions.js';
 import { seatPosition, relativeSeat, followSuitHint, playBlockedReason, sortCards, isSwipe } from './hand-model.js';
 import { readRoomRecoveries, saveRoomRecovery, removeRoomRecovery } from './room-recovery.js';
 import { PRACTICE_SAVE_KEY, PRACTICE_KEEP_MS, readPractice, savePractice } from './practice-save.js';
@@ -53,14 +57,17 @@ function updateOnlineCount() {
 }
 
 let tableScene, scenePending = false, sceneFailed = false;
-let layoutFrame = 0;
-const tableLayoutObserver = new ResizeObserver(() => {
-  if (layoutFrame) return;
-  layoutFrame = requestAnimationFrame(() => {
-    layoutFrame = 0;
-    updateLayoutMetrics(); tableScene?.resize();
-  });
+let refreshHandOnLayout = false;
+const layoutSchedule = createLayoutScheduler(({force}) => {
+  if (updateLayoutMetrics(force)) tableScene?.resize();
+  if (refreshHandOnLayout) {
+    refreshHandOnLayout = false;
+    handMotion.attach($('.hand'), null, selectedCard);
+  }
+  htmlLinks = $('.played-links');
+  htmlFrame.request();
 });
+const tableLayoutObserver = new ResizeObserver(() => layoutSchedule.request());
 const motionMedia = matchMedia('(prefers-reduced-motion: reduce)');
 let trumpMotionPreference = localStore.getItem('wizard-trump-motion');
 function updateTrumpMotion() {
@@ -80,7 +87,7 @@ motionMedia.addEventListener('change', () => {
   updateTrumpMotion();
   tableMotion.reducedMotion = motionMedia.matches;
   tableMotion.setEmphasisScale(document.body.dataset.tableLayout === 'strip' ? COMPACT_LEADING_CARD_SCALE : LEADING_CARD_SCALE, {immediate:true});
-  drawHTMLCards(); tableScene?.resize();
+  layoutSchedule.request({force:true}); htmlFrame.request(); tableScene?.requestDraw();
 });
 function syncScene() {
   const target = document.querySelector('.table') || document.querySelector('.hero');
@@ -91,12 +98,14 @@ function syncScene() {
     target.prepend(mount);
   }
   if (!state) tableMotion.sync(null);
-  if (tableScene) { tableScene.motion = tableMotion; tableScene.viewer = me; tableScene.attach(mount, state); }
+  if (tableScene) { tableScene.motion = tableMotion; tableScene.viewer = me; tableScene.attach(mount, state, {deferResize:true}); layoutSchedule.request(); }
   else if (target && !scenePending && !sceneFailed) {
     scenePending = true;
     import('./table-scene.js').then(({ TableScene }) => {
       try {
-        tableScene = new TableScene(); updateTrumpMotion(); syncScene(); updateGraphicsButton();
+        tableScene = new TableScene({onInvalidate:() => {
+          layoutSchedule.request({force:true}); htmlFrame.request();
+        }}); updateTrumpMotion(); syncScene(); updateGraphicsButton();
       } catch {
         sceneFailed = true; document.body.classList.remove('has-webgl'); updateGraphicsButton();
       }
@@ -129,6 +138,7 @@ const handMotion = new HandMotion(showHoveredCard);
 const tableMotion = new TableMotion();
 const trumpReveal = new TrumpReveal();
 let selectedCard = null, handExpanded = false, handCollapsed = false, handSort = 'suit', handScroll = 0, gridScroll = 0, selectionContext = '';
+let renderedTableKey = null, renderedJournal = '';
 let selectionPointer = null;
 document.addEventListener('pointerdown', event => {
   selectionPointer = { id:event.pointerId, x:event.clientX, y:event.clientY, dragged:false };
@@ -141,7 +151,7 @@ document.addEventListener('pointercancel', () => { if (selectionPointer) selecti
 document.addEventListener('click', event => {
   if (!selectedCard || pendingPlay || event.button !== 0 || selectionPointer?.dragged) return;
   if (!(event.target instanceof Element) || event.target.closest('button,a,input,select,textarea,summary,label,dialog,[role="dialog"],[role="button"],[contenteditable="true"],#table-menu-panel,#table-score-panel,#room-chat')) return;
-  selectedCard = null; render();
+  selectedCard = null; refreshSelection();
 }, true);
 let seenEventSeq = null, lastTurnCue = '', turnSound = localStore.getItem('wizard-turn-sound') !== 'false';
 let practicePaused = false, practiceRemaining = null, practiceCollection = null;
@@ -210,7 +220,7 @@ function ownStatusHTML(p) {
 function handHTML(p, myTurn) {
   const cards = sortCards(p?.hand || [], handSort), selected = cards.find(c => c.id === selectedCard);
   const reason = pendingPlay ? '正在提交，等待房间确认' : selected ? (!networkReady && !practice ? '连接恢复中，重新连接后再选择' : playBlockedReason(state, me, selected)) : '';
-  return `<div class="hover-preview" hidden aria-live="polite"></div>${selected ? `<div class="selected-preview" aria-live="polite">${cardHTML(selected)}<span>已选 ${escape(cardLabel(selected))}</span>${reason ? `<small>${escape(reason)}</small>` : ''}</div>` : ''}<section class="hand-section ${handExpanded ? 'expanded' : ''} ${handCollapsed ? 'collapsed' : ''}" aria-label="你的手牌"><div class="hand-heading"><b>手牌 · ${p?.count ?? cards.length} 张</b><span>${handExpanded ? '点击查看 · 确认出牌' : '选牌后确认'}</span><button id="hand-collapse" aria-expanded="${!handCollapsed}">${handCollapsed ? '展开手牌' : '收起手牌'}</button><button id="hand-sort" aria-label="切换手牌排序">${handSort === 'suit' ? '花色排序' : '点数排序'}</button><button id="hand-expand" aria-label="${handExpanded ? '收起展开手牌' : '展开全部手牌'}" title="${handExpanded ? '收起展开手牌' : '展开全部手牌'}" aria-expanded="${handExpanded}">${handExpanded ? '⌄' : '⤢'}</button></div><div class="hand ${handExpanded ? 'hand-grid' : 'hand-strip'}" tabindex="0">${cards.map(c => cardHTML(c, true, myTurn && state.legal.includes(c.id), c.id === selectedCard)).join('') || (state.foresightActive ? `<div class="concealed-hand"><strong>你的 ${p?.count || 0} 张手牌暂时保密</strong><span>先见之明 · 全员预估后揭开</span></div>` : '<p class="muted">本轮手牌已出完。</p>')}</div>${state.phase === 'play' && myTurn && !state.lifecycle?.paused && !state.lifecycle?.continuationVote && (practice || networkReady) ? `<div class="play-confirm" data-submitting="${!!pendingPlay}" aria-busy="${!!pendingPlay}"><button id="confirm-play" class="primary" ${!selected || reason ? 'disabled' : ''} title="${escape(reason || (selected ? `打出 ${cardLabel(selected)}` : '请先选择手牌'))}">${pendingPlay ? '正在提交…' : '出牌'}</button></div>` : ''}</section>`;
+  return `<div class="hover-preview" hidden aria-live="polite"></div><div class="selected-preview" aria-live="polite" ${selected ? '' : 'hidden'}>${selected ? `${cardHTML(selected)}<span>已选 ${escape(cardLabel(selected))}</span>${reason ? `<small>${escape(reason)}</small>` : ''}` : ''}</div><section class="hand-section ${handExpanded ? 'expanded' : ''} ${handCollapsed ? 'collapsed' : ''}" aria-label="你的手牌"><div class="hand-heading"><b>手牌 · ${p?.count ?? cards.length} 张</b><span>${handExpanded ? '点击查看 · 确认出牌' : '选牌后确认'}</span><button id="hand-collapse" aria-expanded="${!handCollapsed}">${handCollapsed ? '展开手牌' : '收起手牌'}</button><button id="hand-sort" aria-label="切换手牌排序">${handSort === 'suit' ? '花色排序' : '点数排序'}</button><button id="hand-expand" aria-label="${handExpanded ? '收起展开手牌' : '展开全部手牌'}" title="${handExpanded ? '收起展开手牌' : '展开全部手牌'}" aria-expanded="${handExpanded}">${handExpanded ? '⌄' : '⤢'}</button></div><div class="hand ${handExpanded ? 'hand-grid' : 'hand-strip'}" tabindex="0">${cards.map(c => cardHTML(c, true, myTurn && state.legal.includes(c.id), c.id === selectedCard)).join('') || (state.foresightActive ? `<div class="concealed-hand"><strong>你的 ${p?.count || 0} 张手牌暂时保密</strong><span>先见之明 · 全员预估后揭开</span></div>` : '<p class="muted">本轮手牌已出完。</p>')}</div>${state.phase === 'play' && myTurn && !state.lifecycle?.paused && !state.lifecycle?.continuationVote && (practice || networkReady) ? `<div class="play-confirm" data-submitting="${!!pendingPlay}" aria-busy="${!!pendingPlay}"><button id="confirm-play" class="primary" ${!selected || reason ? 'disabled' : ''} title="${escape(reason || (selected ? `打出 ${cardLabel(selected)}` : '请先选择手牌'))}">${pendingPlay ? '正在提交…' : '出牌'}</button></div>` : ''}</section>`;
 }
 function lifecycleHTML() {
   const life = state.lifecycle || {}, vote = life.continuationVote;
@@ -235,6 +245,12 @@ function tableDecorHTML() {
   return '<div class="table-props" aria-hidden="true"><i class="prop-candle candle-left"></i><i class="prop-candle candle-right"></i><i class="prop-book">✦</i><i class="prop-orb"></i><i class="prop-deck"></i><i class="prop-coins"></i></div>';
 }
 function render() {
+  const tableKey = tableViewKey(state, [roomEpoch,me,isHost,practice,spectating,networkReady,!!pendingSettlement]);
+  if (tableKey && tableKey === renderedTableKey && $('.table')) {
+    updateSocialRegions(); refreshSelection(); htmlFrame.request();
+    return;
+  }
+  renderedTableKey = tableKey;
   const container = $('.table')?.getBoundingClientRect();
   document.body.dataset.tableLayout = tableLayoutMode(container?.width || document.documentElement.clientWidth, container?.height || window.innerHeight);
   const previousHand=captureHand($('.hand'));
@@ -445,10 +461,11 @@ function bindCommon() {
   document.body.style.setProperty('--fan-height', `${handCount <= 5 ? 216 : handCount <= 15 ? 204 : 194}px`);
   document.body.classList.toggle('hand-expanded', handExpanded && !handCollapsed);
   document.body.classList.toggle('hand-collapsed', handCollapsed);
-  updateLayoutMetrics();
+  layoutSchedule.request({force:true});
   tableLayoutObserver.disconnect();
   document.querySelectorAll('.table,.own-status,.action-panel,.hand-section').forEach(node=>tableLayoutObserver.observe(node));
   syncScene(); updateGraphicsButton();
+  if (trumpReveal.effect && !trumpReveal.root) layoutSchedule.flush();
   let deckRect = null;
   if (trumpReveal.effect?.type === 'reveal' && !trumpReveal.root) {
     const deck = $('.prop-deck');
@@ -456,42 +473,76 @@ function bindCommon() {
       : deck?.offsetWidth && getComputedStyle(deck).visibility !== 'hidden' ? deck.getBoundingClientRect() : null;
   }
   trumpReveal.mount($('.table'), deckRect);
+  cacheHTMLCards();
   document.querySelectorAll('.played').forEach(played => {
     const label = document.createElement('span');
     label.className = 'played-value';
     label.textContent = played.querySelector('.card')?.getAttribute('aria-label') || '';
     played.querySelector(':scope > small')?.append(label);
   });
-  const hand = $('.hand');
-  if (hand) {
-    const cards = [...hand.querySelectorAll('.card')], total = cards.length;
-    hand.classList.toggle('large-hand', total > 9 || (matchMedia('(max-width: 580px)').matches && total > 5));
-    cards.forEach((card, i) => {
-      const offset = i - (total - 1) / 2;
-      card.style.setProperty('--fan', `${offset * Math.min(3.2, 25 / Math.max(total,1))}deg`);
-      card.style.setProperty('--lift', `${(total > 1 ? offset / ((total - 1) / 2) : 0) ** 2 * 4}px`);
-      card.style.setProperty('--order', i);
-    });
-  }
-  $('#rules').onclick = () => { settingsOpen = false; menuOpen = false; rulesOpen = true; render(); $('#close-rules')?.focus(); };
-  $('#close-rules')?.addEventListener('click', () => { rulesOpen = false; render(); $('#rules')?.focus(); });
+  decorateHand();
+  $('#rules').onclick = () => { settingsOpen = false; menuOpen = false; setRulesOpen(true); };
+  $('#close-rules')?.addEventListener('click', () => setRulesOpen(false));
 }
-function drawHTMLCards() {
+function setRulesOpen(open) {
+  rulesOpen = open;
+  $('#table-menu-panel')?.setAttribute('hidden', '');
+  $('#table-menu')?.setAttribute('aria-expanded', 'false');
+  if (open) {
+    if (!$('#close-rules')) app.insertAdjacentHTML('beforeend', rulesHTML());
+    $('#close-rules').onclick = () => setRulesOpen(false);
+    $('#close-rules').focus();
+  } else {
+    $('#close-rules')?.closest('.modal-backdrop')?.remove();
+    $('#rules')?.focus({preventScroll:true});
+  }
+}
+function updateSocialRegions() {
+  social.update(state, me, $('.game-toolbar'), {connected:practice || (networkReady && seenEventSeq != null),room});
+  if ($('#rename-toggle')) {
+    if (spectating) $('#rename-toggle').remove();
+    else $('#table-menu-panel')?.append($('#rename-toggle'));
+  }
+  updateSpectatorActivity();
+  const journal = $('.journal'), key = JSON.stringify(state.log.slice(-7));
+  if (journal && key !== renderedJournal) {
+    renderedJournal = key;
+    journal.innerHTML = `<div class="section-label">牌桌记事 <span>↙</span></div>${state.log.slice(-7).map(line => `<p>${escape(line)}</p>`).join('')}`;
+  }
+  updateCountdown();
+}
+// The node list changes only when a game view changes, never on an idle frame.
+let htmlCards = [], htmlLinks = null;
+const htmlFrame = frameScheduler.add(frameTime => {
+  if (document.hidden) return null;
+  if (trumpReveal.effect || trumpReveal.pulseAt !== null) trumpReveal.draw();
+  const sample = tableMotion.snapshot(frameTime);
+  drawHTMLCards(sample);
+  const revealDelay = trumpReveal.nextUpdateDelay();
+  return revealDelay === null ? sample.nextDelay : sample.nextDelay === null ? revealDelay : Math.min(revealDelay,sample.nextDelay);
+});
+function cacheHTMLCards() {
+  htmlLinks = $('.played-links');
+  htmlCards = [...document.querySelectorAll('.played[data-card-id]')].map(node => ({
+    node, card:node.querySelector('.card'), label:node.querySelector(':scope > small'), id:node.dataset.cardId,
+  }));
+  htmlFrame.request();
+}
+function drawHTMLCards(sample = tableMotion.snapshot()) {
   if (!state?.trick.length || document.hidden) return;
-  const labelOpacity = tableMotion.labelOpacity();
-  const links = document.querySelector('.played-links');
-  if (links) links.style.opacity = String(labelOpacity);
-  for (const node of document.querySelectorAll('.played[data-card-id]')) {
-    node.style.setProperty('--played-label-opacity', String(labelOpacity));
-    const label = node.querySelector(':scope > small');
+  const labelOpacity = String(sample.labelOpacity);
+  if (htmlLinks && htmlLinks.style.opacity !== labelOpacity) htmlLinks.style.opacity = labelOpacity;
+  const webgl = document.body.classList.contains('has-webgl');
+  for (const {node,card,label,id} of htmlCards) {
+    if (node.style.getPropertyValue('--played-label-opacity') !== labelOpacity) node.style.setProperty('--played-label-opacity', labelOpacity);
     if (label) {
-      label.style.opacity = String(labelOpacity);
-      label.style.visibility = labelOpacity === 0 ? 'hidden' : '';
+      if (label.style.opacity !== labelOpacity) label.style.opacity = labelOpacity;
+      const visibility = sample.labelOpacity === 0 ? 'hidden' : '';
+      if (label.style.visibility !== visibility) label.style.visibility = visibility;
     }
-    if (document.body.classList.contains('has-webgl')) continue;
-    const card = node.querySelector('.card'), id = node.dataset.cardId;
-    const pose = tableMotion.pose(id);
-    if (motionMedia.matches) Object.assign(pose, { enter:1, collect:0, lift:0, opacity:1, scale:tableMotion.emphasisAt(id) });
+    if (webgl || !card) continue;
+    const pose = sample.poses.get(id);
+    if (!pose) continue;
     const offset = name => parseFloat(node.style.getPropertyValue(name)) || 0;
     const x = offset('--from-x') * (1 - pose.enter) + offset('--winner-dx') * pose.collect;
     const y = offset('--from-y') * (1 - pose.enter) + offset('--winner-dy') * pose.collect - pose.lift;
@@ -501,104 +552,8 @@ function drawHTMLCards() {
     if (card.style.opacity !== opacity) card.style.opacity = opacity;
   }
 }
-function animateHTMLCards() {
-  requestAnimationFrame(animateHTMLCards);
-  trumpReveal.draw();
-  drawHTMLCards();
-}
-requestAnimationFrame(animateHTMLCards);
-
-function updateLayoutMetrics() {
-  document.body.style.setProperty('--chat-panel-height', `${$('#room-chat')?.getBoundingClientRect().height || 0}px`);
-  document.body.style.setProperty('--action-panel-height', `${$('.action-panel')?.getBoundingClientRect().height || 0}px`);
-  document.body.style.setProperty('--own-status-height', `${$('.own-status')?.getBoundingClientRect().height || 0}px`);
-  const avatars = new Map([...document.querySelectorAll('.opponents [data-player]')].map(node => [node.dataset.player, node.querySelector('.avatar')]));
-  if (me) avatars.set(me, $('.own-status .avatar'));
-  const table = $('.table'), played = $('.played-cards');
-  if (!table || !state) return;
-  const rect = table.getBoundingClientRect();
-  const mode = tableLayoutMode(rect.width,rect.height), strip = mode === 'strip';
-  table.dataset.layoutMode = mode; document.body.dataset.tableLayout = mode;
-  table.dataset.lowHeight = String(strip && rect.height <= 340);
-  const emphasis = strip ? COMPACT_LEADING_CARD_SCALE : LEADING_CARD_SCALE;
-  table.style.setProperty('--leader-scale',emphasis);
-  tableMotion.setEmphasisScale(emphasis,{immediate:motionMedia.matches || !!state.lifecycle?.paused});
-  const low = strip && rect.height <= 340;
-  const shortPortrait = mode === 'portrait-grid';
-  const self = Math.max(0,state.players.findIndex(player=>player.id===me));
-  const ordered = state.players.map((player,index)=>({id:player.id,index,seat:relativeSeat(index,self,state.players.length)})).sort((a,b)=>a.seat-b.seat);
-  const hasOwnSeat = state.players.some(player=>player.id===me);
-  const tableStyle = getComputedStyle(table);
-  const side = Math.max(10,parseFloat(tableStyle.paddingLeft)||0);
-  const rightSide = Math.max(10,parseFloat(tableStyle.paddingRight)||0);
-  const area = {left:rect.left+side,right:rect.right-rightSide,
-    top:rect.top+(strip ? low ? 82 : rect.height>=420 ? 154 : 126 : shortPortrait ? 154 : rect.width<600 ? 194 : 158),
-    bottom:rect.bottom-(strip ? low ? 88 : 104 : shortPortrait ? 210 : rect.width<600 ? 260 : 280)};
-  for (const dock of document.querySelectorAll('.own-status,.hand-section,.action-panel,.hand-section.expanded > .play-confirm')) {
-    const r = dock.getBoundingClientRect(), style = getComputedStyle(dock);
-    if (r.height && style.display !== 'none' && style.visibility !== 'hidden') area.bottom = Math.min(area.bottom,r.top-8);
-  }
-  // Reserve the lower dock even during settlement. Playing the final card may
-  // change the controls, but cannot move the six already-established slots.
-  const seatTop = rect.width<600 ? 132 : 98;
-  const seatBottom = rect.height-(shortPortrait ? 250 : rect.width<600 ? 290 : 300);
-  for (const player of ordered) {
-    const node = table.querySelector('.opponents [data-player="'+player.id+'"]');
-    if(!node)continue;
-    const pos=seatPosition(player.index,self,state.players.length);
-    const x=shortPortrait ? side+(rect.width-side-rightSide)/(ordered.length-(hasOwnSeat?1:0))*(player.seat+(hasOwnSeat?-.5:.5)) : strip ? side+(rect.width-side-rightSide)/ordered.length*(player.seat+.5) : side+(rect.width-side-rightSide)*pos.x/100;
-    const y=shortPortrait ? 110 : strip ? low ? 68 : 80 : seatTop+(pos.y-12)/78*Math.max(80,seatBottom-seatTop);
-    node.style.setProperty('--seat-x',x+'px');node.style.setProperty('--seat-y',y+'px');
-  }
-  layoutTrumpDisplay(table);
-  if (played && avatars.size) {
-    const shown = selector => [...document.querySelectorAll(selector)].filter(node => node.offsetWidth && node.offsetHeight && getComputedStyle(node).visibility !== 'hidden');
-    const obstacles = shown('.opponents .player,.trump-display,.foresight-hands,.lifecycle-banner,.play-confirm').map(node=>node.getBoundingClientRect());
-    const center={x:(area.left+area.right)/2,y:(area.top+area.bottom)/2};
-    const seats=ordered.map(player=>{
-      const r=avatars.get(player.id)?.getBoundingClientRect();
-      return {id:player.id,self:player.id===me,x:player.seat===0 ? center.x : r ? r.left+r.width/2 : center.x,
-        y:player.seat===0 ? area.bottom+80 : r ? r.top+r.height/2 : center.y};
-    });
-    const preferredWidth=strip ? low ? 56 : 84 : rect.width<600 ? 62 : 94;
-    const layout=strip ? stripCardSlots(area,seats,preferredWidth,emphasis) : shortPortrait ? compactCardSlots(area,seats,preferredWidth,emphasis) : playedCardSlots(area,seats,center,obstacles,preferredWidth,emphasis,46);
-    played.dataset.layout=layout ? mode : 'unavailable';
-    let links=played.querySelector('.played-links');
-    if(!links){links=document.createElementNS('http://www.w3.org/2000/svg','svg');links.classList.add('played-links');links.setAttribute('aria-hidden','true');played.prepend(links);}
-    links.setAttribute('viewBox','0 0 '+rect.width+' '+rect.height);links.replaceChildren();
-    if(layout){
-      played.style.setProperty('--played-width',layout.width+'px');
-      for(const node of played.querySelectorAll('.played')){
-        const slot=layout.slots.get(node.dataset.player), player=ordered.find(player=>player.id===node.dataset.player);
-        if(!slot)continue;
-        node.style.setProperty('--play-x',slot.x-rect.left+'px');node.style.setProperty('--play-y',slot.y-rect.top+'px');
-        node.style.setProperty('--player-color',avatars.get(player.id)?.style.getPropertyValue('--avatar-color') || '#f3ead6');
-        node.querySelector('.played-name').textContent=shortSeatName(state.players[player.index].name,player.seat,player.id===me);
-        if(!strip && !shortPortrait && seats.length>=5 && player.id!==me){
-          const avatar=avatars.get(player.id),actual=avatar?.getBoundingClientRect();
-          if(!actual)continue;
-          const source={x:actual.left+actual.width/2,y:actual.top+actual.height/2};
-          const link=playedCardLink(source,avatar.closest('.player,.own-status').getBoundingClientRect(),node.getBoundingClientRect());
-          if(link){
-            const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-            for(const name of ['x1','x2'])line.setAttribute(name,link[name]-rect.left);
-            for(const name of ['y1','y2'])line.setAttribute(name,link[name]-rect.top);
-            line.setAttribute('stroke',avatar.style.getPropertyValue('--avatar-color'));links.append(line);
-          }
-        }
-      }
-    }
-  }
-  const winningAvatar = avatars.get($('.played.winner')?.dataset.player);
-  for (const node of document.querySelectorAll('.played')) {
-    const card = playedCardRect(node);
-    for (const [prefix, avatar] of [['from', avatars.get(node.dataset.player)], ['winner', winningAvatar]]) {
-      const rect = avatar?.getBoundingClientRect();
-      node.style.setProperty(`--${prefix}-${prefix === 'from' ? 'x' : 'dx'}`, `${rect ? rect.left + rect.width / 2 - card.x : 0}px`);
-      node.style.setProperty(`--${prefix}-${prefix === 'from' ? 'y' : 'dy'}`, `${rect ? rect.top + rect.height / 2 - card.y : 0}px`);
-    }
-  }
-  drawHTMLCards();
+function updateLayoutMetrics(force = false) {
+  return updateTableLayout({state,me,tableMotion,reducedMotion:motionMedia.matches,drawHTMLCards:() => htmlFrame.request(),force});
 }
 function setupClearUI() {
   if (!state || ['lobby', 'rules'].includes(state.phase)) {
@@ -632,20 +587,22 @@ function setupClearUI() {
 }
 function updateCountdown() {
   if (!state) return;
-  const voteTimer = $('#continuation-countdown'); if (voteTimer) voteTimer.textContent = `${Math.max(0,Math.ceil((state.lifecycle.continuationVote.deadline - Date.now() - serverClockOffset)/1000))} 秒`;
+  const text = (node,value) => { if (node.textContent !== value) node.textContent = value; };
+  const voteTimer = $('#continuation-countdown'); if (voteTimer) text(voteTimer,`${Math.max(0,Math.ceil((state.lifecycle.continuationVote.deadline - Date.now() - serverClockOffset)/1000))} 秒`);
   const review = $('#trick-review-timer');
   if (review) {
     const ms = state.lifecycle?.paused ? state.lifecycle.reviewRemainingMs : state.lifecycle?.nextTrickAt - Date.now() - serverClockOffset;
-    review.textContent = state.lifecycle?.paused ? '已暂停 · 胜负保留' : `${Number.isFinite(ms) ? Math.max(0, Math.ceil(ms / 1000)) : '…'} 秒后下一墩`;
+    text(review,state.lifecycle?.paused ? '已暂停 · 胜负保留' : `${Number.isFinite(ms) ? Math.max(0, Math.ceil(ms / 1000)) : '…'} 秒后下一墩`);
   }
   const timer = $('#turn-countdown');
   if (!timer) return;
-  if (state.lifecycle?.paused) { timer.textContent = `暂停 · ${Math.ceil((state.lifecycle.remainingMs || 0)/1000)} 秒`; return; }
-  if (!practice && (!networkReady || state.lifecycle?.reconnecting)) { timer.textContent = '连接恢复中'; return; }
+  if (state.lifecycle?.paused) { text(timer,`暂停 · ${Math.ceil((state.lifecycle.remainingMs || 0)/1000)} 秒`); return; }
+  if (!practice && (!networkReady || state.lifecycle?.reconnecting)) { text(timer,'连接恢复中'); return; }
   const seconds = Math.max(0, Math.ceil((state.turnDeadline - (Date.now() + serverClockOffset)) / 1000));
-  timer.textContent = Number.isFinite(seconds) ? `${seconds} 秒` : '同步中';
+  text(timer,Number.isFinite(seconds) ? `${seconds} 秒` : '同步中');
   timer.classList.toggle('urgent', seconds <= 10);
-  timer.setAttribute('aria-label', `当前玩家剩余出牌时间 ${Number.isFinite(seconds) ? seconds : '同步中'} 秒`);
+  const label = `当前玩家剩余出牌时间 ${Number.isFinite(seconds) ? seconds : '同步中'} 秒`;
+  if (timer.getAttribute('aria-label') !== label) timer.setAttribute('aria-label', label);
 }
 function setupGameHUD(graphics) {
   const toolbar = document.createElement('nav');
@@ -691,7 +648,7 @@ document.addEventListener('keydown', event => {
     $('#table-scores')?.setAttribute('aria-expanded', 'false');
   }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && rulesOpen) { rulesOpen = false; render(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && rulesOpen) setRulesOpen(false); });
 function saveName() {
   try {
     if (!nickname.trim()) throw new Error('请先填写昵称。');
@@ -781,31 +738,79 @@ function submitSettlement(type) {
   if (!sent) pendingSettlement = null;
   render();
 }
+function decorateHand() {
+  const hand = $('.hand');
+  if (hand) {
+    const cards = [...hand.querySelectorAll('.card')], total = cards.length;
+    hand.classList.toggle('large-hand', total > 9 || (matchMedia('(max-width: 580px)').matches && total > 5));
+    cards.forEach((card, i) => {
+      const offset = i - (total - 1) / 2;
+      card.style.setProperty('--fan', `${offset * Math.min(3.2, 25 / Math.max(total,1))}deg`);
+      card.style.setProperty('--lift', `${(total > 1 ? offset / ((total - 1) / 2) : 0) ** 2 * 4}px`);
+      card.style.setProperty('--order', i);
+    });
+  }
+}
+function refreshSelection() {
+  const card = state?.players.find(player => player.id === me)?.hand?.find(card => card.id === selectedCard);
+  const reason = pendingPlay ? '正在提交，等待房间确认' : card ?
+    (!networkReady && !practice ? '连接恢复中，重新连接后再选择' : playBlockedReason(state, me, card)) : '';
+  updateHandSelection(app, {id:selectedCard,card,label:card ? cardLabel(card) : '',faceHTML:cardHTML,reason,pending:pendingPlay});
+  handMotion.selected = selectedCard;
+  handMotion.layout();
+}
+function refreshHand({sort = false} = {}) {
+  const hand = $('.hand');
+  if (!hand) return;
+  const previous = captureHand(hand);
+  if (hand.classList.contains('hand-grid')) gridScroll = hand.scrollTop;
+  else handScroll = hand.scrollLeft;
+  if (sort) reorderHand(hand, sortCards(state.players.find(p => p.id === me)?.hand || [], handSort).map(card => card.id));
+  hand.classList.toggle('hand-grid', handExpanded); hand.classList.toggle('hand-strip', !handExpanded);
+  const section = $('.hand-section');
+  section.classList.toggle('expanded', handExpanded); section.classList.toggle('collapsed', handCollapsed);
+  document.body.classList.toggle('hand-expanded', handExpanded && !handCollapsed);
+  document.body.classList.toggle('hand-collapsed', handCollapsed);
+  $('.hand-heading > span').textContent = handExpanded ? '点击查看 · 确认出牌' : '选牌后确认';
+  const collapse = $('#hand-collapse'), expand = $('#hand-expand');
+  collapse.textContent = handCollapsed ? '展开手牌' : '收起手牌';
+  collapse.setAttribute('aria-expanded', String(!handCollapsed));
+  $('#hand-sort').textContent = handSort === 'suit' ? '花色排序' : '点数排序';
+  const label = handExpanded ? '收起展开手牌' : '展开全部手牌';
+  expand.textContent = label; expand.title = label; expand.setAttribute('aria-label', label);
+  expand.setAttribute('aria-expanded', String(handExpanded));
+  decorateHand();
+  handMotion.attach(hand, previous, selectedCard);
+  hand.scrollLeft = handExpanded ? 0 : handScroll; hand.scrollTop = handExpanded ? gridScroll : 0;
+  refreshSelection();
+  layoutSchedule.request();
+}
 function bindHand() {
   const hand = $('.hand');
   if (hand) {
     hand.scrollLeft = handExpanded ? 0 : handScroll; hand.scrollTop = handExpanded ? gridScroll : 0;
     let start = null, dragged = false;
-    hand.addEventListener('pointerdown', event => { start = {x:event.clientX,y:event.clientY}; dragged = false; });
-    hand.addEventListener('pointermove', event => { if (start && isSwipe(start,{x:event.clientX,y:event.clientY})) dragged = true; });
-    hand.addEventListener('pointercancel', () => { dragged = true; });
-    hand.addEventListener('click', event => {
+    hand.onpointerdown = event => { start = {x:event.clientX,y:event.clientY}; dragged = false; };
+    hand.onpointermove = event => { if (start && isSwipe(start,{x:event.clientX,y:event.clientY})) dragged = true; };
+    hand.onpointercancel = () => { dragged = true; };
+    hand.onclick = event => {
       const card = event.target.closest('[data-card]'); if (!card || dragged) { dragged = false; return; }
-      if(pendingPlay)return;selectedCard = card.dataset.card; render();
-    });
-    hand.addEventListener('scroll', () => { if (handExpanded) gridScroll = hand.scrollTop; else handScroll = hand.scrollLeft; });
+      if (pendingPlay) return;
+      selectedCard = card.dataset.card; refreshSelection();
+    };
+    hand.onscroll = () => { if (handExpanded) gridScroll = hand.scrollTop; else handScroll = hand.scrollLeft; };
   }
-  $('#hand-expand')?.addEventListener('click', () => {handCollapsed=false;handExpanded = !handExpanded; render(); });
-  $('#hand-collapse')?.addEventListener('click',()=>{handCollapsed=!handCollapsed;render();});
-  $('#hand-sort')?.addEventListener('click', () => { handSort = handSort === 'suit' ? 'rank' : 'suit'; render(); });
-  $('#confirm-play')?.addEventListener('click', () => {
+  if ($('#hand-expand')) $('#hand-expand').onclick = () => {handCollapsed=false;handExpanded=!handExpanded;refreshHand();};
+  if ($('#hand-collapse')) $('#hand-collapse').onclick = () => {handCollapsed=!handCollapsed;refreshHand();};
+  if ($('#hand-sort')) $('#hand-sort').onclick = () => {handSort=handSort==='suit' ? 'rank' : 'suit';refreshHand({sort:true});};
+  if ($('#confirm-play')) $('#confirm-play').onclick = () => {
     const card = state.players.find(p => p.id === me)?.hand?.find(c => c.id === selectedCard);
-    if (pendingPlay || !card || playBlockedReason(state,me,card)) return;
-    const id=selectedCard;pendingPlay={id,context:pendingContext(),requestId:uuidV4()};
-    const button=$('#confirm-play');button.disabled=true;button.textContent='正在提交…';
-    if(!send({type:'play',card:id},pendingPlay.requestId))pendingPlay=null;
-    render();
-  });
+    if (pendingPlay || !card || !practice && !networkReady || playBlockedReason(state,me,card)) return;
+    const id=selectedCard; pendingPlay={id,context:pendingContext(),requestId:uuidV4()};
+    refreshSelection();
+    if (!send({type:'play',card:id},pendingPlay.requestId)) pendingPlay=null;
+    refreshSelection();
+  };
 }
 function updateEventEffects(initial = false) {
   const seq = state?.eventSeq || 0;
@@ -927,7 +932,7 @@ const social = new RoomSocial(send, () => {
     for (const selector of ['#table-score-panel','#table-menu-panel']) { const panel = $(selector); if (panel) panel.hidden = true; }
     for (const selector of ['#table-scores','#table-menu']) $(selector)?.setAttribute('aria-expanded','false');
   }
-  updateLayoutMetrics(); tableScene?.resize();
+  layoutSchedule.request();
 });
 const music = new BackgroundMusic();
 const directory = new RoomDirectory({
@@ -990,8 +995,15 @@ window.addEventListener('pagehide', () => {
 window.addEventListener('pageshow', event => {
   if (event.persisted) { startPresence(); restoreRoom(readRoomSession(sessionStore)); }
 });
-let resizeTimer;window.addEventListener('resize',()=>{trumpReveal.finish();clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(state)render();},120);});
-for(const query of ['(max-width:380px)','(max-width:850px)']) matchMedia(query).addEventListener('change',()=>{if(state)render();});
+window.addEventListener('resize', () => {
+  trumpReveal.finish();
+  refreshHandOnLayout = true;
+  layoutSchedule.request(); htmlFrame.request();
+});
+for (const query of ['(max-width:380px)','(max-width:850px)']) matchMedia(query).addEventListener('change', () => layoutSchedule.request());
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) { layoutSchedule.request(); htmlFrame.request(); tableScene?.requestDraw(); }
+});
 window.addEventListener('offline',()=>{
   if(!practice) {networkReady=false;pendingPlay=null;selectedCard=null;seenEventSeq=null;trumpReveal.finish();transport?.wake();if(state){notify('网络已断开，正在恢复房间服务连接…');render();}}
   presence?.wake();

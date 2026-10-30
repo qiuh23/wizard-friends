@@ -115,7 +115,7 @@ export class RoomSocial {
     this.notices.update(this.messages, me, connected && !document.hidden, Date.now(), matchMedia('(max-width:850px)').matches ? 4 : 6);
     if (!this.chat.hidden) this.notices.items = [];
     this.renderNotices();
-    this.chatButton = document.createElement('button');
+    this.chatButton ||= document.createElement('button');
     this.chatButton.id = 'chat-toggle';
     this.chatButton.setAttribute('aria-controls', 'room-chat');
     this.chatButton.onclick = () => {
@@ -123,7 +123,7 @@ export class RoomSocial {
       if (!this.chat.hidden) this.openChat();
       this.refreshButton();
     };
-    this.renameButton = document.createElement('button');
+    this.renameButton ||= document.createElement('button');
     this.renameButton.id = 'rename-toggle';
     this.renameButton.textContent = '改名';
     this.renameButton.onclick = () => {
@@ -131,10 +131,10 @@ export class RoomSocial {
       this.nameInput.value = state.players.find(p => p.id === me)?.name || '';
       this.nameInput.focus(); this.nameInput.select(); this.refreshButton();
     };
-    controls.prepend(this.renameButton);
+    if (!this.renameButton.isConnected) controls.prepend(this.renameButton);
     const previousButton = this.dock.querySelector('#chat-toggle');
-    if (previousButton) previousButton.replaceWith(this.chatButton);
-    else this.dock.append(this.chatButton);
+    if (previousButton && previousButton !== this.chatButton) previousButton.replaceWith(this.chatButton);
+    else if (!previousButton) this.dock.append(this.chatButton);
     if (!this.chat.hidden) this.seen = state.chatSeq || 0;
     const key = JSON.stringify(this.messages);
     if (key !== this.key) {

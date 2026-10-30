@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TableMotion, CARD_COLLECT_MS, CARD_LABEL_FADE_MS, LEADING_CARD_SCALE, COMPACT_LEADING_CARD_SCALE } from '../src/table-motion.js';
+import { TableMotion, CARD_ENTER_MS, CARD_COLLECT_MS, CARD_LABEL_FADE_MS, LEADING_CARD_SCALE, COMPACT_LEADING_CARD_SCALE } from '../src/table-motion.js';
 import { TRICK_REVIEW_MS } from '../src/game.js';
 
 function setup() {
@@ -229,4 +229,34 @@ test('all settlement phases recover the persisted collection clock through pause
     assert.equal(recovered.pose('blue-1').opacity,0);
     assert.equal(state.phase,phase);
   }
+});
+
+test('idle presentation sleeps until the existing label and collection schedule, including pause and reduced motion', () => {
+  const s = setup(); s.play('red-1');
+  assert.equal(s.motion.nextUpdateDelay(), 0);
+  s.advance(CARD_ENTER_MS);
+  assert.equal(s.motion.nextUpdateDelay(), null);
+  s.state.phase = 'trickEnd'; s.state.completedTricks = 1;
+  s.state.lifecycle = {collectionAt:1000 + TRICK_REVIEW_MS}; s.sync();
+  const delay = TRICK_REVIEW_MS - CARD_COLLECT_MS - CARD_LABEL_FADE_MS - CARD_ENTER_MS;
+  assert.equal(s.motion.nextUpdateDelay(), delay);
+  s.advance(delay); assert.equal(s.motion.nextUpdateDelay(), 0);
+  s.state.lifecycle.paused = true; s.sync(); assert.equal(s.motion.nextUpdateDelay(), null);
+  s.state.lifecycle.paused = false; s.sync();
+  s.motion.reducedMotion = true; assert.equal(s.motion.nextUpdateDelay(), null);
+  s.motion.reducedMotion = false; s.advance(CARD_COLLECT_MS + CARD_LABEL_FADE_MS);
+  assert.equal(s.motion.nextUpdateDelay(), null);
+});
+
+test('HTML and WebGL share an identical frame sample without replay; state updates invalidate it', () => {
+  const s = setup(); s.play('red-1'); s.advance(100);
+  const html = s.motion.snapshot(100);
+  s.advance(10);
+  assert.equal(s.motion.snapshot(100), html);
+  assert.ok(s.motion.snapshot(110).poses.get('red-1').enter > html.poses.get('red-1').enter);
+  s.state.lifecycle = {paused:true}; s.sync();
+  const paused = s.motion.snapshot(110);
+  assert.notEqual(paused, html); assert.equal(paused.nextDelay, null);
+  s.advance(10000);
+  assert.deepEqual(s.motion.snapshot(10110).poses.get('red-1'), paused.poses.get('red-1'));
 });

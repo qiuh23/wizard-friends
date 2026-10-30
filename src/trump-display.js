@@ -153,8 +153,15 @@ export class TrumpReveal {
     label.style.left = `${center.x}px`; label.style.top = `${center.y + width * .75 + 8}px`;
     this.draw();
   }
-  draw() {
-    const now = this.clock();
+  nextUpdateDelay(now = this.clock()) {
+    if (this.pulseAt !== null) return 0;
+    if (!this.effect) return null;
+    const elapsed = now - this.effect.start;
+    return this.effect.type === 'reveal' && elapsed >= HOLD_AT + 70 && elapsed < RETURN_AT
+      ? RETURN_AT - elapsed : 0;
+  }
+  draw(now = this.clock()) {
+    const style = (node, name, value) => { if (node.style[name] !== value) node.style[name] = value; };
     if (this.effect) {
       const elapsed = now - this.effect.start;
       if (this.effect.type === 'text') {
@@ -163,25 +170,26 @@ export class TrumpReveal {
       } else if (elapsed >= TRUMP_REVEAL_MS) this.finish(true);
       else if (this.root && this.geometry && this.icon?.isConnected) {
         const { width, center, origin } = this.geometry;
-        const target = this.icon.getBoundingClientRect();
         const extract = smooth(elapsed / EXTRACT_MS), returning = smooth((elapsed - RETURN_AT) / RETURN_MS);
+        const target = returning ? this.icon.getBoundingClientRect() : {left:center.x,top:center.y,width};
         const end = { x:target.left + target.width/2, y:target.top + target.height/2 };
         const x = returning ? (1-returning)**2*center.x + 2*(1-returning)*returning*(center.x+(end.x-center.x)*.45) + returning**2*end.x : origin.x + (center.x-origin.x)*extract;
         const y = returning ? (1-returning)**2*center.y + 2*(1-returning)*returning*(Math.min(center.y,end.y)-24) + returning**2*end.y : origin.y + (center.y-origin.y)*extract;
         const scale = returning ? 1-(1-target.width/width)*returning : .65+.35*extract;
-        this.root.dataset.phase = elapsed < EXTRACT_MS ? 'extract' : elapsed < HOLD_AT ? 'flip' : elapsed < RETURN_AT ? 'hold' : 'return';
-        this.card.style.transform = `translate3d(${x-width/2}px,${y-width*.75}px,0) scale(${scale}) rotate(${(1-extract)*-10}deg)`;
-        this.card.style.opacity = String(1-smooth((returning-.65)/.35));
-        this.rotor.style.transform = `rotateY(${180 * (1-smooth((elapsed-EXTRACT_MS)/FLIP_MS))}deg)`;
-        this.label.style.opacity = String(smooth((elapsed-HOLD_AT)/70) * (1-clamp((elapsed-RETURN_AT)/100)));
-        this.sheen.style.opacity = String(Math.sin(clamp((elapsed-EXTRACT_MS)/FLIP_MS)*Math.PI)*.65);
-        this.sheen.style.backgroundPosition = `${100-clamp((elapsed-EXTRACT_MS)/FLIP_MS)*200}% 0`;
+        const phase = elapsed < EXTRACT_MS ? 'extract' : elapsed < HOLD_AT ? 'flip' : elapsed < RETURN_AT ? 'hold' : 'return';
+        if (this.root.dataset.phase !== phase) this.root.dataset.phase = phase;
+        style(this.card,'transform',`translate3d(${x-width/2}px,${y-width*.75}px,0) scale(${scale}) rotate(${(1-extract)*-10}deg)`);
+        style(this.card,'opacity',String(1-smooth((returning-.65)/.35)));
+        style(this.rotor,'transform',`rotateY(${180 * (1-smooth((elapsed-EXTRACT_MS)/FLIP_MS))}deg)`);
+        style(this.label,'opacity',String(smooth((elapsed-HOLD_AT)/70) * (1-clamp((elapsed-RETURN_AT)/100))));
+        style(this.sheen,'opacity',String(Math.sin(clamp((elapsed-EXTRACT_MS)/FLIP_MS)*Math.PI)*.65));
+        style(this.sheen,'backgroundPosition',`${100-clamp((elapsed-EXTRACT_MS)/FLIP_MS)*200}% 0`);
       }
     }
-    if (this.icon && this.pulseAt !== null) {
+    if (this.pulseAt !== null) {
       const progress = (now-this.pulseAt)/320;
-      if (progress >= 1) { this.icon.style.removeProperty('filter'); this.pulseAt = null; }
-      else this.icon.style.filter = `brightness(${1+Math.sin(progress*Math.PI)*.6}) drop-shadow(0 0 ${Math.sin(progress*Math.PI)*6}px currentColor)`;
+      if (progress >= 1) { this.icon?.style.removeProperty('filter'); this.pulseAt = null; }
+      else if (this.icon) this.icon.style.filter = `brightness(${1+Math.sin(progress*Math.PI)*.6}) drop-shadow(0 0 ${Math.sin(progress*Math.PI)*6}px currentColor)`;
     }
   }
 }

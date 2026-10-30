@@ -47,7 +47,7 @@ async function open(record,width,height,webgl=true,reducedMotion='reduce',trumpM
   const page=await context.newPage(); page.on('pageerror',e=>errors.push(e.message));
   await page.route(/\/src\/table-scene\.js(?:\?|$)/,async route=>{
     const response=await route.fetch();
-    await route.fulfill({response,body:(await response.text()).replace('this.animate(0);','window.__clarityScene=this;this.animate(0);')});
+    await route.fulfill({response,body:(await response.text()).replace('this.buildTrump();','this.buildTrump();window.__clarityScene=this;')});
   });
   if(['playfield','trump'].includes(process.env.CLARITY_CASE)) await page.route(/\/src\/main\.js(?:\?|$)/,async route=>{
     const response=await route.fetch();
@@ -611,7 +611,11 @@ async function reviewTrump() {
   await expect(page.locator('.table-trump')).toContainText('等待庄家选择主牌');
   await expect(page.locator('.trump-reveal-front')).toHaveCSS('background-image',/wizard\.svg/);
   for(const [width,height] of [[844,300],[844,390]]) {
-    await page.setViewportSize({width,height});await beginReveal(page,wizard.lobby,wizard.record.game);await holdReveal(page);
+    await page.setViewportSize({width,height});
+    // Finish the real resize event/layout before injecting the next deal.
+    // Resizing an already-running reveal is tested separately below.
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    await beginReveal(page,wizard.lobby,wizard.record.game);await holdReveal(page);
     const geometry=await revealGeometry(page);
     for(const obstacle of geometry.obstacles) {
       expect(overlaps(geometry.card,obstacle),'wizard face leaves controls usable').toBe(false);
@@ -656,7 +660,10 @@ async function reviewTrump() {
   }
   checks.push({resizeDuringExtractionHoldReturn:true});
   await beginReveal(page,normal.lobby,normal.record.game);await holdReveal(page);
-  await page.emulateMedia({reducedMotion:'reduce'});await assertSettled(page,'主牌：黄色');
+  await page.emulateMedia({reducedMotion:'reduce'});
+  // Media emulation returns before the browser delivers its change event.
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(resolve)));
+  await assertSettled(page,'主牌：黄色');
   await beginReveal(page,normal.lobby,normal.record.game);await assertSettled(page,'主牌：黄色');
   await page.emulateMedia({reducedMotion:'no-preference'});
   await page.locator('#table-menu').click();await page.locator('#trump-motion').click();await page.locator('#table-menu').click();
