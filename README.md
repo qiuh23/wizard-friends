@@ -1,8 +1,10 @@
 # 巫师牌 · 好友桌
 
-**[开始游戏](https://wizard-friends.qiuh23.workers.dev/)**
+**[Cloudflare 入口](https://wizard-friends.qiuh23.workers.dev/) · [阿里云国内入口](http://115.29.188.62:8081/)**
 
-支持 Cloudflare 与阿里云两个独立房间入口。国内入口默认关闭，拟复用现有 ECS 的 `http://115.29.188.62:8081/`；实际部署和外网验收后再开放。安装、独立发布、备份、回滚与首次启用步骤见 [双部署说明](docs/aliyun-deployment.md)。
+阿里云复用现有 ECS，使用独立服务和数据，已完成首次正式部署及外网联机、重连与重启恢复验收。首页「选择服务器」会整页打开对应入口，网页资源、API 和 WebSocket 跟随入口；有国内玩家时可选择阿里云。国内入口目前使用 IP＋HTTP。
+
+两端房间池和身份独立；邀请链接包含所属入口及端口，分享码以 `C-`／`A-` 区分。请从原入口返回和恢复牌局，对局中不会自动切换服务器。安装、独立自动发布、备份、回滚与实际版本状态见 [双部署说明](docs/aliyun-deployment.md) 和 [实际状态记录](docs/aliyun-readiness.md)。
 
 3–6 人中文 Wizard 网页游戏，保留原 SVG 插画、暗绿三维牌桌、二维降级、省电模式、聊天、观战和离线练习。
 
@@ -98,6 +100,8 @@ Cloudflare 的 Git 构建设置为：
 发布授权由 Cloudflare 构建设置管理，仓库中不保存令牌。游戏入口使用同域 API／WebSocket，构建时无需设置 `VITE_RELAY_URL`。`wrangler.jsonc` 固定个人账户和 Worker 名称；`npm run deploy` 仍可用于维护者手动发布。GitHub 验证与 Cloudflare 构建分别运行；Cloudflare 发布前必跑上述检查，完整三客户端浏览器冒烟仍由 GitHub 验证流程承担。
 
 GitHub Pages 保留为独立手动工作流，复用成功的 `main` 验证产物，不重新构建；核对产物内公开 relay 配置与当前 `RELAY_URL` 一致。Workers Builds 的连接和构建记录可在 Cloudflare 的 `wizard-friends` → 设置 → 构建中检查，机制见 [Cloudflare 官方文档](https://developers.cloudflare.com/workers/ci-cd/builds/)。
+
+阿里云发布复用 `main` 上成功的 `Verify game` 检查及其 Linux 构建包，核对当前完整提交 SHA 后更新巫师牌独立服务；不在 ECS 重建，不发布未合并分支。胡闹运动会保留自己的正式／预览发布链路，一个游戏更新不要求重新发布另一个。首次启用、实际运行 SHA 与真实发布结果单独记录在 [实际状态记录](docs/aliyun-readiness.md)。
 
 ## 素材与设计参考
 

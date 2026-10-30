@@ -4,7 +4,7 @@
 
 Cloudflare 保留现有 Workers Builds、Durable Objects 与 main 发布配置。阿里云复用同一套 `src/game.js`、`RoomAuthority` 和 WebSocket v2 协议，以 Node 24、ws、SQLite 运行；无需 Cloudflare API、Redis 或多进程集群。首页切换是整页导航，网页资源、API、WebSocket、房间目录均来自本部署。两端房间池独立，邀请保留所属 origin 和端口，不迁移对局或身份，旧 Cloudflare 链接继续有效。
 
-国内按钮由受信 `/runtime-config.json` 控制，仓库默认 `enabled:false`。仅在真实外网建房、加入、聊天、重连和重启恢复后，分别把需要的入口中阿里云配置改成 true；PR 合并、健康检查通过都不能代替此验收。国内当前网页仍可使用自己的后端。HTTPS 首页不请求 HTTP 国内健康接口。Node 运行时的 `relayOrigin:""` 覆盖构建时 `VITE_RELAY_URL`，同一份已检查前端供两端使用；手动 Pages 仍保留原 relay 校验。
+国内按钮由受信 `/runtime-config.json` 控制，首次交付默认 `enabled:false`；2026-10-30 完成真实外网联机与重启恢复后，生产入口配置已启用，本轮后续 PR 同步仓库公开配置为 true。新的主机 bootstrap 仍保留 false，需验收后自行启用。PR 合并、健康检查通过都不能代替此验收。HTTPS 首页不请求 HTTP 国内健康接口。Node 运行时的 `relayOrigin:""` 覆盖构建时 `VITE_RELAY_URL`，同一份已检查前端供两端使用；手动 Pages 仍保留原 relay 校验。
 
 ## 固定隔离范围
 
@@ -57,6 +57,8 @@ Deploy checked Wizard to Aliyun 只加载 main 控制脚本。等待发布队列
 主机验证 ZIP 摘要、包内身份、Linux x64／Node24／存档 schema，拒绝路径逃逸、链接、特殊文件。更新前在线备份 SQLite 并检查完整性，版本目录 `/opt/wizard-friends/releases/<SHA>-<Verify run ID>` 不可变，current 原子切换。运行用户无权改代码。启动重读 SQLite，不清空房间或关闭墓碑。回环与公网均检查前端 SHA、后端 SHA、v2 和真实 WebSocket 升级；失败只恢复巫师牌旧代码，保留当前数据库。相同检查的失败重试可复用相同已核验只读版本。
 
 ## 首次启用顺序
+
+2026-10-30 已通过此正式流程完成首次真实发布：main `d15f231b3bdf2cb0d9b5fc6b4cac0eca172a4540` 的 [Verify game 40999706795](https://github.com/qiuh23/wizard-friends/actions/runs/40999706795) 生成 Linux 产物，随后手动触发的 [发布 41000001042](https://github.com/qiuh23/wizard-friends/actions/runs/41000001042) 成功验证 GitHub OIDC、独立 ECS 安装器、外网前后端 SHA 和 WebSocket 升级／协议标记。未在 ECS 重建，未发布功能分支。手动首次成功与仓库自动开关、后续 main 自动触发成功分别记录；当前启用状态及多人／重启验收以[实际状态记录](aliyun-readiness.md)为准。
 
 1. 完成主机准备、固定安装器权限拒绝测试、独立云权限；仓库变量 `ALIYUN_AUTO_DEPLOY_ENABLED=false`。未合并 workflow 时仅记准备完成。
 2. 由用户合并 PR。本任务不自动合并，也不发布功能分支。等最新 main 的 Verify game 成功并产生 Linux 包；最新 main 失败则修复，保留当前正常版本。
