@@ -27,11 +27,12 @@ test('background face retry updates every existing GPU texture without another f
   }};
   globalThis.matchMedia = () => ({matches:false});
   const {TableScene} = await import('../src/table-scene.js');
-  const scene = () => ({textures:new Map(),renderer:{capabilities:{getMaxAnisotropy:()=>4}}});
+  const scene = () => ({textures:new Map(),draws:0,requestDraw() { this.draws++; },renderer:{capabilities:{getMaxAnisotropy:()=>4}}});
   const card = {kind:'number',suit:'green',rank:13};
-  const first = TableScene.prototype.face.call(scene(),card);
-  const second = TableScene.prototype.face.call(scene(),card);
-  const disposed = TableScene.prototype.face.call(scene(),card); disposed.dispose();
+  const firstScene = scene(), secondScene = scene(), disposedScene = scene();
+  const first = TableScene.prototype.face.call(firstScene,card);
+  const second = TableScene.prototype.face.call(secondScene,card);
+  const disposed = TableScene.prototype.face.call(disposedScene,card); disposed.dispose();
   assert.equal(first.image, second.image); assert.equal(images.length, 1);
   const failed = loadCardFace(card); images[0].onerror();
   await assert.rejects(failed, /加载失败/);
@@ -44,6 +45,7 @@ test('background face retry updates every existing GPU texture without another f
   assert.equal(first.userData.faceReady, true); assert.equal(first.version, 2);
   assert.equal(second.userData.faceReady, true); assert.equal(second.version, 2);
   assert.equal(disposed.userData.faceReady, false); assert.equal(disposed.version, 1);
+  assert.equal(firstScene.draws, 1); assert.equal(secondScene.draws, 1); assert.equal(disposedScene.draws, 0);
   await preloadCardFaces(); await loadCardFace(card);
   assert.equal(first.version, 2); assert.equal(second.version, 2);
 });

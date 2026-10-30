@@ -111,3 +111,16 @@ test('each subsequent round uses its own event even when the same card is turned
   s.sync(next);assert.notEqual(s.reveal.effect.key,first);assert.equal(s.reveal.effect.display.card,s.state.reveal);
   s.advance(500);s.sync(s.state,{initial:true});assert.equal(s.reveal.effect,null);
 });
+
+test('readable reveal hold sleeps until returning, then settles without further frames', () => {
+  const s = setup(); s.sync();
+  assert.equal(s.reveal.nextUpdateDelay(), 0);
+  s.advance(800);
+  assert.equal(s.reveal.nextUpdateDelay(), 1100);
+  s.advance(1100);
+  assert.equal(s.reveal.nextUpdateDelay(), 0);
+  s.advance(500); s.reveal.draw();
+  assert.equal(s.reveal.nextUpdateDelay(), 0); // confirmed icon pulse
+  s.advance(321); s.reveal.draw();
+  assert.equal(s.reveal.nextUpdateDelay(), null);
+});

@@ -31,6 +31,7 @@ export class TableMotion {
   }
   sync(state, { initial = false, serverNow = Date.now(), leader = null,
     emphasisScale = this.emphasisScale, reducedMotion = this.reducedMotion } = {}) {
+    this.frameSample = null;
     const time = this.clock();
     const done = ['trickEnd', 'roundEnd', 'finished'].includes(state?.phase);
     const scope = state ? `${state.round}:${state.completedTricks + (done ? 0 : 1)}` : '';
@@ -86,6 +87,7 @@ export class TableMotion {
   // collection schedule. Read the current scale before retargeting the tween.
   setEmphasisScale(scale, { immediate = this.reducedMotion } = {}) {
     if (this.emphasisScale === scale && !immediate) return;
+    this.frameSample = null;
     const time = this.clock();
     this.emphasisScale = scale;
     for (const id of this.entries.keys()) {
@@ -95,8 +97,7 @@ export class TableMotion {
       this.emphasis.set(id, { from: immediate ? target : this.emphasisAt(id, time), to: target, at: time });
     }
   }
-  timing(id) {
-    const time = this.clock();
+  timing(id, time = this.clock()) {
     const order = Math.max(0, [...this.entries.keys()].indexOf(id));
     const collectDurationMs = CARD_COLLECT_MS - Math.max(0, this.entries.size - 1) * CARD_COLLECT_STAGGER_MS;
     return {
@@ -110,16 +111,16 @@ export class TableMotion {
     return emphasis ? this.reducedMotion ? emphasis.to
       : emphasis.from + (emphasis.to - emphasis.from) * smooth(progress(time - emphasis.at, EMPHASIS_MS)) : 1;
   }
-  labelOpacity() {
+  labelOpacity(time = this.clock()) {
     if (this.reducedMotion || this.collectAt === null) return 1;
-    return 1 - smooth(progress(this.clock() - (this.collectAt - CARD_LABEL_FADE_MS), CARD_LABEL_FADE_MS));
+    return 1 - smooth(progress(time - (this.collectAt - CARD_LABEL_FADE_MS), CARD_LABEL_FADE_MS));
   }
-  pose(id) {
-    if (this.reducedMotion) return { enter: 1, collect: 0, lift: 0, opacity: 1, scale: this.emphasisAt(id) };
-    const { enterMs, collectMs, collectDurationMs } = this.timing(id);
+  pose(id, time = this.clock()) {
+    if (this.reducedMotion) return { enter: 1, collect: 0, lift: 0, opacity: 1, scale: this.emphasisAt(id, time) };
+    const { enterMs, collectMs, collectDurationMs } = this.timing(id, time);
     const enter = progress(enterMs, CARD_ENTER_MS);
     const collect = smooth(progress(collectMs ?? 0, collectDurationMs));
-    const emphasis = this.emphasisAt(id);
+    const emphasis = this.emphasisAt(id, time);
     const leadingLift = 4 * Math.max(0, Math.min(1, (emphasis - 1) / Math.max(.01, this.emphasisScale - 1)));
     return { enter: 1 - (1 - enter) ** 3, collect,
       lift: 18 * 4 * collect * (1 - collect) + leadingLift * (1 - collect),
@@ -127,10 +128,24 @@ export class TableMotion {
       opacity: 1 - smooth(progress(collect - .65, .35)),
     };
   }
-  isAnimating() {
-    const time = this.clock();
+  isAnimating(time = this.clock()) {
     return !this.paused && !this.reducedMotion && (this.collectAt !== null && time >= this.collectAt - CARD_LABEL_FADE_MS && time < this.collectAt + CARD_COLLECT_MS ||
       [...this.entries.values()].some(at => time < at + CARD_ENTER_MS) ||
       [...this.emphasis.values()].some(value => value.from !== value.to && time < value.at + EMPHASIS_MS));
+  }
+  nextUpdateDelay(time = this.clock()) {
+    if (this.paused || this.reducedMotion || !this.entries.size) return null;
+    if (this.isAnimating(time)) return 0;
+    const next = this.collectAt === null ? null : this.collectAt - CARD_LABEL_FADE_MS - time;
+    return next !== null && next > 0 ? next : null;
+  }
+  /** HTML and WebGL consume one presentation sample per shared display frame. */
+  snapshot(frameTime) {
+    if (frameTime !== undefined && this.frameSample?.frameTime === frameTime) return this.frameSample;
+    const time = this.clock();
+    const sample = { frameTime, time, poses: new Map([...this.entries.keys()].map(id => [id, this.pose(id, time)])),
+      labelOpacity: this.labelOpacity(time), animating: this.isAnimating(time), nextDelay: this.nextUpdateDelay(time) };
+    if (frameTime !== undefined) this.frameSample = sample;
+    return sample;
   }
 }

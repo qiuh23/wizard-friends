@@ -39,7 +39,7 @@ try {
   });
   await page.route(/\/src\/table-scene\.js(?:\?|$)/,async route=>{
     const response = await route.fetch();
-    await route.fulfill({response,body:(await response.text()).replace('this.animate(0);','window.__reviewScene=this;this.animate(0);')});
+    await route.fulfill({response,body:(await response.text()).replace('this.buildTrump();','this.buildTrump();window.__reviewScene=this;')});
   });
   await page.goto(base,{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>window.__reviewScene?.textures.size === 3);

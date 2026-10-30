@@ -15,7 +15,7 @@ export class HandMotion {
     this.hand=hand;this.selected=selected;if(!hand){this.nodes=[];this.hovered=null;return;}
     const next=[...hand.querySelectorAll('[data-card]')];
     for(const placeholder of next) {
-      const old=previous?.cards.get(placeholder.dataset.card)?.node;if(!old)continue;
+      const old=previous?.cards.get(placeholder.dataset.card)?.node;if(!old || old===placeholder)continue;
       for(const attribute of [...old.attributes])old.removeAttribute(attribute.name);
       for(const attribute of placeholder.attributes)old.setAttribute(attribute.name,attribute.value);
       old.innerHTML=placeholder.innerHTML;placeholder.replaceWith(old);
@@ -64,12 +64,13 @@ export class HandMotion {
     const inspected=this.nodes.findIndex(node=>node.dataset.card===this.hovered);
     const selected=this.nodes.findIndex(node=>node.dataset.card===this.selected);
     const fan=desktopFan(this.nodes.length,this.hand.clientWidth,inspected,selected,this.landscape);
-    this.hand.style.setProperty('--fan-card-width',`${fan.cardWidth}px`);
+    const set = (node,name,value) => { if(node.style.getPropertyValue(name)!==value)node.style.setProperty(name,value); };
+    set(this.hand,'--fan-card-width',`${fan.cardWidth}px`);
     this.nodes.forEach((node,i)=>{
       const pose=fan.poses[i];
-      node.style.setProperty('--fan-x',`${pose.x}px`);node.style.setProperty('--fan-y',`${pose.y}px`);
-      node.style.setProperty('--hand-angle',`${pose.angle}deg`);node.style.setProperty('--hand-push',`${pose.push}px`);
-      node.style.setProperty('--hand-lift',`${pose.lift}px`);node.style.zIndex=String(pose.z);
+      set(node,'--fan-x',`${pose.x}px`);set(node,'--fan-y',`${pose.y}px`);
+      set(node,'--hand-angle',`${pose.angle}deg`);set(node,'--hand-push',`${pose.push}px`);
+      set(node,'--hand-lift',`${pose.lift}px`);if(node.style.zIndex!==String(pose.z))node.style.zIndex=String(pose.z);
       node.classList.toggle('hovered',node.dataset.card===this.hovered);
     });
   }
