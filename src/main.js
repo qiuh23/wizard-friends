@@ -1,4 +1,4 @@
-import { createGame, addPlayer, viewFor, botAction, normalizeGame, TURN_MS, TRICK_REVIEW_MS, SUITS, SUIT_NAMES, winner } from './game.js';
+import { createGame, addPlayer, viewFor, botAction, normalizeGame, TRICK_REVIEW_MS, SUITS, SUIT_NAMES, winner } from './game.js';
 import './style.css';
 import './cinematic.css';
 import './fullscreen.css';
@@ -38,7 +38,8 @@ import { updateTableLayout } from './table-layout-dom.js';
 import { tableViewKey, updateHandSelection, reorderHand } from './ui-regions.js';
 import { seatPosition, relativeSeat, followSuitHint, playBlockedReason, sortCards, isSwipe } from './hand-model.js';
 import { readRoomRecoveries, saveRoomRecovery, removeRoomRecovery } from './room-recovery.js';
-import { PRACTICE_SAVE_KEY, PRACTICE_KEEP_MS, readPractice, savePractice } from './practice-save.js';
+import { PRACTICE_SAVE_KEY, PRACTICE_KEEP_MS, readPractice, savePractice, restorePracticeClock } from './practice-save.js';
+import { turnStatus } from './turn-status.js';
 import { uuidV4 } from './uuid.js';
 import { backendId, backendStorage, entryURL, invitationURL, parseRoomCode, publicRoomCode, runtimeConfig } from './backend-entry.js';
 import { copyInvitation } from './share-link.js';
@@ -583,7 +584,7 @@ function setupClearUI() {
     details.innerHTML = '<summary>对局记录</summary>'; journal.replaceWith(details); details.append(journal);
     if (state.phase === 'play' && !$('#turn-countdown')) {
       const timer = document.createElement('span'); timer.id = 'turn-countdown';
-      timer.setAttribute('role', 'timer'); timer.title = '每次出牌 30 秒，超时自动出一张合法牌';
+      timer.setAttribute('role', 'timer');
       $('.action-panel').prepend(timer);
       updateCountdown();
     }
@@ -601,12 +602,11 @@ function updateCountdown() {
   }
   const timer = $('#turn-countdown');
   if (!timer) return;
-  if (state.lifecycle?.paused) { text(timer,`暂停 · ${Math.ceil((state.lifecycle.remainingMs || 0)/1000)} 秒`); return; }
-  if (!practice && (!networkReady || state.lifecycle?.reconnecting)) { text(timer,'连接恢复中'); return; }
-  const seconds = Math.max(0, Math.ceil((state.turnDeadline - (Date.now() + serverClockOffset)) / 1000));
-  text(timer,Number.isFinite(seconds) ? `${seconds} 秒` : '同步中');
-  timer.classList.toggle('urgent', seconds <= 10);
-  const label = `当前玩家剩余出牌时间 ${Number.isFinite(seconds) ? seconds : '同步中'} 秒`;
+  const status = turnStatus(state, { now: Date.now() + serverClockOffset, connected: practice || networkReady });
+  text(timer,status.text);
+  timer.title = '每次出牌 45 秒；断线累计最多冻结 20 秒，重连至少保留 10 秒（本次出牌最多补 10 秒）；超时自动合法出牌';
+  timer.classList.toggle('urgent', status.urgent);
+  const label = status.label ?? status.text;
   if (timer.getAttribute('aria-label') !== label) timer.setAttribute('aria-label', label);
 }
 function setupGameHUD(graphics) {
@@ -984,10 +984,9 @@ function restoreRoom(saved) {
     stopRoomTransport();
     ({ game, identities, room, me } = saved);
     practiceCollection = saved.collection ?? null;
-    practicePaused = saved.paused === true; practiceRemaining = saved.remainingMs;
-    if (Number.isFinite(saved.remainingMs) && game.phase === 'play') game.turnDeadline = Date.now() + saved.remainingMs;
+    practicePaused = saved.paused === true;
     normalizeGame(game);
-    if (game.phase === 'play' && !Number.isFinite(game.turnDeadline)) game.turnDeadline = Date.now() + TURN_MS;
+    practiceRemaining = restorePracticeClock(saved);
     isHost = practice = networkReady = true; spectating = false;
     notify('已恢复原来的练习牌局。'); broadcast();
   } else launch(saved.role === 'host', saved);

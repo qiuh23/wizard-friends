@@ -123,7 +123,8 @@ function canBid(g, id) {
 function foresightActive(g) {
   return !!g.options.foresight && ['trump', 'bid'].includes(g.phase);
 }
-export const TURN_MS = 30000;
+export const TURN_MS = 45000;
+export const TURN_ENTRY_MS = 450;
 export const TRICK_REVIEW_MS = 3000;
 export function act(g, actor, action, random, now = Date.now()) {
   const phase = g.phase, turn = g.turn;
@@ -138,7 +139,8 @@ export function act(g, actor, action, random, now = Date.now()) {
   applyAction(g, actor, action, source, false, now);
   if (!['chat', 'rename'].includes(action.type)) {
     if (g.phase === 'play' && g.paused !== true) {
-      if (phase !== 'play' || turn !== g.turn || !Number.isFinite(g.turnDeadline)) g.turnDeadline = now + TURN_MS;
+      // Practice and both server adapters use the same budget, including card entry.
+      if (phase !== 'play' || turn !== g.turn || !Number.isFinite(g.turnDeadline)) g.turnDeadline = now + TURN_MS + TURN_ENTRY_MS;
     } else if (g.phase !== 'play' && g.turnDeadline != null) g.turnDeadline = null;
   }
   recordEvents(g, before, action, now);
@@ -413,7 +415,8 @@ export function spectatorView(g) {
     spectator: true, foresightActive: false, canBid: false, legal: [], bids: [],
   };
 }
-// Bounded deterministic evaluation: at most 20 candidates × 60 public-pool cards.
+// Bounded deterministic evaluation: at most 20 candidates, a 60-card public pool,
+// and a quadratic hand-sized score table; no game-tree search.
 // No simulations consume the authority's dealing stream, and no hidden state is read.
 function unseenCards(v, hand) {
   const known = new Set([...hand, ...v.trick.map(play => play.card), v.reveal,
@@ -446,6 +449,51 @@ function distribution(probabilities) {
 const expectedPoints = (bid, won, probabilities) => distribution(probabilities)
   .reduce((sum, probability, extra) => sum + probability * points(bid, won + extra), 0);
 
+const playStrength = (card, trump) => card.kind === 'wizard' ? 100 : card.kind === 'jester' ? -1 :
+  card.rank + (card.suit === trump ? 20 : 0);
+function futurePlayScores(v, index, hand, pool, bid, won) {
+  const suits = new Set(hand.filter(card => card.kind === 'number').map(card => card.suit));
+  const chances = hand.map(card => {
+    const take = probabilityWins(v, index, card, pool, [], v.players.length - 1);
+    // When following, save dangerous cards for a public-pool lead on which they
+    // can legally lose. A suit still held in this hand cannot be ignored.
+    let legalLeads = 0, winningLeads = 0;
+    for (const other of pool) {
+      if (v.options.deckMode !== 'mono' && card.kind === 'number' && other.kind === 'number' &&
+          card.suit !== other.suit && suits.has(other.suit)) continue;
+      legalLeads++;
+      if (winner([{ player: -1, card: other }, { player: index, card }], v.trump, v.options.deckMode) === index) winningLeads++;
+    }
+    // A side-suit ace is strong on lead, but cannot beat an off-suit lead. A
+    // later wizard or equal mono number also cannot beat an earlier one.
+    const followTake = winningLeads / Math.max(1, legalLeads) * take ** ((v.players.length - 2) / (v.players.length - 1));
+    const escapes = (legalLeads - winningLeads) / Math.max(1, pool.length);
+    const opportunities = Math.max(1, hand.length * (v.players.length - 1) / 2);
+    const duck = hand.length === 1 ? followTake : Math.min(followTake, (1 - escapes) ** opportunities);
+    return { card, take, followTake, duck };
+  }).sort((a, b) => a.take - b.take || playStrength(a.card, v.trump) - playStrength(b.card, v.trump) ||
+    (a.card.id < b.card.id ? -1 : a.card.id > b.card.id ? 1 : 0));
+
+  // Keep reliable winners in reserve. Reconsider taking or ducking each future
+  // card after its predecessor's result, instead of assuming every card must
+  // try to win. The terminal objective remains the published expected score.
+  let leading = Array.from({ length: hand.length + 2 }, (_, extra) => expectedPoints(bid, won + extra, []));
+  let following = leading;
+  for (let i = chances.length - 1; i >= 0; i--) {
+    const { take, followTake, duck } = chances[i], nextLeading = [], nextFollowing = [];
+    for (let extra = 0; extra < leading.length - 1; extra++) {
+      const winValue = leading[extra + 1], loseValue = following[extra];
+      nextLeading.push(take * winValue + (1 - take) * loseValue);
+      // Winning makes us lead next; losing allows a later discard. Once at or
+      // above target, every extra win hurts and this policy naturally ducks.
+      const chance = winValue > loseValue ? followTake : duck;
+      nextFollowing.push(chance * winValue + (1 - chance) * loseValue);
+    }
+    leading = nextLeading; following = nextFollowing;
+  }
+  return { leading, following };
+}
+
 export function botAction(g, actorId = g.players[g.turn]?.id, difficulty) {
   const v = viewFor(g, actorId);
   const index = v.players.findIndex(player => player.id === actorId), p = v.players[index];
@@ -477,18 +525,21 @@ export function botAction(g, actorId = g.players[g.turn]?.id, difficulty) {
     const cards = hand.filter(card => v.legal.includes(card.id)).slice(0, 20);
     if (!cards.length) return null;
     const pool = unseenCards(v, hand);
-    const strength = card => card.kind === 'wizard' ? 100 : card.kind === 'jester' ? -1 : card.rank + (card.suit === v.trump ? 20 : 0);
-    const remaining = hand.map(card => probabilityWins(v, index, card, pool, [], v.players.length - 1));
-    let best = cards[0], bestValue = -Infinity;
+    let best = cards[0], bestValue = -Infinity, bestWin = Infinity;
     for (const card of cards) {
       const win = probabilityWins(v, index, card, pool);
-      const future = remaining.filter((_, i) => hand[i].id !== card.id);
-      const value = win * expectedPoints(p.bid, p.won + 1, future) + (1 - win) * expectedPoints(p.bid, p.won, future);
-      // Stable tie break conserves winners when still short; sheds them after reaching the target.
-      const tie = p.bid > p.won ? -strength(card) : strength(card);
-      const bestTie = p.bid > p.won ? -strength(best) : strength(best);
-      if (value > bestValue + 1e-9 || (Math.abs(value - bestValue) < 1e-9 && tie > bestTie)) {
-        best = card; bestValue = value;
+      const future = futurePlayScores(v, index, hand.filter(other => other.id !== card.id), pool, p.bid, p.won);
+      const value = win * future.leading[1] + (1 - win) * future.following[0];
+      // Equal round scores: avoid a needless immediate overtrick, then conserve
+      // winners while short or discard dangerous strength once the target is met.
+      const tie = (p.bid > p.won ? -1 : 1) * playStrength(card, v.trump);
+      const bestTie = (p.bid > p.won ? -1 : 1) * playStrength(best, v.trump);
+      const equalScore = Math.abs(value - bestValue) < 1e-9;
+      const equalWin = p.bid > p.won || Math.abs(win - bestWin) < 1e-9;
+      if (value > bestValue + 1e-9 || equalScore &&
+          (p.bid <= p.won && win < bestWin - 1e-9 || equalWin &&
+            (tie > bestTie || tie === bestTie && card.id < best.id))) {
+        best = card; bestValue = value; bestWin = win;
       }
     }
     return { type: 'play', card: best.id };

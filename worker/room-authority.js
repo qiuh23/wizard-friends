@@ -1,4 +1,4 @@
-import { createGame, normalizeGame, addPlayer, act, botAction, viewFor, spectatorView, SUIT_NAMES, TURN_MS, TRICK_REVIEW_MS } from '../src/game.js';
+import { createGame, normalizeGame, addPlayer, act, botAction, viewFor, spectatorView, SUIT_NAMES, TURN_MS, TURN_ENTRY_MS, TRICK_REVIEW_MS } from '../src/game.js';
 import { appendPublicEvent } from '../src/spectator-events.js';
 
 export const NORMAL_RETENTION_MS = 30 * 60 * 1000;
@@ -6,7 +6,8 @@ export const PAUSED_RETENTION_MS = 4 * 60 * 60 * 1000;
 export const PRACTICE_RETENTION_MS = 10 * 60 * 1000;
 export const CONTINUATION_MS = 60000;
 export const RESULTS_MS = 60000;
-export const RECONNECT_GRACE_MS = 8000;
+export const RECONNECT_GRACE_MS = 20000;
+export const RECONNECT_MIN_MS = 10000;
 const playableRound = game => ['trump', 'bid', 'play', 'trickEnd'].includes(game.phase) && game.round > 0;
 const clone = value => structuredClone(value);
 
@@ -24,13 +25,18 @@ export class RoomAuthority {
     normalizeGame(this.record.game);
     this.record.reconnectUntil ||= {};
     this.record.lifecycle.resultsConfirmed ||= [];
-    this.syncCollection(now);
+    if (!this.closed && this.game.phase === 'play') {
+      if (this.record.frozen && !Number.isFinite(this.record.frozen.remaining)) this.record.frozen.remaining = TURN_MS + TURN_ENTRY_MS;
+      else if (!this.record.frozen && !Number.isFinite(this.game.turnDeadline)) this.game.turnDeadline = now + TURN_MS + TURN_ENTRY_MS;
+    }
+    this.syncClock(now);
   }
   get game() { return this.record.game; }
   get life() { return this.record.lifecycle; }
   get closed() { return this.life.closed; }
   hostOnline() { return this.game.players.find(p => p.id === this.record.hostId)?.online === true; }
   join(hash, { host = false, name = '', automaticName = false, spectator = false } = {}, now = Date.now()) {
+    this.tick(now);
     if (this.closed) throw new Error('房间已关闭，旧链接不能重新开启牌局。');
     if (spectator) return { id: `spectator:${hash}`, spectator: true, host: false };
     let id = this.record.identities[hash];
@@ -44,16 +50,20 @@ export class RoomAuthority {
     if (host) this.record.hostId = id;
     const player = this.game.players.find(p => p.id === id);
     if (!player) throw new Error('该身份已离开座位，不能恢复。');
+    const returning = !player.online;
     player.online = true;
     delete this.record.reconnectUntil[id];
     if (id === this.record.hostId) {
       this.life.hostOfflineSince = null;
       if (!this.life.paused) this.life.retentionDeadline = null;
     }
-    this.syncClock(now); this.schedule(now);
+    this.syncClock(now);
+    if (returning) this.grantReconnectTime(id, now);
+    this.schedule(now);
     return { id, host: id === this.record.hostId, spectator: false };
   }
   disconnect(id, now = Date.now()) {
+    this.tick(now);
     const player = this.game.players.find(p => p.id === id);
     if (!player || !player.online || player.bot || this.closed) return;
     player.online = false;
@@ -70,7 +80,57 @@ export class RoomAuthority {
   held(now) {
     const current = this.game.players[this.game.turn];
     return this.life.paused || !!this.life.continuationVote ||
-      (this.game.phase === 'play' && current && !current.online && (this.record.reconnectUntil[current.id] || 0) > now);
+      (this.game.phase === 'play' && current && !current.online && (this.record.turnProtection?.holdUntil || 0) > now);
+  }
+  syncProtection(now) {
+    const current = this.game.players[this.game.turn];
+    if (this.closed || this.game.phase !== 'play' || !current) {
+      this.record.turnProtection = null;
+      return now;
+    }
+    const scope = `${this.game.round}:${this.game.completedTricks}:${this.game.trick.length}:${this.game.turn}`;
+    const paused = this.life.paused || !!this.life.continuationVote;
+    if (this.record.turnProtection?.scope !== scope) {
+      const legacyUntil = !this.record.turnProtection && this.record.frozen && !paused && !current.online
+        ? this.record.reconnectUntil[current.id] : null;
+      this.record.turnProtection = { scope, freezeRemainingMs: Number.isFinite(legacyUntil) ? 8000 : RECONNECT_GRACE_MS, reconnectCreditMs: RECONNECT_MIN_MS,
+        holdStartedAt: Number.isFinite(legacyUntil) ? legacyUntil - 8000 : null,
+        holdUntil: Number.isFinite(legacyUntil) ? legacyUntil : null };
+    }
+    const protection = this.record.turnProtection;
+    let thawAt = now;
+    if (Number.isFinite(protection.holdUntil)) {
+      const end = Math.min(now, protection.holdUntil);
+      protection.freezeRemainingMs = Math.max(0, protection.freezeRemainingMs - Math.max(0, end - protection.holdStartedAt));
+      protection.holdStartedAt = end;
+      if (paused || current.online || now >= protection.holdUntil) {
+        thawAt = end;
+        protection.holdUntil = protection.holdStartedAt = null;
+        // A pause that starts after the grace boundary must capture only the
+        // actual remaining clock, rather than also freezing the delayed alarm.
+        if (paused && this.record.frozen && end < now) {
+          if (this.record.frozen.remaining != null) this.record.frozen.remaining = Math.max(0, this.record.frozen.remaining - (now - end));
+          if (this.record.frozen.taskRemaining != null) this.record.frozen.taskRemaining = Math.max(0, this.record.frozen.taskRemaining - (now - end));
+        }
+      }
+    }
+    if (!paused && !current.online && !current.bot && protection.freezeRemainingMs > 0 && !Number.isFinite(protection.holdUntil)) {
+      protection.holdStartedAt = now;
+      protection.holdUntil = now + protection.freezeRemainingMs;
+    }
+    return thawAt;
+  }
+  grantReconnectTime(id, now) {
+    const protection = this.record.turnProtection;
+    if (this.game.phase !== 'play' || this.game.players[this.game.turn]?.id !== id || !protection) return;
+    const remaining = this.record.frozen?.remaining ?? (Number.isFinite(this.game.turnDeadline) ? Math.max(0, this.game.turnDeadline - now) : null);
+    if (remaining == null) return;
+    // The operation floor is funded by one 10-second pool for this opportunity.
+    // Repeat connections can spend its remainder, but can never replenish it.
+    const extra = Math.min(protection.reconnectCreditMs, Math.max(0, RECONNECT_MIN_MS - remaining));
+    protection.reconnectCreditMs -= extra;
+    if (this.record.frozen) this.record.frozen.remaining = remaining + extra;
+    else this.game.turnDeadline = now + remaining + extra;
   }
   syncCollection(now) {
     const done = ['trickEnd', 'roundEnd', 'finished'].includes(this.game.phase);
@@ -93,6 +153,7 @@ export class RoomAuthority {
   }
   syncClock(now) {
     this.syncCollection(now);
+    const thawAt = this.syncProtection(now);
     const held = this.held(now);
     if (held && !this.record.frozen) {
       this.record.frozen = {
@@ -102,9 +163,9 @@ export class RoomAuthority {
       };
       this.game.turnDeadline = null;
     } else if (!held && this.record.frozen) {
-      if (this.game.phase === 'play') this.game.turnDeadline = now + (this.record.frozen.remaining ?? TURN_MS);
-      if (this.record.task && this.record.frozen.taskRemaining != null) this.record.task.at = now + this.record.frozen.taskRemaining;
-      if (this.record.collection && this.record.frozen.collectionRemaining != null) this.record.collection.at = now + this.record.frozen.collectionRemaining;
+      if (this.game.phase === 'play') this.game.turnDeadline = thawAt + (this.record.frozen.remaining ?? TURN_MS + TURN_ENTRY_MS);
+      if (this.record.task && this.record.frozen.taskRemaining != null) this.record.task.at = thawAt + this.record.frozen.taskRemaining;
+      if (this.record.collection && this.record.frozen.collectionRemaining != null) this.record.collection.at = thawAt + this.record.frozen.collectionRemaining;
       this.record.frozen = null;
     }
   }
@@ -122,10 +183,6 @@ export class RoomAuthority {
       act(this.game, actor, action, undefined, now);
     } finally { if (system && host) host.online = wasOnline; }
     if (['chat', 'rename'].includes(action.type)) this.game.turnDeadline = frozenDeadline;
-    else if (this.game.phase === 'play' && (phase !== 'play' || turn !== this.game.turn)) {
-      // The next player receives a full 30 seconds after the card entry animation.
-      this.game.turnDeadline = now + TURN_MS + 450;
-    }
     this.recordPublicAction(before, actor, action, now);
     if (this.game.phase !== phase || this.game.turn !== turn) this.record.task = null;
     if (['roundEnd', 'finished'].includes(this.game.phase) && this.life.closeAfterRound) {
@@ -219,7 +276,7 @@ export class RoomAuthority {
   close(reason) {
     this.life.closed = true; this.life.closeReason = reason;
     this.life.paused = false; this.life.continuationVote = null;
-    this.game.turnDeadline = null; this.record.task = null; this.record.frozen = null; this.record.collection = null;
+    this.game.turnDeadline = null; this.record.task = null; this.record.frozen = null; this.record.collection = null; this.record.turnProtection = null;
   }
   expire(now) {
     if (this.closed) return;
@@ -286,7 +343,7 @@ export class RoomAuthority {
     if (!this.held(now)) {
       if (this.game.phase === 'play' && Number.isFinite(this.game.turnDeadline)) values.push(this.game.turnDeadline);
       if (this.record.task) values.push(this.record.task.at);
-    } else for (const until of Object.values(this.record.reconnectUntil)) if (until > now) values.push(until);
+    } else if (this.record.turnProtection?.holdUntil > now) values.push(this.record.turnProtection.holdUntil);
     return values.length ? Math.max(now + 1, Math.min(...values)) : null;
   }
   view(identity, spectators = 0, now = Date.now()) {
@@ -306,6 +363,9 @@ export class RoomAuthority {
       collectionAt: this.record.frozen ? null : this.record.collection?.at ?? null,
       collectionRemainingMs: this.record.frozen?.collectionRemaining ?? (this.record.collection ? Math.max(0, this.record.collection.at - now) : null),
       reconnecting: this.held(now) && !this.life.paused && !this.life.continuationVote,
+      reconnectUntil: this.held(now) && !this.life.paused && !this.life.continuationVote ? this.record.turnProtection?.holdUntil ?? null : null,
+      reconnectPlayerId: this.held(now) && !this.life.paused && !this.life.continuationVote ? this.game.players[this.game.turn]?.id ?? null : null,
+      reconnectRemainingMs: this.held(now) && !this.life.paused && !this.life.continuationVote ? Math.max(0, (this.record.turnProtection?.holdUntil ?? now) - now) : 0,
       closed: this.closed,
     };
     if (this.held(now)) { result.legal = []; result.canBid = false; result.bids = []; }

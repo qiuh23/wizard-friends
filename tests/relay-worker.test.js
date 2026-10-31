@@ -171,7 +171,7 @@ test('an authenticated legacy owner migrates exact hands and seat identities onc
   assert.equal(worker.authority.game.round, 4, 'existing authority cannot be overwritten by a browser snapshot');
 });
 
-test('late room-service recovery gives time before an incoming message can trigger a false timeout', async t => {
+test('late room-service recovery executes an expired legal timeout before accepting a delayed message', async t => {
   t.mock.timers.enable({ apis: ['Date'], now: 100000 });
   const s = setup(), host = s.add('host'), guest = s.add('guest');
   await s.hello(host, true); await s.hello(guest, false, otherToken);
@@ -183,10 +183,59 @@ test('late room-service recovery gives time before an incoming message can trigg
   s.relay.authority.record.alarmAt = Date.now() + 1000;
   t.mock.timers.tick(17000);
   await s.message(guest, { type: 'send', data: { type: 'action', action: { type: 'chat', text: '服务刚刚恢复' } } });
-  assert.equal(game.trick.length, 0);
-  assert.ok(game.turnDeadline >= Date.now() + 8000);
+  assert.equal(game.trick.length, 1);
+  assert.equal(game.trick[0].card.id, 'blue-1');
+  assert.match(game.log.at(-1), /超时/);
+  const deadline = game.turnDeadline;
   await s.message(guest, { type: 'send', data: { type: 'action', action: { type: 'play', card: 'blue-1' } } });
   assert.equal(game.trick.length, 1);
+  assert.equal(game.turnDeadline, deadline, 'late duplicate action cannot renew the next player deadline');
+});
+
+test('Worker persists a bounded current-turn reconnect wait and resumes legal timeout after repeated drops', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: 100000 });
+  const s = setup(), host = s.add('host'), guest = s.add('guest'), third = s.add('third');
+  await s.hello(host, true); await s.hello(guest, false, otherToken);
+  await s.hello(third, false, '33333333-3333-4333-a333-333333333333');
+  const guestId = guest.sent.at(-1).data.me;
+  const n = (suit, rank) => ({ id: `${suit}-${rank}`, kind: 'number', suit, rank });
+  const game = s.relay.authority.game;
+  Object.assign(game, { phase: 'play', round: 2, cardsPerRound: 2, completedTricks: 0, maxRounds: 5,
+    turn: 1, turnDeadline: Date.now() + 1000, trump: null, trick: [{ player: 0, card: n('red', 7) }] });
+  game.players[0].hand = [n('blue', 3)];
+  game.players[1].hand = [n('blue', 13), n('red', 1)];
+  game.players[2].hand = [n('green', 3), n('green', 4)];
+  game.players.forEach(player => { player.bid = 0; });
+  await s.relay.webSocketClose(guest);
+  let view = host.sent.at(-1).data.state;
+  assert.equal(view.lifecycle.reconnecting, true);
+  assert.equal(view.lifecycle.reconnectPlayerId, guestId);
+  assert.equal(view.lifecycle.reconnectUntil, Date.now() + 20000);
+  assert.equal(view.lifecycle.remainingMs, 1000);
+  assert.equal(view.turnDeadline, null);
+  assert.equal(view.players[1].hand, undefined, 'public wait metadata does not expose the disconnected hand');
+  const frozen = structuredClone(s.ctx.store.get('authority').frozen);
+  t.mock.timers.tick(5000);
+  const recovered = new RoomRelay(s.ctx, s.env);
+  await recovered.initialized;
+  assert.deepEqual(recovered.authority.record.frozen, frozen, 'hibernation preserves the exact frozen turn budget');
+  const returning = s.add('returning');
+  await recovered.webSocketMessage(returning, JSON.stringify({ type: 'hello', version: 2, host: false, token: otherToken }));
+  view = returning.sent.at(-1).data.state;
+  assert.equal(view.lifecycle.reconnecting, false);
+  assert.equal(view.turnDeadline, Date.now() + 10000, 'first reconnect guarantees ten seconds to act');
+  await recovered.webSocketClose(returning);
+  view = host.sent.at(-1).data.state;
+  assert.equal(view.lifecycle.reconnectUntil, Date.now() + 15000, 'five seconds already used cannot be renewed');
+  t.mock.timers.tick(26000);
+  await recovered.alarm();
+  view = host.sent.at(-1).data.state;
+  assert.equal(view.lifecycle.reconnecting, false);
+  assert.equal(view.trick.length, 2, 'late alarm consumes elapsed grace and remaining operation time');
+  assert.equal(view.trick[1].player, 1);
+  assert.equal(view.trick[1].card.id, 'red-1', 'timeout follows the lead suit even when a stronger off-suit card is first');
+  assert.equal(s.ctx.store.get('authority').game.players[1].hand.length, 1);
+  assert.match(view.publicEvents.at(-1).text, /超时自动出牌/);
 });
 
 test('new room cannot import a fabricated private deck and old protocol receives a terminal upgrade notice', async () => {

@@ -8,6 +8,7 @@ export function tableViewKey(state, context) {
     delete life.remainingMs;
     delete life.reviewRemainingMs;
     delete life.collectionRemainingMs;
+    delete life.reconnectRemainingMs;
   }
   return JSON.stringify([context, table, life]);
 }

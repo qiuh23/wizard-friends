@@ -1,5 +1,15 @@
+import { TURN_MS, TURN_ENTRY_MS } from './game.js';
+
 export const PRACTICE_SAVE_KEY = 'wizard-practice-save';
 export const PRACTICE_KEEP_MS = 10 * 60 * 1000;
+export function restorePracticeClock(saved, now = Date.now()) {
+  if (saved.game.phase !== 'play') return null;
+  // Preserve old 30s saves and zero remainders; only missing clocks get the new default.
+  const remaining = Number.isFinite(saved.remainingMs) ? Math.max(0, saved.remainingMs)
+    : Number.isFinite(saved.game.turnDeadline) ? Math.max(0, saved.game.turnDeadline - now) : TURN_MS + TURN_ENTRY_MS;
+  saved.game.turnDeadline = saved.paused ? null : now + remaining;
+  return remaining;
+}
 export function savePractice(storage, saved, now = Date.now(), leaving = false) {
   try {
     const previous = JSON.parse(storage.getItem(PRACTICE_SAVE_KEY) || 'null');

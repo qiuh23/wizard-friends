@@ -490,3 +490,13 @@
 - 唯一一次本地构建显式带入 https://ci-relay-must-not-be-used.invalid 作为非本地 VITE_RELAY_URL。独立 Wrangler 8797 实际提供带哈希 assets 的 dist 页面与版本 2 健康接口；原三真人＋一观众完整冒烟通过，errors=[]，记录 6 次页面请求和 13 条 WebSocket 全部同源本地。关闭房主标签页／新标签返回、暂停剩余时间、真实刷新、私有状态隔离、得分气泡、轮末同步、下一轮、复盘和解散墓碑均保留。日志 `.local/ci-cleanup-smoke.log` 和 `ci-cleanup-wrangler.log`。
 - Playwright 的本地 Chromium 下载未安装，首次启动尚未进入场景即失败；改用已有 Chrome 完成同一个冒烟，没有安装额外浏览器或修改／跳过断言。远端沿用原有 Chromium 安装与单浏览器测试。本地冒烟前后 dist 全部 63 个文件 SHA-256 一致，原 runtime-config 的 relayOrigin 仍为 null、build-info 中非本地 relay 不变；服务和冒烟日志无 EPIPE。指纹及验证结果在 `.local/ci-cleanup-artifact-verification.json`。
 - 按仓库策略把代码与记录统一提交，推送当前分支并更新 PR #18；远端检查完成后在 PR 与最终交付报告实时结果，本条不预先声明成功。不自动合并或主动部署；未执行 Pages／Aliyun／Cloudflare 生产发布与实际回滚，未新增真机或跨浏览器验收。
+
+<a id="h-046"></a>
+## H-046 · 2026-10-31 · 策略出牌、45 秒行动与有限断线保护
+- 用户边界及采用方案见 [D-035](DECISIONS.md#d-035)。起始工作区／暂存区干净，拉取最新 `origin/main` `7718664`，从该提交建立 `codex/ai-turn-reconnect`。未找到可用 dev-memory SKILL.md，按 AGENTS／.dev-memory.json 维护记录及统一提交。没有依赖、CI 工作流、job、远端矩阵或生产发布改动。
+- 实施：`src/game.js` 保留预估和原预期得分目标，增加公开牌池下的后续领出／跟牌和争取／避让规划；45 秒和原 450ms 入场留时统一在引擎赋值。`worker/room-authority.js` 持久保存每次出牌的冻结与补时额度，兼容旧时钟、旧 8 秒冻结、暂停及恢复；共享 `worker/index.js` 不再因服务迟醒续长玩家截止。浏览器／练习恢复及缓存白名单同步，断线等待提示有姓名可访问描述。
+- 过程修正：第一版后续估计没有区分领出和跟牌，专项中普通高牌被视为过于可靠的未来赢家，导致错过当前可达标的墩；改为按合法公开领牌估计跟牌胜率，保留巫师与立即用普通高牌达标的独立用例均通过。原引擎事件测试只计算基础时间，在统一入场留时后更新为同一共享常量，事件顺序／唯一结算断言保持。
+- 最终本地 `node --test tests/*.test.js` **308/308**、`node scripts/check-syntax.mjs`、Vite 生产构建／build-info、Wrangler `deploy --dry-run` 及 Git 空白检查通过；构建仅保留既有 Three.js 分包大小提示。当前 shell 没有 npm，使用 package.json 的等价 Node CLI，没有安装依赖。日志 `.local/ai-turn-{unit,syntax,build,worker}.log`。
+- 新增 10 项 AI 行为回归含连续四次达标后避墩并实际结算 +30、未达标／已超标／不可达目标、低成本拿墩、卸强牌、跟色、W／J／单色平点及 JSON 恢复／不读秘密／不消耗随机流；专项与关联规则测试 71/71。权威与两后端联合 43/43，覆盖分摊额度、暂停／重建不重发、迟醒／超时合法跟牌、旧零预算及缺失时钟。
+- 最终构建的本地 Chrome 专项通过，errors=[]：真实 Node WebSocket 当前玩家断线、360×640／844×390／1440×900 的可见等待倒计时、成功重连保留时间、在线暂停刷新；离线练习共享 45 秒、暂停刷新和断网完成合法出牌。已人工查看竖屏／横屏截图，证据 `output/playwright/turn-clock-ui-review.json`、`turn-reconnect-{360,844,1440}.png` 与 `.local/ai-turn-ui.log`。手机仅浏览器视口模拟，Worker 为控制器回归及本地打包，未声称实体手机或生产网络验收。
+- 按仓库策略将本任务代码、必要回归和上述记录统一提交，并向 main 创建中文 PR；不自动合并或部署，不手动触发远端 CI。PR 地址与既有自动检查状态以最终交付为准，本条不预先声明远端检查成功。

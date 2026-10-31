@@ -288,7 +288,7 @@ test('server-authoritative hosts cache only their permitted view, lifecycle, and
   const saved = setupSession(), tab = storage();
   act(saved.game,'host',{type:'configure',options:DEFAULT_OPTIONS});
   const state=viewFor(saved.game,'host');
-  state.lifecycle={paused:true,pauseReason:'休息',remainingMs:12000,retentionDeadline:123456,collectionAt:null,collectionRemainingMs:550,continuationVote:null,privateKey:'never-cache'};
+  state.lifecycle={paused:true,pauseReason:'休息',remainingMs:12000,retentionDeadline:123456,collectionAt:null,collectionRemainingMs:550,continuationVote:null,reconnecting:true,reconnectUntil:130000,reconnectPlayerId:'host',reconnectRemainingMs:20000,privateKey:'never-cache'};
   state.privateSeed='never-cache';
   assert.equal(saveRoomSession(tab,{...saved,authoritative:true,state}),true);
   const restored=readRoomSession(tab);
@@ -297,6 +297,9 @@ test('server-authoritative hosts cache only their permitted view, lifecycle, and
   assert.equal(restored.state.lifecycle.remainingMs,12000);
   assert.equal(restored.state.lifecycle.collectionAt,null);
   assert.equal(restored.state.lifecycle.collectionRemainingMs,550);
+  assert.equal(restored.state.lifecycle.reconnectUntil,130000);
+  assert.equal(restored.state.lifecycle.reconnectPlayerId,'host');
+  assert.equal(restored.state.lifecycle.reconnectRemainingMs,20000);
   assert.equal(restored.state.lifecycle.privateKey,undefined);
   assert.equal(restored.state.vote,undefined);
   assert.equal(restored.state.players[1].hand,undefined);
