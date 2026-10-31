@@ -52,7 +52,8 @@ function lifecycleView(life) {
   if (!life || typeof life !== 'object') return undefined;
   const clean = {};
   for (const key of ['paused','hostOffline','closeAfterRound','closed','reconnecting']) if (typeof life[key] === 'boolean') clean[key] = life[key];
-  for (const key of ['retentionDeadline','retentionMs','resultsDeadline','remainingMs','nextTrickAt','reviewRemainingMs','collectionAt','collectionRemainingMs']) if (life[key] === null || Number.isFinite(life[key])) clean[key] = life[key];
+  for (const key of ['retentionDeadline','retentionMs','resultsDeadline','remainingMs','nextTrickAt','reviewRemainingMs','collectionAt','collectionRemainingMs','reconnectUntil','reconnectRemainingMs']) if (life[key] === null || Number.isFinite(life[key])) clean[key] = life[key];
+  if (typeof life.reconnectPlayerId === 'string') clean.reconnectPlayerId = life.reconnectPlayerId.slice(0,200);
   if (typeof life.pauseReason === 'string') clean.pauseReason = life.pauseReason.slice(0,300);
   if (Array.isArray(life.resultsConfirmed)) clean.resultsConfirmed = life.resultsConfirmed.filter(id=>typeof id==='string');
   const vote=life.continuationVote;

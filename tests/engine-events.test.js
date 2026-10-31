@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, addPlayer, act, viewFor, spectatorView, botAction, TURN_MS, points } from '../src/game.js';
+import { createGame, addPlayer, act, viewFor, spectatorView, botAction, TURN_MS, TURN_ENTRY_MS, points } from '../src/game.js';
 const card = (suit, rank) => ({ id: `${suit}-${rank}`, kind: 'number', suit, rank });
 function playing() {
   const g = createGame();
@@ -12,7 +12,7 @@ function playing() {
 test('typed events have unique monotonic IDs and score only once with injected clock', () => {
   const g = playing();
   act(g, 'p0', { type: 'play', card: 'blue-1' }, undefined, 1000);
-  assert.equal(g.turnDeadline, 1000 + TURN_MS);
+  assert.equal(g.turnDeadline, 1000 + TURN_MS + TURN_ENTRY_MS);
   act(g, 'p1', { type: 'play', card: 'blue-2' }, undefined, 2000);
   act(g, 'p2', { type: 'play', card: 'blue-3' }, undefined, 3000);
   assert.equal(g.phase, 'finished');

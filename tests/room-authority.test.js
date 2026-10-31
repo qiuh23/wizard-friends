@@ -76,8 +76,128 @@ test('current player disconnect freezes remaining budget for reconnect grace wit
   s.room.join(current.id === s.host.id ? 'host-hash' : current.id === s.a.id ? 'a-hash' : 'b-hash', { host: current.id === s.host.id }, s.now());
   assert.equal(s.room.game.turnDeadline, s.now() + remaining);
   s.room.disconnect(current.id, s.now()); s.advance(RECONNECT_GRACE_MS);
-  assert.equal(s.room.game.turnDeadline, s.now() + remaining);
+  assert.equal(s.room.game.turnDeadline, s.now() + remaining - 2000, 'a repeated drop shares the original 20-second freeze allowance');
   assert.equal(s.room.game.trick.length, 0);
+});
+
+test('repeated disconnects share a 20-second freeze pool and a 10-second operation-floor pool per opportunity', () => {
+  const s = setup(); s.start(); s.advance(44450);
+  const actor = [s.host, s.a, s.b].find(p => p.id === s.room.game.players[s.room.game.turn].id);
+  const hash = actor.id === s.host.id ? 'host-hash' : actor.id === s.a.id ? 'a-hash' : 'b-hash';
+  const originalDeadline = s.room.game.turnDeadline;
+  const reconnect = () => s.room.join(hash, { host: actor.id === s.host.id }, s.now());
+  const legal = s.room.view(actor, 0, s.now()).legal;
+  s.room.disconnect(actor.id, s.now());
+  const waiting = s.room.view(s.host, 0, s.now()).lifecycle;
+  assert.equal(waiting.reconnecting, true);
+  assert.equal(waiting.reconnectPlayerId, actor.id);
+  assert.equal(waiting.reconnectRemainingMs, 20000);
+  assert.equal(waiting.reconnectUntil, s.now() + 20000);
+  s.advance(5000); reconnect();
+  assert.equal(s.room.game.turnDeadline - s.now(), 10000);
+  assert.equal(s.room.record.turnProtection.freezeRemainingMs, 15000);
+  assert.equal(s.room.record.turnProtection.reconnectCreditMs, 1000);
+  s.advance(9000); s.room.disconnect(actor.id, s.now());
+  s.advance(1000); reconnect();
+  assert.equal(s.room.game.turnDeadline - s.now(), 2000, 'only the final second of operation-floor credit remains');
+  assert.equal(s.room.record.turnProtection.reconnectCreditMs, 0);
+  s.room.disconnect(actor.id, s.now()); s.advance(14000);
+  assert.equal(s.room.record.turnProtection.freezeRemainingMs, 0);
+  assert.equal(s.room.view(s.host, 0, s.now()).lifecycle.reconnecting, false);
+  s.advance(1000); reconnect();
+  assert.equal(s.room.game.turnDeadline, originalDeadline + 30000, 'all protection extensions are bounded to 30 seconds');
+  assert.equal(s.room.game.turnDeadline - s.now(), 1000);
+  s.room.disconnect(actor.id, s.now());
+  assert.equal(s.room.view(s.host, 0, s.now()).lifecycle.reconnecting, false, 'empty pools cannot restart protection');
+  s.advance(1000);
+  assert.equal(s.room.game.trick.length, 1);
+  assert.ok(legal.includes(s.room.game.trick[0].card.id));
+});
+
+test('room pause suspends reconnect protection and persistence preserves the remaining allowance', () => {
+  const s = setup(); s.start(); s.room.game.turnDeadline = s.now() + 1000;
+  const current = [s.host, s.a, s.b].find(p => p.id === s.room.game.players[s.room.game.turn].id);
+  s.room.disconnect(current.id, s.now()); s.advance(5000);
+  s.send(s.host, { type: 'pause' });
+  assert.equal(s.room.record.turnProtection.freezeRemainingMs, 15000);
+  assert.equal(s.room.record.turnProtection.holdUntil, null);
+  s.advance(60000);
+  const restored = new RoomAuthority(structuredClone(s.room.record), s.now());
+  assert.equal(restored.record.turnProtection.freezeRemainingMs, 15000);
+  assert.equal(restored.record.frozen.remaining, 1000);
+  restored.handle(s.host, { type: 'resume' }, s.now());
+  assert.equal(restored.view(s.host, 0, s.now()).lifecycle.reconnectUntil, s.now() + 15000);
+  restored.tick(s.now() + 2000);
+  restored.join(current.id === s.a.id ? 'a-hash' : current.id === s.b.id ? 'b-hash' : 'host-hash', { host: current.id === s.host.id }, s.now() + 2000);
+  assert.equal(restored.game.turnDeadline, s.now() + 12000);
+  assert.equal(restored.record.turnProtection.freezeRemainingMs, 13000);
+  assert.equal(restored.record.turnProtection.reconnectCreditMs, 1000);
+});
+
+test('delayed grace alarms thaw at the actual boundary and cannot rescue an expired opportunity on reconnect', () => {
+  for (const reconnect of [false, true]) {
+    const s = setup(); s.start(); s.room.game.turnDeadline = s.now() + 1000;
+    const current = [s.host, s.a, s.b].find(p => p.id === s.room.game.players[s.room.game.turn].id);
+    const legal = s.room.view(current, 0, s.now()).legal;
+    s.room.disconnect(current.id, s.now());
+    const late = s.now() + 25000;
+    const restored = new RoomAuthority(structuredClone(s.room.record), late);
+    if (reconnect) restored.join(current.id === s.a.id ? 'a-hash' : current.id === s.b.id ? 'b-hash' : 'host-hash', { host: current.id === s.host.id }, late);
+    else restored.tick(late);
+    assert.equal(restored.game.trick.length, 1);
+    assert.ok(legal.includes(restored.game.trick[0].card.id));
+  }
+});
+
+test('reconnect after grace expiration can still spend operation-floor credit before its original clock expires', () => {
+  const s = setup(); s.start(); s.room.game.turnDeadline = s.now() + 1000;
+  const actor = [s.host, s.a, s.b].find(p => p.id === s.room.game.players[s.room.game.turn].id);
+  s.room.disconnect(actor.id, s.now()); s.advance(20500);
+  s.room.join(actor.id === s.a.id ? 'a-hash' : actor.id === s.b.id ? 'b-hash' : 'host-hash', { host: actor.id === s.host.id }, s.now());
+  assert.equal(s.room.game.turnDeadline - s.now(), 10000);
+  assert.equal(s.room.record.turnProtection.freezeRemainingMs, 0);
+  assert.equal(s.room.record.turnProtection.reconnectCreditMs, 500);
+});
+
+test('legacy missing turn clocks migrate once while finite deadlines, zero budgets and old frozen holds keep their timing', () => {
+  const s = setup(); s.start();
+  const record = structuredClone(s.room.record);
+  delete record.game.turnDeadline; delete record.turnProtection;
+  const restored = new RoomAuthority(record, s.now());
+  assert.equal(restored.game.turnDeadline, s.now() + 45450);
+  restored.tick(s.now() + 1000);
+  assert.equal(restored.game.turnDeadline, s.now() + 45450, 'tick cannot replenish a missing-clock migration');
+  for (const remaining of [0, 30000]) {
+    const paused = structuredClone(s.room.record);
+    paused.lifecycle.paused = true; paused.game.turnDeadline = null;
+    paused.frozen = { remaining, taskRemaining: null };
+    const old = new RoomAuthority(paused, s.now() + 1000);
+    assert.equal(old.record.frozen.remaining, remaining);
+    old.handle(s.host, { type: 'resume' }, s.now() + 1000);
+    assert.equal(old.game.turnDeadline, s.now() + 1000 + remaining);
+  }
+  const finite = structuredClone(s.room.record); finite.game.turnDeadline = s.now() + 30000;
+  assert.equal(new RoomAuthority(finite, s.now()).game.turnDeadline, s.now() + 30000);
+  const legacy = structuredClone(s.room.record), current = legacy.game.players[legacy.game.turn];
+  current.online = false; legacy.game.turnDeadline = null; delete legacy.turnProtection;
+  legacy.frozen = { remaining: 1000, taskRemaining: null };
+  legacy.reconnectUntil[current.id] = s.now() + 8000;
+  const oldHold = new RoomAuthority(legacy, s.now() + 2000);
+  assert.equal(oldHold.record.turnProtection.freezeRemainingMs, 6000);
+  assert.equal(oldHold.record.turnProtection.holdUntil, s.now() + 8000);
+  oldHold.tick(s.now() + 8500);
+  assert.equal(oldHold.game.turnDeadline, s.now() + 9000);
+});
+
+test('pausing after a delayed protection boundary freezes only the real remaining play time', () => {
+  const s = setup(); s.start(); s.room.game.turnDeadline = s.now() + 5000;
+  const actor = [s.host, s.a, s.b].find(p => p.id === s.room.game.players[s.room.game.turn].id);
+  s.room.disconnect(actor.id, s.now());
+  s.room.handle(s.host, { type: 'pause' }, s.now() + 23000);
+  assert.equal(s.room.record.frozen.remaining, 2000);
+  assert.equal(s.room.record.turnProtection.freezeRemainingMs, 0);
+  s.room.handle(s.host, { type: 'resume' }, s.now() + 60000);
+  assert.equal(s.room.game.turnDeadline, s.now() + 62000);
 });
 
 test('expiry snapshots online humans only and a returning owner cannot cancel the 60s vote', () => {
@@ -194,10 +314,10 @@ test('a previously disconnected next seat receives its full new turn budget afte
   s.send(s.host, { type: 'action', action: { type: 'play', card } });
   assert.equal(s.room.game.turn, 1);
   assert.equal(s.room.game.turnDeadline, null);
-  assert.equal(s.room.record.frozen.remaining, 30450);
+  assert.equal(s.room.record.frozen.remaining, 45450);
   s.advance(4000);
   s.room.join('a-hash', {}, s.now());
-  assert.equal(s.room.game.turnDeadline - s.now(), 30450);
+  assert.equal(s.room.game.turnDeadline - s.now(), 45450);
 });
 
 test('a system bot handoff also freezes a previously disconnected next seat budget', () => {
@@ -209,9 +329,9 @@ test('a system bot handoff also freezes a previously disconnected next seat budg
   s.advance(1000);
   assert.equal(s.room.game.turn, 1);
   assert.equal(s.room.game.turnDeadline, null);
-  assert.equal(s.room.record.frozen.remaining, 30450);
+  assert.equal(s.room.record.frozen.remaining, 45450);
   s.advance(3000); s.room.join('a-hash', {}, s.now());
-  assert.equal(s.room.game.turnDeadline - s.now(), 30450);
+  assert.equal(s.room.game.turnDeadline - s.now(), 45450);
 });
 
 test('trick results hold for three seconds and pausing preserves the remaining review instead of skipping it', () => {
@@ -232,7 +352,7 @@ test('trick results hold for three seconds and pausing preserves the remaining r
   s.send(s.host, { type: 'resume' }); s.advance(999);
   assert.equal(s.room.game.phase, 'trickEnd'); s.advance(1);
   assert.equal(s.room.game.phase, 'play'); assert.equal(s.room.game.turn, 2);
-  assert.equal(s.room.game.turnDeadline, s.now() + 30450);
+  assert.equal(s.room.game.turnDeadline, s.now() + 45450);
 });
 
 test('final-trick collection survives paused authority reconstruction without advancing round or match results', () => {

@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { deck, shuffled, winner, legalCards, leadSuit, points, createGame, addPlayer, act, viewFor, allowedBids, botAction, normalizeGame, TURN_MS } from '../src/game.js';
+import { deck, shuffled, winner, legalCards, leadSuit, points, createGame, addPlayer, act, viewFor, allowedBids, botAction, normalizeGame, TURN_MS, TURN_ENTRY_MS } from '../src/game.js';
 import { DEFAULT_OPTIONS } from '../src/rules-options.js';
 const n = (suit, rank) => ({ id: `${suit}-${rank}`, kind: 'number', suit, rank });
 const w = { id: 'wizard-0', kind: 'wizard' }, j = { id: 'jester-0', kind: 'jester' };
 const trick = (...cards) => cards.map((card, player) => ({ player, card }));
-test('30-second turns are host-authoritative, survive social actions, and clear at settlement', t => {
+test('45-second turns are host-authoritative, survive social actions, and clear at settlement', t => {
   let now = 100000;
   t.mock.method(Date, 'now', () => now);
   const g = createGame();
@@ -14,8 +14,9 @@ test('30-second turns are host-authoritative, survive social actions, and clear 
   act(g, 'p0', { type: 'start' }, () => .5);
   if (g.phase === 'trump') act(g, 'p0', { type: 'trump', suit: 'red' });
   while (g.phase === 'bid') act(g, g.players[g.turn].id, { type: 'bid', value: 0 });
-  assert.equal(TURN_MS, 30000);
-  assert.equal(g.turnDeadline, now + TURN_MS);
+  assert.equal(TURN_MS, 45000);
+  assert.equal(TURN_ENTRY_MS, 450);
+  assert.equal(g.turnDeadline, now + TURN_MS + TURN_ENTRY_MS);
   const deadline = g.turnDeadline;
   now += 1000;
   act(g, 'p1', { type: 'chat', text: '计时不应重置' });
@@ -30,7 +31,7 @@ test('30-second turns are host-authoritative, survive social actions, and clear 
   const legal = legalCards(g.players[g.turn].hand, g.trick).map(c => c.id);
   act(g, 'p0', { type: 'timeout' });
   assert.ok(legal.includes(g.trick[0].card.id));
-  assert.equal(g.turnDeadline, now + TURN_MS);
+  assert.equal(g.turnDeadline, now + TURN_MS + TURN_ENTRY_MS);
   assert.throws(() => act(g, 'p0', { type: 'timeout' }));
   while (g.phase === 'play') {
     const p = g.players[g.turn];
@@ -56,7 +57,7 @@ test('timeout respects mono scoring and secret bids, including a disconnected ac
   assert.equal(g.turnDeadline, undefined);
   assert.throws(() => act(g, 'p0', { type: 'timeout' }));
   for (const p of g.players) act(g, p.id, { type: 'bid', value: 3 });
-  assert.equal(g.turnDeadline, now + TURN_MS);
+  assert.equal(g.turnDeadline, now + TURN_MS + TURN_ENTRY_MS);
   assert.equal(viewFor(g, 'p0').foresightActive, false);
   g.players[1].hand = [n(g.players[1].monoSuit, 13), n(g.players[1].monoSuit, 2), w];
   g.players[2].hand = [n(g.players[2].monoSuit, 9)];
@@ -67,7 +68,7 @@ test('timeout respects mono scoring and secret bids, including a disconnected ac
   act(g, 'p0', { type: 'timeout' });
   assert.equal(g.trick[0].card.rank, 2);
   assert.equal(g.players[1].online, false);
-  assert.equal(g.turnDeadline, now + TURN_MS);
+  assert.equal(g.turnDeadline, now + TURN_MS + TURN_ENTRY_MS);
   act(g, 'p2', { type: 'play', card: g.players[2].hand[0].id });
   act(g, 'p0', { type: 'play', card: g.players[0].hand[0].id });
   assert.equal(g.lastWinner, 2);
@@ -79,7 +80,7 @@ test('timeout respects mono scoring and secret bids, including a disconnected ac
   assert.ok(!visible.log.some(line => line.includes('预言 3 墩')));
   assert.deepEqual(visible.history, []);
   act(g, 'p0', { type: 'next' });
-  assert.equal(g.turnDeadline, now + TURN_MS);
+  assert.equal(g.turnDeadline, now + TURN_MS + TURN_ENTRY_MS);
 });
 function setup(count = 3) {
   const g = createGame();

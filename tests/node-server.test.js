@@ -243,3 +243,67 @@ test('startup restores expiration alarms without clients and closes expired room
   await until(() => store.all()[0][1].closed === true, 'restored expiration alarm');
   assert.equal(f.app.contexts.get(room).record.alarm, undefined);
 });
+
+test('Node sockets and SQLite restart preserve bounded reconnect timing and legal automatic play', async t => {
+  const f = await fixture(t), clients = await three(f), [host, guest] = clients;
+  await startRound(clients);
+  let now = Date.now();
+  t.mock.method(Date, 'now', () => now);
+  const poll = async (condition, message) => {
+    const untilAt = performance.now() + 4000;
+    while (performance.now() < untilAt) {
+      if (condition()) return;
+      await delay(10);
+    }
+    assert.fail(`Timed out waiting for ${message}`);
+  };
+  const n = (suit, rank) => ({ id: `${suit}-${rank}`, kind: 'number', suit, rank });
+  let context = f.app.contexts.get(room);
+  await context.execute(async () => {
+    const game = context.controller.authority.game;
+    Object.assign(game, { phase: 'play', round: 2, cardsPerRound: 2, completedTricks: 0,
+      turn: 1, turnDeadline: now + 1000, trump: null, trick: [{ player: 0, card: n('red', 7) }] });
+    game.players[0].hand = [n('blue', 3)];
+    game.players[1].hand = [n('blue', 13), n('red', 1)];
+    game.players[2].hand = [n('green', 3), n('green', 4)];
+    await context.controller.persistAndPublish(room);
+  });
+  guest.socket.terminate();
+  await poll(() => host.state.lifecycle.reconnecting, 'public disconnected-player wait');
+  assert.equal(host.state.lifecycle.reconnectPlayerId, guest.id);
+  assert.equal(host.state.lifecycle.reconnectUntil, now + 20000);
+  assert.equal(host.state.lifecycle.remainingMs, 1000);
+  assert.equal(host.state.turnDeadline, null);
+  const before = structuredClone(f.app.store.all()[0][1].authority);
+  now += 5000;
+  await f.restart();
+  context = f.app.contexts.get(room);
+  assert.deepEqual(context.controller.authority.record.frozen, before.frozen);
+  const reconnect = async identity => {
+    const socket = new WebSocket(f.base.replace('http:', 'ws:') + `/api/rooms/${room}/ws`, { origin });
+    const messages = [];
+    const client = { socket, messages, get state() { return messages.findLast(value => value.data?.type === 'state')?.data.state; } };
+    socket.on('message', data => messages.push(JSON.parse(data.toString())));
+    socket.on('error', () => {});
+    await new Promise((resolve, reject) => { socket.once('open', resolve); socket.once('error', reject); });
+    socket.send(JSON.stringify({ type: 'hello', version: 2, host: identity.host, token: identity.token, name: '' }));
+    await poll(() => client.state, 'restored socket handshake');
+    return client;
+  };
+  const returnedHost = await reconnect(host), returnedGuest = await reconnect(guest);
+  await reconnect(clients[2]);
+  assert.equal(returnedGuest.state.turnDeadline, now + 10000);
+  assert.equal(returnedGuest.state.lifecycle.reconnecting, false);
+  assert.deepEqual(returnedGuest.state.players[1].hand, before.game.players[1].hand);
+  returnedGuest.socket.terminate();
+  await poll(() => returnedHost.state.lifecycle.reconnecting, 'second disconnection');
+  assert.equal(returnedHost.state.lifecycle.reconnectUntil, now + 15000);
+  now += 26000;
+  await context.execute(() => context.controller.alarm());
+  await poll(() => returnedHost.state.trick.length === 2, 'legal timeout after bounded protection');
+  assert.equal(returnedHost.state.trick[1].card.id, 'red-1');
+  assert.equal(returnedHost.state.lifecycle.reconnecting, false);
+  assert.equal(f.app.store.all()[0][1].authority.game.players[1].hand.length, 1);
+  assert.match(returnedHost.state.publicEvents.at(-1).text, /超时自动出牌/);
+  assert.ok(returnedHost.state.players.every(player => player.id === host.id || !Object.hasOwn(player, 'hand')));
+});

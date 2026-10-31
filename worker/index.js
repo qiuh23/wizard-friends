@@ -102,9 +102,8 @@ export class RoomRelay {
   recoverClock(now) {
     const expected = this.authority.record.alarmAt;
     if (expected && now - expected > 15000) {
-      if (this.authority.game.phase === 'play' && Number.isFinite(this.authority.game.turnDeadline)) {
-        this.authority.game.turnDeadline = Math.max(now + 8000, this.authority.game.turnDeadline + now - expected);
-      }
+      // Player deadlines are absolute. Service lag must not replenish a turn's
+      // bounded reconnect protection; tick() catches up with legal autoplay.
       if (this.authority.record.task) this.authority.record.task.at = Math.max(now + 450, this.authority.record.task.at + now - expected);
       this.authority.record.alarmAt = now + 8000;
     }
