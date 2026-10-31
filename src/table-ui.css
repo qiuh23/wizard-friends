@@ -303,7 +303,6 @@ body[data-screen="game"] .played > small {display:inline-flex;align-items:center
  body[data-screen="game"] .roundbar {left:180px;top:5px;}
  body[data-screen="game"] .room-operations {right:8px;top:5px;}
  body[data-screen="game"] .opponents {top:57px;bottom:auto;height:65px;left:12px;width:calc(100% - 24px);display:flex;align-items:start;justify-content:center;gap:8px;}
- body[data-screen="game"] .player {position:relative;left:auto!important;top:0;transform:none;width:110px;max-width:110px;flex:0 1 110px;padding:3px 5px;gap:0 4px;grid-template-columns:20px 1fr;}
  body[data-screen="game"] .player .avatar {grid-row:1;width:20px;height:20px;font-size:12px;}
  body[data-screen="game"] .player b {font-size:12px;}
  body[data-screen="game"] .player > small {white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;line-height:14px;}

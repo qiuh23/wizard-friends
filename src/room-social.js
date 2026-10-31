@@ -1,9 +1,9 @@
 // This panel lives outside #app so game-state updates never interrupt typing.
 import { ChatNotices, CHAT_NOTICE_EXIT_MS } from './chat-notices.js';
 export class RoomSocial {
-  constructor(send, onLayout = () => {}) {
+  constructor(send, onLayout = () => {}, onOpen = () => {}) {
     this.send = send;
-    this.onLayout = onLayout; this.notices = new ChatNotices();
+    this.onLayout = onLayout; this.onOpen = onOpen; this.notices = new ChatNotices();
     this.seen = 0;
     this.root = document.createElement('div');
     this.root.id = 'room-social';
@@ -28,8 +28,8 @@ export class RoomSocial {
     this.list = this.root.querySelector('#chat-messages');
     this.input = this.root.querySelector('#chat-input');
     this.nameInput = this.root.querySelector('#rename-input');
-    this.root.querySelector('#close-chat').onclick = () => { this.chat.hidden = true; this.refreshButton(); this.chatButton?.focus(); };
-    this.root.querySelector('#close-rename').onclick = () => { this.rename.hidden = true; this.renameButton?.focus(); };
+    this.root.querySelector('#close-chat').onclick = () => { this.closeChat(); this.chatButton?.focus({preventScroll:true}); };
+    this.root.querySelector('#close-rename').onclick = () => this.closeRename(true);
     this.root.querySelector('#chat-form').onsubmit = event => {
       event.preventDefault();
       if (this.input.value.trim() && this.send({ type: 'chat', text: this.input.value })) this.input.value = '';
@@ -37,14 +37,8 @@ export class RoomSocial {
     };
     this.root.querySelector('#rename-form').onsubmit = event => {
       event.preventDefault();
-      if (this.send({ type: 'rename', name: this.nameInput.value })) this.rename.hidden = true;
+      if (this.send({ type: 'rename', name: this.nameInput.value })) this.closeRename();
     };
-    document.addEventListener('keydown', event => {
-      if (event.key === 'Escape') {
-        this.chat.hidden = this.rename.hidden = true;
-        this.refreshButton();
-      }
-    });
     const viewport = window.visualViewport;
     const keyboard = () => {
       const height = viewport?.height ?? innerHeight;
@@ -71,13 +65,23 @@ export class RoomSocial {
     const unread = (this.messages || []).filter(m => m.seq > this.seen && m.player !== this.me).length;
     this.chatButton.textContent = `聊天${this.chat.hidden && unread ? ` · ${unread}` : ''}`;
     this.chatButton.setAttribute('aria-expanded', String(!this.chat.hidden));
+    this.renameButton?.setAttribute('aria-expanded', String(!this.rename.hidden));
   }
   openChat() {
+    this.onOpen('chat');
     this.chat.hidden = false; this.rename.hidden = true; this.seen = this.latestChat || 0;
     this.notices.items = []; this.renderNotices(); this.list.scrollTop = this.list.scrollHeight;
     this.input.focus({ preventScroll: true }); this.refreshButton();
   }
   closeChat() { this.chat.hidden = true; this.refreshButton(); }
+  closeRename(restoreFocus = false) {
+    this.rename.hidden = true; this.refreshButton();
+    if (restoreFocus) {
+      const trigger = this.renameButton?.getClientRects().length ? this.renameButton
+        : document.querySelector('#table-menu') || document.querySelector('#quick-settings > summary');
+      trigger?.focus({preventScroll:true});
+    }
+  }
   renderNotices() {
     clearTimeout(this.noticeTimer);
     const now = Date.now(), items = this.notices.advance(now, matchMedia('(max-width:850px)').matches ? 4 : 6);
@@ -126,10 +130,14 @@ export class RoomSocial {
     this.renameButton ||= document.createElement('button');
     this.renameButton.id = 'rename-toggle';
     this.renameButton.textContent = '改名';
+    this.renameButton.setAttribute('aria-controls', 'rename-panel');
     this.renameButton.onclick = () => {
-      this.chat.hidden = true; this.rename.hidden = false;
+      const open = this.rename.hidden;
+      if (open) this.onOpen('rename');
+      this.chat.hidden = true; this.rename.hidden = !open;
       this.nameInput.value = state.players.find(p => p.id === me)?.name || '';
-      this.nameInput.focus(); this.nameInput.select(); this.refreshButton();
+      if (open) { this.nameInput.focus({preventScroll:true}); this.nameInput.select(); }
+      this.refreshButton();
     };
     if (!this.renameButton.isConnected) controls.prepend(this.renameButton);
     const previousButton = this.dock.querySelector('#chat-toggle');

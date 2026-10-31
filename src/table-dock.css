@@ -33,7 +33,6 @@ body[data-screen="game"] #room-chat {
 /* Keep prediction and tricks in view; the ledger holds cumulative statistics. */
 body[data-screen="game"] .player .player-total,
 body[data-screen="game"] .player .player-tricks,
-body[data-screen="game"] .lead-badge,
 body[data-screen="game"] .roundbar .lead-order,
 body[data-screen="game"] .roundbar span:nth-child(2),
 body[data-screen="game"] .own-summary,

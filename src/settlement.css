@@ -51,10 +51,13 @@ body[data-screen="game"]:has(.settlement-panel) .selected-preview { display:none
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .settlement-panel .personal-result { font-size:11px; }
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .settlement-panel .personal-result strong { font-size:20px; }
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .settlement-actions .primary { max-width:220px;font-size:14px; }
+  /* Keep the final trick and personal status above the result dock. The full
+     ranking remains scrollable instead of consuming the small playfield. */
+  .final-results { max-height:min(16dvh,160px); }
   .final-results table { font-size:11px; }
   .final-results th,.final-results td { padding:6px 3px; }
 }
-body[data-screen="game"][data-table-layout="strip"] .action-panel.settlement-panel { left:max(168px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));gap:6px;padding:6px 9px;min-height:58px;max-height:none;overflow:visible; }
+body[data-screen="game"][data-table-layout="strip"] .action-panel.settlement-panel { left:calc(168px + env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));gap:6px;padding:6px 9px;min-height:58px;max-height:none;overflow:visible; }
 body[data-screen="game"][data-table-layout="strip"] .settlement-summary { gap:12px; }
 body[data-screen="game"][data-table-layout="strip"] .settlement-summary .action-title h3 { font-size:13px; }
 body[data-screen="game"][data-table-layout="strip"] .settlement-summary .action-title small { font-size:11px; }
@@ -62,6 +65,28 @@ body[data-screen="game"][data-table-layout="strip"] .settlement-panel .personal-
 body[data-screen="game"][data-table-layout="strip"] .settlement-panel .personal-result strong { font-size:21px; }
 body[data-screen="game"][data-table-layout="strip"] .settlement-actions .primary { max-width:170px;font-size:13px;padding:7px 10px; }
 body[data-screen="game"][data-table-layout="strip"] .settlement-details-body { max-height:calc(100dvh - 118px); }
+body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .settlement-panel {
+  grid-template-columns:minmax(0,1fr) minmax(0,.8fr) auto auto;
+}
+body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .final-results {
+  grid-column:1;grid-row:1;max-height:70px;padding-bottom:0;border-bottom:0;
+}
+body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .final-results h4 { margin-bottom:3px;font-size:13px; }
+body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .final-results table { min-width:360px; }
+body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .final-results th,
+body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .final-results td { padding:4px 3px; }
+body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .final-results .final-player { white-space:nowrap; }
+body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .settlement-summary {
+  grid-column:2;grid-row:1;flex-direction:column;align-items:stretch;gap:2px;
+}
+body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .settlement-summary .action-title h3 {
+  display:block;white-space:nowrap;text-overflow:ellipsis;
+}
+body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .settlement-panel .personal-result { gap:0; }
+body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .settlement-panel .personal-result > div { gap:6px; }
+body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .settlement-panel .personal-result strong { font-size:18px; }
+body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .settlement-details { grid-column:3;grid-row:1; }
+body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .settlement-actions { grid-column:4;grid-row:1;flex-wrap:nowrap; }
 
 /* Round results are compact text on the felt; the next action stays adjacent.
    Details still open in their own readable surface above this unframed dock. */
@@ -84,7 +109,7 @@ body[data-screen="game"] .round-settlement-meta { display:flex;flex-wrap:wrap;al
     width:auto;max-width:none;gap:8px 12px;
   }
   body[data-screen="game"][data-table-layout="strip"] .action-panel.settlement-panel.round-settlement {
-    left:max(168px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));
+    left:calc(168px + env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));
   }
   body[data-screen="game"] .round-settlement-copy { display:block; }
   body[data-screen="game"] .round-settlement .settlement-summary { grid-column:auto; }

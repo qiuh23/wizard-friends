@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { openCardSlot, playedCardSlots, playedCardLink, tableLayoutMode, stripCardSlots, compactCardSlots, shortSeatName } from '../src/table-layout.js';
 
 test('container height selects the same compact mode on either side of 850px', () => {
-  for (const [width,height] of [[844,390],[932,430],[844,300]]) assert.equal(tableLayoutMode(width,height),'strip');
+  for (const [width,height] of [[568,320],[667,375],[844,390],[932,430],[844,300]]) assert.equal(tableLayoutMode(width,height),'strip');
   for (const [width,height] of [[1440,900],[390,844]]) assert.equal(tableLayoutMode(width,height),'ring');
   assert.equal(tableLayoutMode(360,640),'portrait-grid');
 });

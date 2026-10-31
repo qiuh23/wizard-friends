@@ -46,6 +46,7 @@ import { copyInvitation } from './share-link.js';
 import { readNickname, saveNickname } from './nickname-preference.js';
 import { ScoreBubbles } from './score-bubbles.js';
 import './score-bubbles.css';
+import { FloatingLayers, containsEvent } from './floating-layers.js';
 
 const sessionStore = backendStorage(globalThis.sessionStorage);
 const localStore = backendStorage(globalThis.localStorage);
@@ -134,6 +135,7 @@ let spectating = false;
 let botTimer, status = '', busy = false, rulesOpen = false, networkReady = false;
 let roomEpoch = 0;
 let scoresOpen = false, menuOpen = false;
+let scoreSource = null;
 let settingsOpen = false, turnTimer, serverClockOffset = 0;
 let joinOpen = new URLSearchParams(location.search).has('room');
 let joinDraft = null;
@@ -155,7 +157,7 @@ document.addEventListener('pointercancel', () => { if (selectionPointer) selecti
 // Capture before a control's handler can redraw the hand and detach its target.
 document.addEventListener('click', event => {
   if (!selectedCard || pendingPlay || event.button !== 0 || selectionPointer?.dragged) return;
-  if (!(event.target instanceof Element) || event.target.closest('button,a,input,select,textarea,summary,label,dialog,[role="dialog"],[role="button"],[contenteditable="true"],#table-menu-panel,#table-score-panel,#room-chat')) return;
+  if (!(event.target instanceof Element) || event.target.closest('button,a,input,select,textarea,summary,label,dialog,[role="dialog"],[role="button"],[contenteditable="true"],#table-menu-panel,#table-score-panel,#room-chat,#rename-panel,.settings-content,.settlement-details-body')) return;
   selectedCard = null; refreshSelection();
 }, true);
 let seenEventSeq = null, lastTurnCue = '', turnSound = localStore.getItem('wizard-turn-sound') !== 'false';
@@ -213,13 +215,13 @@ function cardHTML(c, inspectable = false, legal = false, selected = false) {
 const avatarColors = ['#94d6cb', '#eeb9a4', '#a9caff', '#f1d37b', '#c9b4ec', '#b9d59a'];
 function avatarHTML(player, index, lead = null) {
   const detail = `${player.name}${player.id === me ? ' · 你' : ''}${lead ? ` · ${lead.label}` : ''}`;
-  return `<button class="avatar" data-player-details="${escape(player.id)}" style="--avatar-color:${avatarColors[index % avatarColors.length]}" aria-label="查看 ${escape(detail)} 的信息" title="${escape(detail)}">${escape(player.name.slice(0, 1))}${lead ? `<span class="lead-badge" aria-hidden="true">先</span>` : ''}</button>`;
+  return `<button class="avatar" data-player-details="${escape(player.id)}" style="--avatar-color:${avatarColors[index % avatarColors.length]}" aria-controls="table-score-panel" aria-expanded="false" aria-label="查看 ${escape(detail)} 的信息" title="${escape(detail)}">${escape(player.name.slice(0, 1))}${lead ? `<span class="lead-badge" aria-hidden="true">先</span>` : ''}</button>`;
 }
 function ownStatusHTML(p) {
   if (!p) return '';
   const lead = leadInfo(state), index = state.players.findIndex(x => x.id === p.id);
   const compactAction=state.phase==='play' ? `<div class="own-action"><span><b>${!practice && !networkReady ? '连接恢复中' : state.lifecycle?.paused ? '牌局已暂停' : state.players[state.turn]?.id===me ? '轮到你出牌' : `等待 ${escape(state.players[state.turn]?.name)} 出牌`}</b><small>${followSuitHint(state, me)}</small></span><span id="turn-countdown" role="timer"></span></div>` : '';
-  return `<section class="own-status ${(state.phase === 'bid' ? state.canBid : ['play','trump'].includes(state.phase) && state.players[state.turn]?.id === me) ? 'active' : ''}" aria-label="你的本轮预测和成绩">${avatarHTML(p, index, lead?.seat === index ? lead : null)}<div class="own-metrics"><span>实赢<b>${p.won}</b></span><span>预测<b>${p.bid ?? '—'}</b></span></div>${compactAction}</section>`;
+  return `<section class="own-status ${(state.phase === 'bid' ? state.canBid : ['play','trump'].includes(state.phase) && state.players[state.turn]?.id === me) ? 'active' : ''}" aria-label="你的本轮预测和成绩">${avatarHTML(p, index, lead?.seat === index ? lead : null)}<span class="own-name" title="${escape(p.name)}">${escape(p.name)}<small>你</small></span><div class="own-metrics"><span>实赢<b>${p.won}</b></span><span>预测<b>${p.bid ?? '—'}</b></span></div>${compactAction}</section>`;
 }
 function handHTML(p, myTurn) {
   const cards = sortCards(p?.hand || [], handSort), selected = cards.find(c => c.id === selectedCard);
@@ -486,20 +488,20 @@ function bindCommon() {
   });
   decorateHand();
   scoreBubbles.mount(app);
-  $('#rules').onclick = () => { settingsOpen = false; menuOpen = false; setRulesOpen(true); };
+  $('#rules').onclick = () => setRulesOpen(true);
   $('#close-rules')?.addEventListener('click', () => setRulesOpen(false));
 }
 function setRulesOpen(open) {
+  if (open) floatingLayers.closeOthers(null);
   rulesOpen = open;
-  $('#table-menu-panel')?.setAttribute('hidden', '');
-  $('#table-menu')?.setAttribute('aria-expanded', 'false');
   if (open) {
     if (!$('#close-rules')) app.insertAdjacentHTML('beforeend', rulesHTML());
     $('#close-rules').onclick = () => setRulesOpen(false);
     $('#close-rules').focus();
   } else {
     $('#close-rules')?.closest('.modal-backdrop')?.remove();
-    $('#rules')?.focus({preventScroll:true});
+    const trigger = $('#rules')?.getClientRects().length ? $('#rules') : $('#table-menu') || $('#quick-settings > summary');
+    trigger?.focus({preventScroll:true});
   }
 }
 function updateSocialRegions() {
@@ -571,7 +573,11 @@ function setupClearUI() {
     for (const selector of ['#graphics', '#music-toggle', '#trump-motion', '#turn-sound', ...(state ? ['#rules', '#rename-toggle'] : [])]) {
       const el = $(selector); if (el) content.append(el);
     }
-    settings.ontoggle = () => { settingsOpen = settings.open; };
+    settings.ontoggle = () => {
+      if (!settings.isConnected) return;
+      settingsOpen = settings.open;
+      if (settings.open) floatingLayers.closeOthers('settings');
+    };
   } else {
     $('.action-panel').classList.toggle('your-action', state.phase === 'bid' ? state.canBid : state.players[state.turn]?.id === me && ['play', 'trump'].includes(state.phase));
     const active = $('.player.active');
@@ -582,6 +588,8 @@ function setupClearUI() {
     const journal = $('.journal');
     const details = document.createElement('details'); details.className = 'journal-details';
     details.innerHTML = '<summary>对局记录</summary>'; journal.replaceWith(details); details.append(journal);
+    const settlement = $('.settlement-details');
+    if (settlement) settlement.ontoggle = () => { if (settlement.isConnected && settlement.open) floatingLayers.closeOthers('settlement'); };
     if (state.phase === 'play' && !$('#turn-countdown')) {
       const timer = document.createElement('span'); timer.id = 'turn-countdown';
       timer.setAttribute('role', 'timer');
@@ -629,30 +637,38 @@ function setupGameHUD(graphics) {
   const scores = $('.game-layout aside'); scores.id = 'table-score-panel';
   const close = document.createElement('button');
   close.className = 'close-scores'; close.textContent = '关闭计分 ×'; scores.prepend(close);
-  const update = () => {
-    menu.hidden = !menuOpen; scores.hidden = !scoresOpen;
-    $('#table-menu').setAttribute('aria-expanded', String(menuOpen));
-    $('#table-scores').setAttribute('aria-expanded', String(scoresOpen));
+  menu.setAttribute('aria-label', '菜单与设置');
+  scores.setAttribute('aria-label', '计分表与玩家信息');
+  $('#table-menu').onclick = () => { floatingLayers.closeOthers('menu'); menuOpen = !menuOpen; updateFloatingHUD(); };
+  $('#table-scores').onclick = () => {
+    floatingLayers.closeOthers('scores'); scoresOpen = !scoresOpen; scoreSource = null; updateFloatingHUD();
   };
-  $('#table-menu').onclick = () => { social.closeChat(); menuOpen = !menuOpen; scoresOpen = false; update(); };
-  $('#table-scores').onclick = () => { social.closeChat(); scoresOpen = !scoresOpen; menuOpen = false; update(); };
-  close.onclick = () => { scoresOpen = false; update(); $('#table-scores').focus(); };
+  close.onclick = () => closeScores(true);
   document.querySelectorAll('[data-player-details]').forEach(avatar => avatar.onclick = () => {
-    social.closeChat(); scoresOpen = true; menuOpen = false; update();
-    close.focus();
+    floatingLayers.closeOthers('scores');
+    scoresOpen = !(scoresOpen && scoreSource === avatar.dataset.playerDetails);
+    scoreSource = avatar.dataset.playerDetails;
+    updateFloatingHUD();
+    if (scoresOpen) close.focus({preventScroll:true});
   });
-  update();
+  updateFloatingHUD();
 }
-document.addEventListener('keydown', event => {
-  if (event.key === 'Escape') { settingsOpen = false; if ($('#quick-settings')) $('#quick-settings').open = false; }
-  if (event.key === 'Escape' && (scoresOpen || menuOpen)) {
-    scoresOpen = false; menuOpen = false;
-    $('#table-menu-panel')?.setAttribute('hidden', '');
-    $('#table-score-panel')?.setAttribute('hidden', '');
-    $('#table-menu')?.setAttribute('aria-expanded', 'false');
-    $('#table-scores')?.setAttribute('aria-expanded', 'false');
+function updateFloatingHUD() {
+  if ($('#table-menu-panel')) $('#table-menu-panel').hidden = !menuOpen;
+  if ($('#table-score-panel')) $('#table-score-panel').hidden = !scoresOpen;
+  $('#table-menu')?.setAttribute('aria-expanded', String(menuOpen));
+  $('#table-scores')?.setAttribute('aria-expanded', String(scoresOpen));
+  document.querySelectorAll('[data-player-details]').forEach(avatar => {
+    avatar.setAttribute('aria-expanded', String(scoresOpen && scoreSource === avatar.dataset.playerDetails));
+  });
+}
+function closeScores(restoreFocus = false) {
+  scoresOpen = false; updateFloatingHUD();
+  if (restoreFocus) {
+    const source = scoreSource && [...document.querySelectorAll('[data-player-details]')].find(avatar => avatar.dataset.playerDetails === scoreSource);
+    (source || $('#table-scores'))?.focus({preventScroll:true});
   }
-});
+}
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && rulesOpen) setRulesOpen(false); });
 function saveName() {
   try {
@@ -710,7 +726,8 @@ function leaveRoom(message = '', announce = true, keep = true) {
   if (!keep) { clearRoomSession(sessionStore); if (!practice) removeRoomRecovery(localStore,room,token); }
   game = state = undefined; room = me = ''; identities = {};
   isHost = practice = spectating = networkReady = busy = false;
-  scoresOpen = menuOpen = rulesOpen = false; selectedCard = null; pendingPlay=null;pendingSettlement=null;seenEventSeq = null;
+  scoresOpen = menuOpen = rulesOpen = settingsOpen = false; scoreSource = null;
+  selectedCard = null; pendingPlay=null;pendingSettlement=null;seenEventSeq = null;
   practiceSaved = readPractice(localStore); handExpanded = false;handCollapsed=false;
   history.replaceState(null, '', location.pathname);
   notify(message); render();
@@ -935,13 +952,50 @@ function launch(host, restored = null) {
 }
 
 const social = new RoomSocial(send, () => {
-  if (document.body.dataset.chatOpen === 'true') {
-    scoresOpen = menuOpen = false;
-    for (const selector of ['#table-score-panel','#table-menu-panel']) { const panel = $(selector); if (panel) panel.hidden = true; }
-    for (const selector of ['#table-scores','#table-menu']) $(selector)?.setAttribute('aria-expanded','false');
-  }
   layoutSchedule.request();
+}, layer => floatingLayers.closeOthers(layer));
+const detailsLayer = (id, selector) => ({
+  id,
+  isOpen:() => !!$(selector)?.open,
+  contains:event => containsEvent(event, [$(selector)]),
+  close:({restoreFocus}) => {
+    const details = $(selector);
+    if (details) details.open = false;
+    if (id === 'settings') settingsOpen = false;
+    if (restoreFocus) details?.querySelector(':scope > summary')?.focus({preventScroll:true});
+  },
 });
+const floatingLayers = new FloatingLayers([
+  detailsLayer('settings', '#quick-settings'),
+  detailsLayer('settlement', '.settlement-details'),
+  {
+    id:'menu', isOpen:() => menuOpen,
+    contains:event => containsEvent(event, [$('#table-menu-panel'), $('#table-menu')]),
+    close:({restoreFocus}) => {
+      menuOpen = false; updateFloatingHUD();
+      if (restoreFocus) $('#table-menu')?.focus({preventScroll:true});
+    },
+  },
+  {
+    id:'scores', isOpen:() => scoresOpen,
+    contains:event => containsEvent(event, [$('#table-score-panel'), $('#table-scores'), ...document.querySelectorAll('[data-player-details]')]),
+    close:({restoreFocus}) => closeScores(restoreFocus),
+  },
+  {
+    id:'chat', isOpen:() => !social.root.hidden && !social.chat.hidden,
+    contains:event => containsEvent(event, [social.chat, social.chatButton, social.noticeRegion]),
+    close:({restoreFocus}) => { social.closeChat(); if (restoreFocus) social.chatButton?.focus({preventScroll:true}); },
+  },
+  {
+    id:'rename', isOpen:() => !social.root.hidden && !social.rename.hidden,
+    contains:event => containsEvent(event, [social.rename, social.renameButton]),
+    close:({restoreFocus}) => social.closeRename(restoreFocus),
+  },
+], {
+  blocked:() => rulesOpen || !!state?.lifecycle?.continuationVote || !!document.querySelector('dialog[open]'),
+  ignoreClick:() => !!selectionPointer?.dragged,
+});
+floatingLayers.listen(document);
 const music = new BackgroundMusic();
 const directory = new RoomDirectory({
   onJoin(selectedRoom) {
