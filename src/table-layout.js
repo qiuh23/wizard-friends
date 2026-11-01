@@ -31,7 +31,7 @@ export function playedCardRect(node) {
 // This mode is shared by DOM seats, controls and the physical-card renderer.
 // A wide phone is still compact when its browser toolbar consumes the height.
 export function tableLayoutMode(width, height) {
-  return width >= 600 && height <= 540 ? 'strip' : width < 600 && height <= 700 ? 'portrait-grid' : 'ring';
+  return width >= 480 && width > height && height <= 540 ? 'strip' : width < 600 && height <= 700 ? 'portrait-grid' : 'ring';
 }
 
 export function compactCardSlots(area, seats, preferredWidth, emphasis = 1.22) {
