@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { backendStorage, entryURL, invitationRedirect, invitationURL, loadRuntimeConfig, normalizeRuntimeConfig, parseRoomCode, relayOrigin } from '../src/backend-entry.js';
+import { backendStorage, entryURL, invitationRedirect, invitationURL, loadRuntimeConfig, normalizeRuntimeConfig, parseRoomCode, readInvitation, relayOrigin } from '../src/backend-entry.js';
 import { uuidV4 } from '../src/uuid.js';
 import { relayURL } from '../src/relay-socket.js';
 
@@ -44,10 +44,24 @@ test('a foreign invitation never switches a recovering current game to another b
   assert.equal(invitationRedirect(location, false, normalized), 'https://wizard-friends.qiuh23.workers.dev/?room=C-ABCDEFGH&watch=1');
   assert.equal(invitationRedirect(new URL(`${origin}/?room=A-ABCDEFGH`), false, normalized), null);
 });
+
+test('explicit invitation server and watch are preserved; ambiguous invitations never enter a different pool', () => {
+  assert.deepEqual(readInvitation('?room=ABCDEFGH&server=aliyun&game=wizard&watch=1', 'cloudflare'), { backendId: 'aliyun', room: 'ABCDEFGH', watch: true });
+  assert.deepEqual(readInvitation('?room=ABCDEFGH', 'cloudflare'), { backendId: 'cloudflare', room: 'ABCDEFGH', watch: false });
+  assert.equal(invitationRedirect(new URL(`${origin}/?room=ABCDEFGH&server=cloudflare&watch=1&token=private&next=https://evil.test#secret`), false, config), 'https://wizard-friends.qiuh23.workers.dev/?room=C-ABCDEFGH&watch=1');
+  for (const search of [
+    '?room=A-ABCDEFGH&server=cloudflare', '?room=ABCDEFGH&server=unknown',
+    '?room=ABCDEFGH&room=HGFEDCBA', '?room=ABCDEFGH&watch=1&watch=0',
+    '?room=ABCDEFGH&server=aliyun&server=cloudflare', '?room=ABCDEFGH&game=athlete',
+    '?room=ABCDEFGH&game=wizard&game=wizard', '?room=ABCDEFGH&watch=yes', '?room=bad',
+  ]) assert.throws(() => invitationRedirect(new URL(`${origin}/${search}`), false, config), /邀请/);
+  assert.throws(() => invitationRedirect(new URL('https://wizard-friends.qiuh23.workers.dev/?room=A-ABCDEFGH&watch=1'), false, { ...config, backendId: 'cloudflare' }), /暂未开放/);
+  assert.equal(invitationRedirect(new URL('https://wizard-friends.qiuh23.workers.dev/?room=A-ABCDEFGH'), true, { ...config, backendId: 'cloudflare' }), null, 'an existing room keeps the established recovery policy');
+});
 test('runtime same-origin relay overrides fixed Cloudflare build configuration without an external probe', async () => {
   const location = new URL(`${origin}/`);
   const calls = [];
-  await loadRuntimeConfig({ location, fetcher: async url => { calls.push(url.href); return Response.json(config); } });
+  await loadRuntimeConfig({ location, fetcher: async (url, options) => { calls.push(url.href); assert.equal(options.redirect, 'error'); assert.equal(options.credentials, 'same-origin'); assert.ok(options.signal); return Response.json(config); } });
   assert.deepEqual(calls, [`${origin}/runtime-config.json`]);
   assert.equal(relayOrigin('https://wizard-friends.qiuh23.workers.dev', location), origin);
   assert.equal(relayURL('/api/presence', relayOrigin('https://cloudflare.test', location)), 'ws://115.29.188.62:8081/api/presence');

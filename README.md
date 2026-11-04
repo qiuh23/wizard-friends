@@ -2,12 +2,12 @@
 
 ## 统一游戏大厅
 
-| 大厅 | 网页链接 | 本次交付状态 |
+| 大厅 | 网页链接 | 实际状态（2026-11-05 只读核查） |
 | --- | --- | --- |
-| 国内（阿里云） | [magical-athlete-online.cn](https://magical-athlete-online.cn/) | 待两个 PR 合并后配置 DNS、证书并验收 |
-| Cloudflare | [海外大厅](https://magical-athlete.qiuh23.workers.dev/lobby/) | 随运动会大厅 PR 合并后自动发布上线 |
+| 国内（阿里云） | [magical-athlete-online.cn](https://magical-athlete-online.cn/) | 暂未开放；HTTPS 握手未通过，合并不代表上线 |
+| Cloudflare | [海外大厅](https://magical-athlete.qiuh23.workers.dev/lobby/) | 公网六项大厅资源均与运动会 main 一致；本次优化尚未发布 |
 
-大厅先选择服务器，再选择“胡闹运动会”或“巫师牌”；邀请中的服务器优先于本机偏好，房间和身份不跨服迁移。大厅维护在运动会仓库并自动更新国内/CF两端，巫师牌仍由本仓库 main 独立自动发布。原游戏直达入口继续保留：
+大厅先选择服务器，再选择“胡闹运动会”或“巫师牌”；邀请中的服务器优先于本机偏好，房间和身份不跨服迁移。大厅维护在运动会仓库；Cloudflare 随其既有发布链路更新，国内需独立站点配置及公网验收后才可开放。巫师牌仍由本仓库 main 独立自动发布；构建、发布、公网版本分别记录在 [本次核验](docs/entry-navigation-review.md)。原游戏直达入口继续保留：
 
 **[Cloudflare 入口](https://wizard-friends.qiuh23.workers.dev/) · [阿里云国内入口](http://115.29.188.62:8081/)**
 
@@ -15,7 +15,7 @@
 
 两端房间池和身份独立；邀请链接包含所属入口及端口，分享码以 `C-`／`A-` 区分。请从原入口返回和恢复牌局，对局中不会自动切换服务器。安装、独立自动发布、备份、回滚与实际版本状态见 [双部署说明](docs/aliyun-deployment.md) 和 [实际状态记录](docs/aliyun-readiness.md)。
 
-统一大厅与国内 HTTPS 子域的待上线方案见 [HTTPS 过渡说明](docs/https-domain-transition.md)。可离线生成 `wizard.magical-athlete-online.cn` 的可审查配置；当前生效入口保留，DNS、证书和线上切换须在 PR 合并后实施并验收。
+统一大厅与国内 HTTPS 子域的待上线方案见 [HTTPS 过渡说明](docs/https-domain-transition.md)。可离线生成 `wizard.magical-athlete-online.cn` 的可审查配置；当前生效入口保留，DNS、证书和线上切换须另获授权后实施并验收。
 
 3–6 人中文 Wizard 网页游戏，保留原 SVG 插画、暗绿三维牌桌、二维降级、省电模式、聊天、观战和离线练习。
 

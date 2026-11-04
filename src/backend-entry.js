@@ -28,7 +28,7 @@ export function normalizeRuntimeConfig(value, currentOrigin) {
 }
 
 export async function loadRuntimeConfig({ fetcher = globalThis.fetch, location = globalThis.location } = {}) {
-  const response = await fetcher(new URL('runtime-config.json', location.href), { cache: 'no-store', credentials: 'same-origin' });
+  const response = await fetcher(new URL('runtime-config.json', location.href), { cache: 'no-store', credentials: 'same-origin', redirect: 'error', signal: AbortSignal.timeout(8000) });
   if (!response.ok) throw new Error('入口配置暂不可用，请刷新重试。');
   runtime = normalizeRuntimeConfig(await response.json(), location.origin);
   return runtime;
@@ -47,6 +47,21 @@ export function parseRoomCode(value, currentBackend = backendId()) {
   return { backendId: match[1] === 'C' ? 'cloudflare' : match[1] === 'A' ? 'aliyun' : currentBackend, room: match[2] };
 }
 export function publicRoomCode(room, currentBackend = backendId()) { return `${prefixes[currentBackend]}-${room}`; }
+export function readInvitation(search, currentBackend = backendId()) {
+  const params = new URLSearchParams(search);
+  if (!params.has('room')) return null;
+  for (const key of ['room', 'server', 'game', 'watch']) {
+    if (params.getAll(key).length > 1) throw new Error('邀请链接包含重复参数，请使用完整的原邀请。');
+  }
+  if (params.has('game') && params.get('game') !== 'wizard') throw new Error('此邀请不属于巫师牌，请使用原游戏入口。');
+  const explicitServer = params.get('server');
+  if (params.has('server') && !ids.has(explicitServer)) throw new Error('邀请中的服务器无效，请使用完整的原邀请。');
+  const invite = parseRoomCode(params.get('room'), explicitServer || currentBackend);
+  if (!invite) throw new Error('邀请房间码无效，请使用完整的原邀请。');
+  if (explicitServer && invite.backendId !== explicitServer) throw new Error('邀请中的服务器与房间码不一致，请使用完整的原邀请。');
+  if (params.has('watch') && !['0', '1'].includes(params.get('watch'))) throw new Error('邀请中的观战状态无效，请使用完整的原邀请。');
+  return { ...invite, watch: params.get('watch') === '1' };
+}
 export function invitationURL(room, watch = false, location = globalThis.location, currentBackend = backendId()) {
   if (!/^[A-Z2-9]{8}$/.test(room) || !ids.has(currentBackend)) throw new Error('房间码无效。');
   const url = new URL(location.pathname, location.origin);
@@ -66,10 +81,11 @@ export function entryURL(target, { room = '', watch = false } = {}, config = run
   return url.href;
 }
 export function invitationRedirect(location, hasCurrentRoom, config = runtime) {
-  const params = new URLSearchParams(location.search);
-  const invite = parseRoomCode(params.get('room'), config?.backendId);
+  const invite = readInvitation(location.search, config?.backendId);
   if (hasCurrentRoom || !invite || invite.backendId === config?.backendId) return null;
-  return entryURL(invite.backendId, { room: invite.room, watch: params.get('watch') === '1' }, config);
+  const target = entryURL(invite.backendId, invite, config);
+  if (!target) throw new Error('该邀请所属服务器暂未开放，请联系邀请人确认原入口；不会跨服查找房间。');
+  return target;
 }
 // Origins already isolate real deployments. Also scope by the configured pool
 // so changing a local/test origin's runtime cannot reuse another pool's token.

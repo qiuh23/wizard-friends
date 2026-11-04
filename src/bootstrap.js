@@ -10,7 +10,11 @@ loadRuntimeConfig().then(() => {
   const app = document.querySelector('#app');
   const text = document.createElement('p');
   text.textContent = error.message || '入口暂不可用，请刷新重试。';
+  text.setAttribute('role', 'alert');
   const retry = document.createElement('button');
   retry.textContent = '重新加载'; retry.onclick = () => location.reload();
-  app.replaceChildren(text, retry);
+  const home = document.createElement('button');
+  home.textContent = '返回当前服务器';
+  home.onclick = () => location.assign(new URL(location.pathname, location.origin).href);
+  app.replaceChildren(text, retry, home);
 });
