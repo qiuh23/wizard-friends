@@ -98,7 +98,7 @@ GAME_URL=http://127.0.0.1:5173/ node scripts/rules-ui-review.mjs
 
 ## CI 与发布
 
-`verify.yml` 保留为 GitHub 上的验证流程：缓存依赖、语法检查、规则／隐私／生命周期／随机数测试、一次前端构建、Worker 打包预演及一组小规模联机冒烟。验证任务不需要生产授权；纯 Markdown／开发记录修改跳过无关检查，重复验证自动取消。
+`verify.yml` 默认只执行发布必要检查：缓存依赖、语法、受信入口/产物/公网验证契约、一次前端构建及 Worker 打包预演，随后生成精确 main 的 Linux 产物。完整玩法单测、三客户端浏览器冒烟和截图在本地运行；需要远端复核时显式手动选择 `validation: full`。默认发布不安装 Chromium 或浏览器系统依赖。验证任务不需要生产授权；纯 Markdown／开发记录修改跳过无关检查，重复验证自动取消。
 
 游戏入口通过 **Cloudflare Workers Builds** 连接 [`qiuh23/wizard-friends`](https://github.com/qiuh23/wizard-friends) 的 `main`，该分支更新后自动验证并发布到 `wizard-friends.qiuh23.workers.dev`。
 
@@ -107,10 +107,10 @@ GAME_URL=http://127.0.0.1:5173/ node scripts/rules-ui-review.mjs
 Cloudflare 的 Git 构建设置为：
 
 - 仓库：`qiuh23/wizard-friends`；生产分支：`main`；根目录：`/`；预览分支构建关闭。
-- 构建命令：`npm run build:cloudflare`，依次完成语法检查、全部单测、前端构建及 Worker 打包预演，任一步失败即停止发布。
+- 构建命令：`npm run build:cloudflare`，依次完成语法、必要发布契约、前端构建及 Worker 打包预演。完整玩法回归改在本地或手动完整检查运行；Cloudflare Builds 不再重复阻塞在全量玩法测试上。
 - 部署命令：`npm run deploy:cloudflare`，发布网页与 Worker，再核对线上前端的完整提交号及 `/api/health` 的版本 2 协议，传播期间有限重试；核对失败则本次构建报错。
 
-发布授权由 Cloudflare 构建设置管理，仓库中不保存令牌。游戏入口使用同域 API／WebSocket，构建时无需设置 `VITE_RELAY_URL`。`wrangler.jsonc` 固定个人账户和 Worker 名称；`npm run deploy` 仍可用于维护者手动发布。GitHub 验证与 Cloudflare 构建分别运行；Cloudflare 发布前必跑上述检查，完整三客户端浏览器冒烟仍由 GitHub 验证流程承担。
+发布授权由 Cloudflare 构建设置管理，仓库中不保存令牌。游戏入口使用同域 API／WebSocket，构建时无需设置 `VITE_RELAY_URL`。`wrangler.jsonc` 固定个人账户和 Worker 名称；`npm run deploy` 仍可用于维护者手动发布。GitHub 验证与 Cloudflare 构建分别运行；Cloudflare 发布前必跑上述必要检查，完整三客户端浏览器冒烟在本地或显式手动 `validation: full` 中执行。
 
 GitHub Pages 保留为独立手动工作流，复用成功的 `main` 验证产物，不重新构建；核对产物内公开 relay 配置与当前 `RELAY_URL` 一致。Workers Builds 的连接和构建记录可在 Cloudflare 的 `wizard-friends` → 设置 → 构建中检查，机制见 [Cloudflare 官方文档](https://developers.cloudflare.com/workers/ci-cd/builds/)。
 
