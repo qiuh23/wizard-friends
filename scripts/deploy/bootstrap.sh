@@ -2,18 +2,36 @@
 # Reviewed one-time host preparation. Never edits the athlete installation.
 set -euo pipefail
 [[ $EUID -eq 0 ]] || { echo 'Run as root from the reviewed Wizard checkout.' >&2; exit 1; }
-PUBLIC_ORIGIN=${PUBLIC_ORIGIN:-http://115.29.188.62:8081}
-PUBLIC_PORT=${PUBLIC_PORT:-8081}
-PORT=${PORT:-3002}
-for value in "$PORT" "$PUBLIC_PORT"; do [[ $value =~ ^[0-9]+$ && $value -ge 1024 && $value -le 65535 && ! $value =~ ^(3000|3001|8080)$ ]] || { echo 'Invalid or athlete-reserved port.' >&2; exit 1; }; done
-[[ $PORT != "$PUBLIC_PORT" ]]
-/opt/node/bin/node --input-type=module -e 'const u=new URL(process.argv[1]);if(u.origin!==process.argv[1]||u.protocol!=="http:"||u.username||u.password||u.port!==process.argv[2])throw Error("Set exact HTTP public origin including configured port");if(Number(process.versions.node.split(".")[0])!==24)throw Error("Require existing Node 24");' "$PUBLIC_ORIGIN" "$PUBLIC_PORT"
-for command in nginx sqlite3 python3 flock visudo curl ss; do command -v "$command" >/dev/null || { echo "Missing existing host prerequisite: $command" >&2; exit 1; }; done
 SOURCE=$(cd -- "$(dirname -- "$0")" && pwd)
+# Rerunning preparation must not reset an already migrated HTTPS origin.
+if [[ -f /etc/wizard-friends/server.env ]]; then
+  EXISTING_ORIGIN=$(sed -n 's/^PUBLIC_ORIGIN=//p' /etc/wizard-friends/server.env)
+  PUBLIC_ORIGIN=${PUBLIC_ORIGIN:-$EXISTING_ORIGIN}
+else
+  PUBLIC_ORIGIN=${PUBLIC_ORIGIN:-http://115.29.188.62:8081}
+fi
+PORT=${PORT:-3002}
+LEGACY_PUBLIC_ORIGIN=${LEGACY_PUBLIC_ORIGIN:-}
+export PUBLIC_ORIGIN PORT LEGACY_PUBLIC_ORIGIN
+PUBLIC_PORT=$(PUBLIC_PORT=${PUBLIC_PORT:-} /opt/node/bin/node "$SOURCE/site-config.mjs" port)
+export PUBLIC_PORT
+/opt/node/bin/node -e 'if(Number(process.versions.node.split(".")[0])!==24)throw Error("Require existing Node 24");'
+if [[ $PUBLIC_ORIGIN == https://* ]]; then
+  TLS_HOST=${PUBLIC_ORIGIN#https://}
+  [[ -s /etc/letsencrypt/live/$TLS_HOST/fullchain.pem && -s /etc/letsencrypt/live/$TLS_HOST/privkey.pem ]] || { echo 'Prepare and verify the exact-host certificate before installing the TLS site; see docs/https-domain-transition.md.' >&2; exit 1; }
+  if [[ -z $LEGACY_PUBLIC_ORIGIN && -f /etc/nginx/sites-available/wizard-friends ]] && grep -Eq 'listen[[:space:]]+8081;' /etc/nginx/sites-available/wizard-friends; then
+    echo 'Existing legacy 8081 listener must be explicitly retained with LEGACY_PUBLIC_ORIGIN during transition.' >&2; exit 1
+  fi
+fi
+for command in nginx sqlite3 python3 flock visudo curl ss; do command -v "$command" >/dev/null || { echo "Missing existing host prerequisite: $command" >&2; exit 1; }; done
 exec 9>/run/lock/wizard-friends.deploy.lock
 flock --wait 900 9
 if [[ ! -f /etc/wizard-friends/server.env ]]; then
-  for value in "$PORT" "$PUBLIC_PORT"; do [[ -z $(ss -H -ltn "sport = :$value") ]] || { echo "Port $value is occupied; choose another port before installation." >&2; exit 1; }; done
+  [[ -z $(ss -H -ltn "sport = :$PORT") ]] || { echo "Port $PORT is occupied; choose another internal port before installation." >&2; exit 1; }
+  # 443 is shared by the existing Nginx; ownership is by exact server_name.
+  if [[ $PUBLIC_ORIGIN == http://* ]]; then
+    [[ -z $(ss -H -ltn "sport = :$PUBLIC_PORT") ]] || { echo "Port $PUBLIC_PORT is occupied; review before installation." >&2; exit 1; }
+  fi
 fi
 for account in wizard wizard-deploy; do id "$account" >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin "$account"; done
 install -d -o root -g wizard -m 0750 /opt/wizard-friends /opt/wizard-friends/releases /etc/wizard-friends
@@ -23,7 +41,7 @@ install -d -o root -g root -m 0700 /var/backups/wizard-friends /var/lib/wizard-f
 # fixed installer, service or site. Existing immutable app releases are retained.
 bash "$SOURCE/backup.sh"
 install -d -o root -g root -m 0755 /usr/local/lib/wizard-friends-deploy
-for file in install.mjs unpack.py backup.sh probe.mjs; do install -o root -g root -m 0644 "$SOURCE/$file" "/usr/local/lib/wizard-friends-deploy/$file"; done
+for file in install.mjs unpack.py backup.sh probe.mjs site-config.mjs; do install -o root -g root -m 0644 "$SOURCE/$file" "/usr/local/lib/wizard-friends-deploy/$file"; done
 install -o root -g root -m 0755 "$SOURCE/ci-install.sh" /usr/local/sbin/wizard-friends-ci-install
 if [[ ! -f /etc/wizard-friends/server.env ]]; then
   cat > /etc/wizard-friends/server.env <<EOF
@@ -33,6 +51,7 @@ PORT=$PORT
 DATABASE_PATH=/var/lib/wizard-friends/rooms.sqlite
 STATIC_DIR=/opt/wizard-friends/current/dist
 PUBLIC_ORIGIN=$PUBLIC_ORIGIN
+ALLOWED_ORIGINS=$LEGACY_PUBLIC_ORIGIN
 BACKENDS_CONFIG_JSON='{"backends":[{"id":"cloudflare","origin":"https://wizard-friends.qiuh23.workers.dev","enabled":true},{"id":"aliyun","origin":"$PUBLIC_ORIGIN","enabled":false}]}'
 EOF
   chown root:wizard /etc/wizard-friends/server.env
@@ -66,32 +85,24 @@ SyslogIdentifier=wizard-friends
 [Install]
 WantedBy=multi-user.target
 SERVICE
-# This file has its own listener and name. Existing athlete sites are untouched.
+# This file has its own listener or exact HTTPS server_name. Existing athlete
+# production/preview files, certificate settings and listeners are untouched.
 exec 8>/run/lock/game-sites.configure.lock
 flock --wait 120 8
-cat > /etc/nginx/sites-available/wizard-friends <<EOF
-server {
-    listen $PUBLIC_PORT;
-    server_name _;
-    client_max_body_size 256k;
-    access_log /var/log/nginx/wizard-friends.access.log;
-    error_log /var/log/nginx/wizard-friends.error.log;
-    location / {
-        proxy_pass http://127.0.0.1:$PORT;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$http_host;
-        proxy_set_header Origin \$http_origin;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_read_timeout 100s;
-        proxy_send_timeout 100s;
-        proxy_buffering off;
-    }
-}
-EOF
-nginx -t
+install -d -o root -g root -m 0755 /var/www/wizard-friends-acme
+/opt/node/bin/node "$SOURCE/site-config.mjs" render > /etc/nginx/sites-available/wizard-friends.next
+# Parse the new site even when it has not yet been enabled. Never leave a bad
+# replacement in the active include path after a failed syntax check.
+NGINX_TEST=$(mktemp)
+trap 'rm -f -- "$NGINX_TEST" /etc/nginx/sites-available/wizard-friends.next' EXIT
+printf 'pid /run/wizard-nginx-prepare-test.pid; events {} http { include /etc/nginx/mime.types; include /etc/nginx/sites-available/wizard-friends.next; }\n' > "$NGINX_TEST"
+nginx -t -c "$NGINX_TEST"
+if [[ -f /etc/nginx/sites-available/wizard-friends ]]; then cp -p /etc/nginx/sites-available/wizard-friends /etc/nginx/sites-available/wizard-friends.before-prepare; fi
+mv /etc/nginx/sites-available/wizard-friends.next /etc/nginx/sites-available/wizard-friends
+if ! nginx -t; then
+  if [[ -f /etc/nginx/sites-available/wizard-friends.before-prepare ]]; then mv /etc/nginx/sites-available/wizard-friends.before-prepare /etc/nginx/sites-available/wizard-friends; else rm -f /etc/nginx/sites-available/wizard-friends; fi
+  exit 1
+fi
 flock -u 8
 cat > /etc/sudoers.d/wizard-friends-deploy <<'SUDO'
 Defaults:wizard-deploy env_reset, !setenv

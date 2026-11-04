@@ -1,10 +1,11 @@
 import { execFileSync } from 'node:child_process';
 import { appendFile, readFile } from 'node:fs/promises';
 import { probe } from './probe.mjs';
+import { siteConfig } from './site-config.mjs';
 
 const release = JSON.parse(await readFile(process.env.RELEASE_RECORD, 'utf8'));
 const origin = process.env.ALIYUN_PUBLIC_ORIGIN;
-if (!origin || new URL(origin).origin !== origin || !['http:', 'https:'].includes(new URL(origin).protocol)) throw Error('Configure an exact public Aliyun origin including its nonstandard port.');
+siteConfig({ origin });
 function aliyun(command, args) {
   try { return JSON.parse(execFileSync('aliyun', ['ecs', command, '--region', process.env.ALIYUN_REGION_ID, '--RegionId', process.env.ALIYUN_REGION_ID, ...args], { encoding: 'utf8', timeout: 45000, maxBuffer: 2 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] })); }
   catch { throw Error(`Aliyun ${command} failed; command contents and credentials are withheld.`); }

@@ -1,17 +1,35 @@
 import { pathToFileURL } from 'node:url';
+import { exactOrigin } from './site-config.mjs';
 
-export async function probe(origin, revision) {
-  const endpoints = await Promise.all(['/api/health', '/build-info.json', '/runtime-config.json'].map(async path => {
-    const response = await fetch(new URL(path, origin), { cache: 'no-store', signal: AbortSignal.timeout(8000) });
+export async function probe(origin, revision, { publicOrigin = origin, fetcher = fetch, socketFactory = url => new WebSocket(url) } = {}) {
+  exactOrigin(origin); exactOrigin(publicOrigin);
+  const read = async path => {
+    const response = await fetcher(new URL(path, origin), { cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(8000) });
     if (!response.ok) throw Error(`${path}: HTTP ${response.status}`);
-    return response.json();
+    return response;
+  };
+  const endpoints = await Promise.all(['/api/health', '/build-info.json', '/runtime-config.json'].map(async path => {
+    return (await read(path)).json();
   }));
   const [health, frontend, runtime] = endpoints;
   if (health.transport !== 'node-websocket' || health.version !== 2 || health.revision !== revision || frontend.revision !== revision) throw Error('Frontend/backend revision or protocol mismatch.');
   if (runtime.backendId !== 'aliyun' || runtime.relayOrigin !== '') throw Error('Aliyun must override any compiled Cloudflare relay with its same-origin backend.');
+  const domestic = runtime.backends?.find(entry => entry.id === 'aliyun');
+  if (domestic?.origin !== publicOrigin || typeof domestic.enabled !== 'boolean') throw Error('Deployed Aliyun entry was overwritten or does not match the configured public origin.');
+  const cloudflare = runtime.backends?.find(entry => entry.id === 'cloudflare');
+  if (cloudflare?.origin !== 'https://wizard-friends.qiuh23.workers.dev' || !cloudflare.enabled) throw Error('The existing Cloudflare entry must be preserved.');
+  const html = await (await read('/')).text();
+  const assets = [...html.matchAll(/<(?:script|link)\b[^>]*\b(?:src|href)=["']([^"']+)["'][^>]*>/gi)].map(match => new URL(match[1], origin));
+  if (!assets.some(asset => /\.js$/.test(asset.pathname))) throw Error('Built frontend script is missing.');
+  for (const asset of assets) {
+    if (asset.origin !== new URL(origin).origin) throw Error('Frontend assets must be served by this entry.');
+    const response = await read(asset.pathname + asset.search);
+    const type = response.headers.get('content-type') || '';
+    if ((/\.js$/.test(asset.pathname) && !/(?:javascript|ecmascript)/i.test(type)) || (/\.css$/.test(asset.pathname) && !/text\/css/i.test(type))) throw Error('Static asset returned the wrong content type or an HTML fallback.');
+  }
   const url = new URL('/api/connectivity/ws', origin); url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   await new Promise((resolve, reject) => {
-    const socket = new WebSocket(url);
+    const socket = socketFactory(url);
     const timer = setTimeout(() => finish(Error('WebSocket upgrade/protocol marker timed out.')), 6000);
     function finish(error) { clearTimeout(timer); socket.onclose = socket.onerror = socket.onmessage = null; socket.close(); error ? reject(error) : resolve(); }
     socket.onmessage = event => {

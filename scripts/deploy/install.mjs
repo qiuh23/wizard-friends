@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { probe } from './probe.mjs';
+import { siteConfig } from './site-config.mjs';
 
 const repo = 'qiuh23/wizard-friends';
 const base = '/opt/wizard-friends';
@@ -48,11 +49,12 @@ async function settings() {
   const get = key => env.split('\n').find(line => line.startsWith(`${key}=`))?.slice(key.length + 1);
   const port = get('PORT'), origin = get('PUBLIC_ORIGIN');
   if (!/^\d+$/.test(port) || get('HOST') !== '127.0.0.1' || !origin) throw Error('Invalid root-managed Wizard environment.');
+  siteConfig({ port, origin });
   return { port, origin };
 }
-async function waitProbe(origin, commit) {
+async function waitProbe(origin, commit, publicOrigin = origin) {
   let last;
-  for (let i = 0; i < 15; i++) { try { return await probe(origin, commit); } catch (e) { last = e; await new Promise(resolve => setTimeout(resolve, 1000)); } }
+  for (let i = 0; i < 15; i++) { try { return await probe(origin, commit, { publicOrigin }); } catch (e) { last = e; await new Promise(resolve => setTimeout(resolve, 1000)); } }
   throw last;
 }
 async function site(enabled) {
@@ -73,7 +75,7 @@ export async function install(encoded, user) {
     if (current !== destination || state?.runId !== request.runId || state.commit !== request.commit) throw Error('Rollback requires this exact active attempt.');
     run('/bin/bash', [`${library}/backup.sh`]);
     await restore(state.previous);
-    if (state.previous) { const config = await settings(); await waitProbe(`http://127.0.0.1:${config.port}`, state.previous.split('/').pop().split('-')[0]); }
+    if (state.previous) { const config = await settings(); await waitProbe(`http://127.0.0.1:${config.port}`, state.previous.split('/').pop().split('-')[0], config.origin); }
     await writeFile(statePath, JSON.stringify({ ...state, rolledBack: true, active: state.previous }), { mode: 0o600 });
     return;
   }
@@ -91,7 +93,7 @@ export async function install(encoded, user) {
     // Recheck after download and immediately before switching. Only fixed host
     // operations run as root; no package script or app code is executed as root.
     await validateCurrent(request);
-    if (current === destination && !state?.rolledBack) { const c = await settings(); await waitProbe(`http://127.0.0.1:${c.port}`, request.commit); console.log('Exact release already active.'); return; }
+    if (current === destination && !state?.rolledBack) { const c = await settings(); await waitProbe(`http://127.0.0.1:${c.port}`, request.commit, c.origin); await waitProbe(c.origin, request.commit); console.log('Exact release already active.'); return; }
     let reusable = false;
     try {
       if (await realpath(destination) !== destination || (await readFile(`${destination}/.artifact-sha256`, 'utf8')) !== request.artifactSha256) throw Error('Existing release differs from this checked artifact; inspect it before retrying.');
@@ -106,14 +108,14 @@ export async function install(encoded, user) {
     const config = await settings();
     try {
       await link('current', destination); run('/usr/bin/systemctl', ['restart', 'wizard-friends']);
-      await waitProbe(`http://127.0.0.1:${config.port}`, request.commit);
+      await waitProbe(`http://127.0.0.1:${config.port}`, request.commit, config.origin);
       await site(true);
       await waitProbe(config.origin, request.commit);
       run('/usr/bin/systemctl', ['enable', 'wizard-friends']);
       if (current) await link('previous', checkedRelease(current));
       const next = `${statePath}.next`; await writeFile(next, JSON.stringify({ commit: request.commit, runId: request.runId, previous: current, active: destination, deployedAt: new Date().toISOString() }), { mode: 0o600 }); await rename(next, statePath);
       console.log(`Wizard release verified: ${request.commit}, run ${request.runId}, ${config.origin}`);
-    } catch (e) { await restore(current); if (current) await waitProbe(`http://127.0.0.1:${config.port}`, current.split('/').pop().split('-')[0]); throw e; }
+    } catch (e) { await restore(current); if (current) await waitProbe(`http://127.0.0.1:${config.port}`, current.split('/').pop().split('-')[0], config.origin); throw e; }
   } finally { await rm(work, { recursive: true, force: true }); }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

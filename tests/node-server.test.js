@@ -85,6 +85,25 @@ test('Node serves its own assets/config and a nonmutating versioned WebSocket pr
   assert.match((await new Promise(resolve => rejected.once('error', resolve))).message, /403/);
 });
 
+test('HTTPS canonical config keeps only explicitly allowed old-origin WebSockets during transition', async t => {
+  const secure = 'https://wizard.magical-athlete-online.cn';
+  const f = await fixture(t, { publicOrigin: secure, env: { ALLOWED_ORIGINS: origin } });
+  const runtime = await (await fetch(`${f.base}/runtime-config.json`)).json();
+  assert.equal(runtime.relayOrigin, '');
+  assert.equal(runtime.backends.find(backend => backend.id === 'aliyun').origin, secure);
+  for (const allowed of [secure, origin]) {
+    const socket = new WebSocket(`${f.base.replace('http:', 'ws:')}/api/connectivity/ws`, { origin: allowed });
+    const data = await new Promise((resolve, reject) => { socket.once('message', value => resolve(JSON.parse(value))); socket.once('error', reject); });
+    assert.equal(data.type, 'probe'); assert.equal(data.revision, 'a'.repeat(40));
+    socket.close();
+  }
+  for (const disallowed of ['http://115.29.188.62:8080', `${secure}.evil.test`, 'https://other.magical-athlete-online.cn']) {
+    const socket = new WebSocket(`${f.base.replace('http:', 'ws:')}/api/connectivity/ws`, { origin: disallowed });
+    assert.match((await new Promise(resolve => socket.once('error', resolve))).message, /403/);
+  }
+  await assert.rejects(createServer({ ...f.config, env: { ALLOWED_ORIGINS: 'https://*.magical-athlete-online.cn' } }), /exact HTTP/);
+});
+
 test('real three-client round, chat, spectator privacy, request deduplication and ownership', async t => {
   const f = await fixture(t), clients = await three(f), [host, guest] = clients;
   const spectator = await connect(f, { name: '观众', spectator: true });
