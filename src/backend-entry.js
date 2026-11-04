@@ -2,6 +2,14 @@ const ids = new Set(['cloudflare', 'aliyun']);
 const prefixes = { cloudflare: 'C', aliyun: 'A' };
 let runtime;
 
+export function exactAllowedOrigins(value = '') {
+  return String(value).split(',').map(item => item.trim()).filter(Boolean).map(item => {
+    const url = new URL(item);
+    if (!['https:', 'http:'].includes(url.protocol) || url.origin !== item || url.username || url.password || url.hostname.includes('*')) throw new Error('ALLOWED_ORIGINS must contain exact HTTP(S) origins.');
+    return item;
+  });
+}
+
 export function normalizeRuntimeConfig(value, currentOrigin) {
   if (!value || !ids.has(value.backendId) || !Array.isArray(value.backends)) throw new Error('入口配置无效。');
   const seen = new Set();

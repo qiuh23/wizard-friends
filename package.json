@@ -4,9 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "preinstall": "node scripts/review-build-guard.mjs",
     "start:node": "node server/index.js",
     "dev": "vite --host 127.0.0.1",
-    "build": "vite build && node scripts/build-info.mjs",
+    "build": "node scripts/review-build-guard.mjs && vite build && node scripts/build-info.mjs",
     "test:layout": "node scripts/layout-review.mjs",
     "test:cards": "node scripts/card-face-review.mjs",
     "preview": "vite preview --host 127.0.0.1",
@@ -24,7 +25,7 @@
     "test:network": "node scripts/network-smoke.mjs",
     "dev:relay": "wrangler dev --ip 127.0.0.1 --port 8787",
     "deploy": "npm run build && wrangler deploy",
-    "build:cloudflare": "npm run check && npm test && npm run build && npm run worker:check",
+    "build:cloudflare": "node scripts/review-build-guard.mjs && npm run check && npm test && npm run build && npm run worker:check",
     "deploy:cloudflare": "wrangler deploy && node scripts/verify-deployment.mjs",
     "test:continuation": "node scripts/continuation-smoke.mjs",
     "test:offline": "node scripts/offline-smoke.mjs"

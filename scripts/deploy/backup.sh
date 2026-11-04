@@ -7,7 +7,7 @@ install -d -o root -g root -m 0700 "$DEST"
 PREFIX="$DEST/rooms-$(date -u +%Y%m%dT%H%M%S)-$$"
 umask 077
 CONFIG=()
-for path in etc/wizard-friends/server.env etc/systemd/system/wizard-friends.service etc/nginx/sites-available/wizard-friends etc/nginx/sites-enabled/wizard-friends etc/sudoers.d/wizard-friends-deploy etc/cron.daily/wizard-friends-backup opt/wizard-friends/current opt/wizard-friends/previous; do
+for path in etc/wizard-friends/server.env etc/systemd/system/wizard-friends.service etc/nginx/sites-available/wizard-friends etc/nginx/sites-enabled/wizard-friends etc/nginx/sites-available/wizard-friends-acme etc/nginx/sites-enabled/wizard-friends-acme etc/letsencrypt/renewal-hooks/deploy/wizard-friends-nginx etc/sudoers.d/wizard-friends-deploy etc/cron.daily/wizard-friends-backup opt/wizard-friends/current opt/wizard-friends/previous; do
   [[ ! -e /$path && ! -L /$path ]] || CONFIG+=("$path")
 done
 if [[ ${#CONFIG[@]} -gt 0 ]]; then

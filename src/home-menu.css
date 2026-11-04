@@ -3,7 +3,7 @@ body[data-screen="home"] { background: #100f11; }
 body[data-screen="home"] .page { max-width: none; padding: 0; }
 .home-screen { position: relative; min-height: 100dvh; isolation: isolate; overflow: hidden; }
 .home-screen .home-scene {
-  position: absolute; inset: 0; min-height: 0; padding: 0;
+  position: absolute; inset: 0; min-height: 0; padding: 0; overflow: hidden;
   background: radial-gradient(ellipse at 70% 50%, #3c3526, #16191a 55%, #0d0e10 90%);
 }
 .home-screen .home-scene:after {

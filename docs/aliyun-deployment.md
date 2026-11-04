@@ -2,6 +2,8 @@
 
 当前主机准备、线上版本与尚未执行项目见 [实际状态记录](aliyun-readiness.md)。以下流程说明不能替代实际发布／验收证据。
 
+统一大厅与 HTTPS443 子域迁移、旧8081过渡、续期和配置回滚见 [HTTPS 过渡说明](https-domain-transition.md)。以下独立 HTTP 高端口流程仍适用于当前入口；不可直接用旧示例覆盖已经迁移的 root 环境。
+
 Cloudflare 保留现有 Workers Builds、Durable Objects 与 main 发布配置。阿里云复用同一套 `src/game.js`、`RoomAuthority` 和 WebSocket v2 协议，以 Node 24、ws、SQLite 运行；无需 Cloudflare API、Redis 或多进程集群。首页切换是整页导航，网页资源、API、WebSocket、房间目录均来自本部署。两端房间池独立，邀请保留所属 origin 和端口，不迁移对局或身份，旧 Cloudflare 链接继续有效。
 
 国内按钮由受信 `/runtime-config.json` 控制，首次交付默认 `enabled:false`；2026-10-30 完成真实外网联机与重启恢复后，生产入口配置已启用，本轮后续 PR 同步仓库公开配置为 true。新的主机 bootstrap 仍保留 false，需验收后自行启用。PR 合并、健康检查通过都不能代替此验收。HTTPS 首页不请求 HTTP 国内健康接口。Node 运行时的 `relayOrigin:""` 覆盖构建时 `VITE_RELAY_URL`，同一份已检查前端供两端使用；手动 Pages 仍保留原 relay 校验。

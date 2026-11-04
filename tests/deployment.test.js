@@ -43,3 +43,16 @@ test('deployment verification retries while a published frontend propagates', as
 test('deployment verification fails before making requests if the expected revision is missing', async () => {
   await assert.rejects(verifyDeployment({ fetcher: () => assert.fail('Unexpected request') }), /full Git commit SHA/);
 });
+
+test('Cloudflare publication compares the deployed entry configuration with the checked frontend', async () => {
+  const runtime = { backendId: 'cloudflare', relayOrigin: null, backends: [{ id: 'cloudflare', origin: '', enabled: true }, { id: 'aliyun', origin: 'https://wizard.magical-athlete-online.cn', enabled: true }] };
+  for (const changed of [false, true]) {
+    const call = verifyDeployment({ ...options, expectedRuntime: runtime, fetcher: async url => {
+      if (url.pathname === '/api/health') return response(health);
+      if (url.pathname === '/runtime-config.json') return response(changed ? { ...runtime, backends: [runtime.backends[0], { ...runtime.backends[1], origin: 'http://115.29.188.62:8081' }] } : runtime);
+      return response({ revision });
+    } });
+    if (changed) await assert.rejects(call, /runtime configuration differs/);
+    else assert.equal((await call).revision, revision);
+  }
+});

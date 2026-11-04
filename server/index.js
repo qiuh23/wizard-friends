@@ -6,7 +6,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { RoomRelay, RoomDirectory } from '../worker/index.js';
 import { RoomAuthority } from '../worker/room-authority.js';
 import { RoomStore } from './storage.js';
-import { normalizeRuntimeConfig } from '../src/backend-entry.js';
+import { exactAllowedOrigins, normalizeRuntimeConfig } from '../src/backend-entry.js';
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg' };
 const clone = value => structuredClone(value);
@@ -94,6 +94,7 @@ export async function createServer(options = {}) {
   const origin = new URL(publicOrigin);
   if (!['http:', 'https:'].includes(origin.protocol) || origin.origin !== publicOrigin || origin.username || origin.password) throw new Error('PUBLIC_ORIGIN must be an exact http(s) origin including its public port.');
   if (env.NODE_ENV === 'production' && !env.PUBLIC_ORIGIN && !options.publicOrigin) throw new Error('PUBLIC_ORIGIN is required in production.');
+  const allowed = new Set([publicOrigin, ...exactAllowedOrigins(env.ALLOWED_ORIGINS)]);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Invalid PORT');
   const staticDir = resolve(options.staticDir || env.STATIC_DIR || 'dist');
   let build = {};
@@ -161,7 +162,6 @@ export async function createServer(options = {}) {
     const reject = (status, message) => { socket.end(`HTTP/1.1 ${status} ${message}\r\nConnection: close\r\n\r\n`); };
     let url;
     try { url = new URL(request.url, publicOrigin); } catch { return reject(400, 'Bad Request'); }
-    const allowed = new Set([publicOrigin, ...(env.ALLOWED_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean)]);
     if (request.headers.origin && !allowed.has(request.headers.origin)) return reject(403, 'Forbidden');
     if (url.pathname === '/api/connectivity/ws') {
       return websocket.handleUpgrade(request, socket, head, raw => { raw.send(JSON.stringify({ type: 'probe', ...health })); raw.close(1000); });
