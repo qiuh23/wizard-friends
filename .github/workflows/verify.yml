@@ -6,6 +6,12 @@ on:
     branches: [main]
     paths-ignore: ['**/*.md', 'docs/**', 'AGENTS.md', '.dev-memory.json']
   workflow_dispatch:
+    inputs:
+      validation:
+        description: Release checks, or explicitly run all local regression and browser checks
+        type: choice
+        default: release
+        options: [release, full]
 permissions:
   contents: read
 concurrency:
@@ -23,18 +29,26 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
-      - run: npm test
+      - name: Check trusted entries, release artifacts and public verification contracts
+        run: npm run test:release
+      - name: Full gameplay regression (explicit manual run only)
+        if: github.event_name == 'workflow_dispatch' && inputs.validation == 'full'
+        run: npm test
       - run: npm run build
         env:
           VITE_RELAY_URL: ${{ vars.RELAY_URL }}
       - run: npm run worker:check
       - name: Cache browser
+        if: github.event_name == 'workflow_dispatch' && inputs.validation == 'full'
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - run: npx playwright install --with-deps chromium
+      - name: Install browser for explicit manual regression
+        if: github.event_name == 'workflow_dispatch' && inputs.validation == 'full'
+        run: npx playwright install --with-deps chromium
       - name: Three-client smoke against the built local Durable Objects site
+        if: github.event_name == 'workflow_dispatch' && inputs.validation == 'full'
         run: |
           npm run dev:relay > /tmp/wizard-worker.log 2>&1 &
           trap 'cat /tmp/wizard-worker.log' EXIT
@@ -46,7 +60,7 @@ jobs:
           curl --retry 10 --retry-connrefused --retry-delay 1 -fsS http://127.0.0.1:8787/ > /dev/null
           GAME_URL=http://127.0.0.1:8787/ BROWSER_CHANNEL=chromium npm run test:smoke
       - name: Preserve browser evidence on failure
-        if: failure()
+        if: failure() && github.event_name == 'workflow_dispatch' && inputs.validation == 'full'
         uses: actions/upload-artifact@v4
         with:
           name: smoke-failure

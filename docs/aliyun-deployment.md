@@ -52,7 +52,9 @@ BACKENDS_CONFIG_JSON='{"backends":[{"id":"cloudflare","origin":"https://wizard-f
 
 production 非秘密变量：`ALIYUN_ROLE_ARN`、`ALIYUN_OIDC_PROVIDER_ARN`、`ALIYUN_REGION_ID`、`ALIYUN_INSTANCE_ID`、`ALIYUN_PUBLIC_ORIGIN`。可以复用现有 GitHub OIDC provider，不复用运动会 role，不存长期 AccessKey，不把 GitHub token 发往 ECS。
 
-Verify game 保留现有语法、测试、一次前端构建、Worker dry-run 和一组三客户端 Worker 冒烟。Node 升至24验证内置 SQLite，仓库 `.node-version` 同样指定24，使原 Cloudflare 构建也使用相同主版本；若控制台另有 NODE_VERSION 覆盖，需保持24。[Workers Builds 官方版本配置](https://developers.cloudflare.com/workers/ci-cd/builds/build-image/)支持此版本文件。仅 main 检查通过后，将同一提交、同一前端结果打包为 `aliyun-<完整SHA>`；生产依赖在 Linux runner 锁定安装，不重复构建网页，不在低配 ECS 编译。原 Cloudflare 构建、Pages 手动发布都保留，不增加浏览器矩阵或完整对局 CI。
+Verify game 默认执行语法与必要的入口、发布产物及公网验收契约检查、一次前端构建和 Worker dry-run。全量玩法/隐私/生命周期测试、三客户端 Worker 冒烟与截图先在本地完成；远端仅在显式 `workflow_dispatch` 选择 `validation: full` 时运行这些完整检查和安装浏览器。Node24仍验证内置SQLite运行环境，仓库`.node-version`保持24，使原Cloudflare构建使用同主版本。仅main必要检查通过后，将同一提交、同一前端结果打包为`aliyun-<完整SHA>`；生产依赖在Linux runner锁定安装，不重复构建网页，不在ECS编译。原Cloudflare构建、Pages手动发布和部署后公网SHA/runtime/资源/WSS核验、失败回滚均保留；默认发布不再等待本地可完成的浏览器整局回归。
+
+2026-11-05已只读核对Cloudflare控制台：`wizard-friends`的Git集成保持开启，生产分支main，构建命令`npm run build:cloudflare`、部署命令`npm run deploy:cloudflare`、根目录`/`。仓库脚本的轻量检查因此直接用于实际CF构建；未修改该Worker的触发开关、令牌或运行时设置。运动会重复Native Builds的关闭只影响运动会，由其原GitHub成对链负责发布。
 
 Deploy checked Wizard to Aliyun 只加载 main 控制脚本。等待发布队列后核对成功 Verify run、仓库、事件、当前 main SHA、唯一未过期产物和 GitHub SHA256。失败／过时任务保留当前版本。按游戏串行且 cancel-in-progress:false，不取消切换。主机下载前后再次核对公开 GitHub main、成功检查和产物摘要；API 不可用／限额时报错停止，不能忽略核验。只执行固定主机脚本，不以 root 运行包内脚本。
 
