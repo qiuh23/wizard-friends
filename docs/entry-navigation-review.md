@@ -1,5 +1,13 @@
 # 2026-11-05 入口核验与邀请修复
 
+**后续授权上线阶段：** 用户后来授权实际上线并说明当前没有旧玩家需要等待迁移。正常域名可信TLS下，`https://wizard.magical-athlete-online.cn`已通过两个真人、一个AI和观众的建入房、聊天、开始对局及合法预测、身份与观众刷新专项；119请求、12条WSS101、页面错误为空，自建房已解散。两端游戏当时均为main `4f60b3a9285085536d78b207ea1b4c5675612dbd`，[Verify 41867160080](https://github.com/qiuh23/wizard-friends/actions/runs/41867160080) 与[阿里云自然发布41868194262](https://github.com/qiuh23/wizard-friends/actions/runs/41868194262)均成功。00:43:28 GitHub production公开变量`ALIYUN_PUBLIC_ORIGIN`已单项切为新HTTPS并GET回读一致。本PR从该最新main持久更新公开runtime，合并后仍分别核对两端新SHA/runtime和自然发布。
+
+国内HTTPS大厅九项资源在00:44:24全部200且MIME正确，八源码逐字等于运动会e3、build-info为e3，HTTPS根`/api`及`/socket.io`均404；旧HTTP根/IP/8081仍200原游戏无跳转。运动会新e3两真人/观众、默认观战、聊天准备及刷新专项也通过，91请求/10条Socket.IO WSS101，无跨域或混合内容。运动会PR42据此启用源大厅门禁；门禁实际自然发布以及最后大厅双向/四游戏点击仍待合并后单独核对。
+
+三个国内证书有效至2027-02-02，使用普通可信TLS，不需要固定IP或忽略验证。根域续期dry-run及实际reload hook的nginx语法检查已成功，其余证书续期当时仍在运行。主机root-only备份为`/var/backups/game-sites-20261104T163126Z-67014`（配置/工具/指针/三库）、`/var/backups/game-sites-acme-20261104T163209Z-67092`（ACME阶段）、`/var/backups/game-sites-tls-20261104T163849Z-67447`（成功TLS站点/env/两库）。回滚不覆盖当前数据库，旧HTTP兼容继续保留。
+
+以下最初PR及00:10只读结果保留为历史快照；当时的未授权边界、旧SHA和TLS失败不代表上述后续实际结果。没有将尚未返回的续期结果或最终点击检查写成已通过。
+
 本次从 `main` `aa18110e2e3240c8ab0d8f2e537dab5b6a865745` 建立独立工作区；原工作区未提交改动为空，原分支保留。只提交代码和文档，不执行生产发布、DNS、证书、安全组、云权限或正式房间写入。
 
 ## 公网实际状态
