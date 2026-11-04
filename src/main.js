@@ -41,7 +41,7 @@ import { readRoomRecoveries, saveRoomRecovery, removeRoomRecovery } from './room
 import { PRACTICE_SAVE_KEY, PRACTICE_KEEP_MS, readPractice, savePractice, restorePracticeClock } from './practice-save.js';
 import { turnStatus } from './turn-status.js';
 import { uuidV4 } from './uuid.js';
-import { backendId, backendStorage, entryURL, invitationURL, parseRoomCode, publicRoomCode, runtimeConfig } from './backend-entry.js';
+import { backendId, backendStorage, entryURL, invitationURL, parseRoomCode, publicRoomCode, readInvitation, runtimeConfig } from './backend-entry.js';
 import { copyInvitation } from './share-link.js';
 import { readNickname, saveNickname } from './nickname-preference.js';
 import { ScoreBubbles } from './score-bubbles.js';
@@ -170,9 +170,9 @@ if (!token) { token = uuidV4(); sessionStore.setItem(tokenKey, token); }
 let nickname = readNickname(localStore, sessionStore);
 let automaticName = false;
 persistName();
-const roomFromURL = (new URLSearchParams(location.search).get('room') || '').trim().toUpperCase();
-const watchFromURL = new URLSearchParams(location.search).get('watch') === '1';
-const initialCode = parseRoomCode(roomFromURL);
+const initialCode = readInvitation(location.search);
+const roomFromURL = initialCode ? publicRoomCode(initialCode.room, initialCode.backendId) : '';
+const watchFromURL = initialCode?.watch === true;
 const invitedRoom = initialCode?.backendId === backendId() ? initialCode.room : roomFromURL;
 // A foreign invitation must not move a recovering in-progress room to another
 // pool. Keep its original authority and credentials; switching stays on home.

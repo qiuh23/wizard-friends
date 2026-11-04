@@ -1,6 +1,6 @@
 # 巫师牌 HTTPS 子域与统一大厅接入
 
-2026-11-04 的方案；**本 PR 没有修改生产主机、DNS、安全组、证书、云权限或发布环境变量**。本地通过和正式上线分别验收，不能据本文件认定域名已可用。
+2026-11-04 的方案；**本 PR 没有修改生产主机、DNS、安全组、证书、云权限或发布环境变量**。本地通过和正式上线分别验收，不能据本文件认定域名已可用。2026-11-05 的后续代码、实测及动态发布快照见 [入口核验](entry-navigation-review.md)；以下旧版本与旧审查分支名称是历史记录。
 
 本次审查分支为 `codex/review-only/unified-lobby-https`，HEAD提交使用 `[skip ci]` 抑制GitHub Actions，避免未合并代码的自动发布。Cloudflare Builds分支/预览设置只读API返回403，未扩大权限；`preinstall` 和构建入口调用 `scripts/review-build-guard.mjs`，仅在 `WORKERS_CI=1` 且分支以 `codex/review-only/` 开头时失败，阻止本次分支部署。main及普通预览分支维持原行为；可能仍产生远端构建/预览记录，不声称没有任何远端动作。最终合并消息须移除 `[skip ci]` 才会触发正常main检查/自动更新。审查期间不要去掉HEAD标记推送或手动发布本分支。
 
