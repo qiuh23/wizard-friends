@@ -18,6 +18,7 @@ Cloudflare使用Workers静态资源和SQLite Durable Objects。它不使用ECS�
 运动会基线：qiuh23/magical-athlete-online main 1771b54dec43b94aeded429ab7155a57fea329ab。
 巫师牌基线：qiuh23/wizard-friends main 12b53979fb6d4272b6a527a8bd300c31c946bf2a。
 本次整改分支：codex/review-only/minimal-beian。最终整改版本以包含本文件的PR提交记录为准，不能用以上基线SHA声称已包括新措施。
+本仓库整改实现及本地验证对应提交：c811b0059d7a9cfcffb62184f8420090a5140085；后续仅文档标记更新以PR最新提交为准。
 实际服务用户与NoNewPrivileges=yes、ProtectSystem=strict、ProtectHome=yes已只读核实。当前已有业务权限措施与新整改要分开填报。
 
 本文件维护范围：巫师牌（wizard-friends仓库）。另一游戏的实现细节以magical-athlete-online仓库同名文件为准。
