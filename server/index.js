@@ -5,6 +5,8 @@ import { pathToFileURL } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { RoomRelay, RoomDirectory } from '../worker/index.js';
 import { RoomAuthority } from '../worker/room-authority.js';
+import { SecurityStore } from './security-store.js';
+import { adminAuthorized, recordSecurity, securityCall, DEFAULT_CONTACT } from '../worker/security.js';
 import { RoomStore } from './storage.js';
 import { exactAllowedOrigins, normalizeRuntimeConfig } from '../src/backend-entry.js';
 
@@ -48,7 +50,7 @@ class Context {
       const attachments = new Map([...this.sockets].map(ws => [ws, clone(ws.data)]));
       try {
         await callback();
-        if (this.store) this.store.save(this.id, this.staged);
+        if (this.store && (this.staged.authority || this.staged.owner || this.staged.closed)) this.store.save(this.id, this.staged);
         this.record = this.staged;
         const effects = this.effects, followups = this.followups;
         this.staged = this.effects = this.followups = null;
@@ -110,11 +112,13 @@ export async function createServer(options = {}) {
   if (env.BACKENDS_CONFIG_JSON) { const config = JSON.parse(env.BACKENDS_CONFIG_JSON); backends = Array.isArray(config) ? config : config.backends; }
   const runtimeConfig = normalizeRuntimeConfig({ backendId: 'aliyun', relayOrigin: '', backends }, publicOrigin);
   if (runtimeConfig.backends.find(backend => backend.id === 'aliyun').origin !== publicOrigin) throw new Error('The Aliyun entry must match PUBLIC_ORIGIN.');
-  const store = options.store || new RoomStore(options.databasePath || env.DATABASE_PATH || 'var/rooms.sqlite');
+  const databasePath=options.databasePath || env.DATABASE_PATH || 'var/rooms.sqlite';
+  const store = options.store || new RoomStore(databasePath);
+  const securityStore=options.securityStore || new SecurityStore(options.securityDatabasePath || env.SECURITY_DATABASE_PATH || (databasePath===':memory:'?':memory:':resolve(databasePath,'..','security.sqlite')),env);
   const contexts = new Map();
   const directoryContext = new Context('directory', null, {}, options.onError);
   const directory = new RoomDirectory(directoryContext); directoryContext.controller = directory;
-  const relayEnv = { DIRECTORY: { getByName: () => ({ fetch: async (url, init) => {
+  const relayEnv = { SECURITY_ADMIN_TOKEN:env.SECURITY_ADMIN_TOKEN, SECURITY: {getByName:()=>securityStore}, DIRECTORY: { getByName: () => ({ fetch: async (url, init) => {
     const value = JSON.parse(init.body);
     const context = contexts.get(value.room);
     context.afterCommit(() => directoryContext.execute(() => directory.fetch(new Request(url, init))));
@@ -136,6 +140,18 @@ export async function createServer(options = {}) {
   const server = http.createServer(async (request, response) => {
     try {
       const url = new URL(request.url, publicOrigin);
+      if(url.pathname.startsWith('/api/stationmaster/')) {
+        const headers=new Headers();if(request.headers.authorization)headers.set('Authorization',request.headers.authorization);
+        if(!(await adminAuthorized(new Request('https://local/',{headers}),env))) {await recordSecurity(relayEnv,{kind:'security.admin-denied',route:'stationmaster',ip:request.socket.remoteAddress || '',outcome:'deny'}).catch(()=>{});return json(response,{error:'Forbidden'},403);}
+        if(request.method!=='POST')return json(response,{error:'POST required'},405);
+        let body='';for await(const chunk of request){body+=chunk;if(body.length>4096)return json(response,{error:'Too large'},413);}
+        const admin=/^\/api\/stationmaster\/rooms\/([A-Z2-9]{8})$/.exec(url.pathname);
+        if(admin){const context=roomContext(admin[1]);let result;await context.execute(async()=>{result=await context.controller.stationmaster(new Request(`https://room/internal/stationmaster/${admin[1]}`,{method:'POST',headers,body}),admin[1]);});return json(response,await result.json(),result.status);}
+        if(url.pathname==='/api/stationmaster/security'){const input=JSON.parse(body);if(!['list','hold'].includes(input.action))return json(response,{error:'Invalid action'},400);if(input.action==='hold' && (typeof input.reason!=='string' || !input.reason.trim() || input.reason.length>300))return json(response,{error:'Reason required'},400);if(input.action==='list')await recordSecurity(relayEnv,{kind:'admin.audit-access',action:'list',reason:'stationmaster'});return json(response,await securityCall(relayEnv,input.action,input));}
+        return json(response,{error:'Not found'},404);
+      }
+      if(url.pathname==='/api/security/contact')return json(response,{contact:env.REPORT_CONTACT ?? DEFAULT_CONTACT});
+      if(url.pathname==='/api/security/health'){try{await securityCall(relayEnv,'health');return json(response,{ok:true});}catch{return json(response,{ok:false},503);}}
       if (!['GET', 'HEAD'].includes(request.method)) return json(response, { error: 'Method not allowed' }, 405);
       if (url.pathname === '/api/health') return json(response, health);
       if (url.pathname === '/runtime-config.json') return json(response, runtimeConfig);
@@ -158,20 +174,29 @@ export async function createServer(options = {}) {
     await directory.publish();
   }).catch(() => {}), 30000);
   presenceTimer.unref();
-  server.on('upgrade', (request, socket, head) => {
+  const securityTimer=setInterval(()=>{try{securityStore.purge();}catch{console.error('SECURITY_CLEANUP_FAILURE');}},60000); securityTimer.unref();
+  securityStore.purge();
+  server.on('upgrade', async (request, socket, head) => {
     const reject = (status, message) => { socket.end(`HTTP/1.1 ${status} ${message}\r\nConnection: close\r\n\r\n`); };
     let url;
     try { url = new URL(request.url, publicOrigin); } catch { return reject(400, 'Bad Request'); }
-    if (request.headers.origin && !allowed.has(request.headers.origin)) return reject(403, 'Forbidden');
+    const remote=request.socket.remoteAddress || '';
+    const loopback=['127.0.0.1','::1','::ffff:127.0.0.1'].includes(remote);
+    const ip=env.TRUST_PROXY==='1' && loopback && typeof request.headers['x-real-ip']==='string' && /^[a-fA-F0-9:.]{1,64}$/.test(request.headers['x-real-ip']) ? request.headers['x-real-ip'] : remote;
+    if (request.headers.origin && !allowed.has(request.headers.origin)) {try{await recordSecurity(relayEnv,{kind:'security.origin-rejected',route:'ws',ip,outcome:'deny'});}catch{}return reject(403, 'Forbidden');}
     if (url.pathname === '/api/connectivity/ws') {
       return websocket.handleUpgrade(request, socket, head, raw => { raw.send(JSON.stringify({ type: 'probe', ...health })); raw.close(1000); });
     }
     const match = /^\/api\/rooms\/([A-Z2-9]{8})\/ws$/.exec(url.pathname);
-    const context = url.pathname === '/api/presence' ? directoryContext : match ? roomContext(match[1]) : null;
-    if (!context) return reject(404, 'Not Found');
+    if(url.pathname!=='/api/presence' && !match)return reject(404,'Not Found');
+    const connection=crypto.randomUUID();
+    try{await recordSecurity(relayEnv,{kind:'network.connect',room:match?.[1] || '',connection,route:match?'room-ws':'presence-ws',ip,outcome:'accept'});}catch(error){return reject(error.status || 503,'Service Unavailable');}
+    for(const [id,pending] of contexts) if(!pending.record.authority && !pending.sockets.size)contexts.delete(id);
+    if(match && !contexts.has(match[1]) && [...contexts.values()].filter(context=>!context.record.authority).length>=128)return reject(429,'Too Many Requests');
+    const context = match ? roomContext(match[1]) : directoryContext;
     if ([...context.sockets].filter(ws => !ws.data.removed).length >= (context === directoryContext ? 1000 : 64)) return reject(429, 'Too Many Requests');
     websocket.handleUpgrade(request, socket, head, raw => {
-      const ws = new Socket(raw, context, match ? { room: match[1], id: crypto.randomUUID() } : {});
+      const ws = new Socket(raw, context, match ? { room: match[1], id: connection } : {});
       context.sockets.add(ws);
       const authTimer = setTimeout(() => { if (!ws.data.authenticated) raw.close(1008, 'Authentication timeout'); }, 10000); authTimer.unref();
       raw.on('message', (data, binary) => {
@@ -180,22 +205,23 @@ export async function createServer(options = {}) {
         if (text === 'ping') { ws.heartbeat = Date.now(); return raw.send('pong'); }
         context.execute(() => context.controller.webSocketMessage(ws, text)).catch(() => {});
       });
-      raw.on('close', () => { clearTimeout(authTimer); context.execute(() => context.controller.webSocketClose(ws)).catch(() => {}).finally(() => context.sockets.delete(ws)); });
+      raw.on('close', () => { clearTimeout(authTimer); if(context.stopping){context.sockets.delete(ws);return;} context.execute(() => context.controller.webSocketClose(ws)).catch(() => {}).finally(() => context.sockets.delete(ws)); });
       // ws already sends the appropriate protocol close (for example 1009
       // for oversized frames). Terminating here would hide that close code.
       raw.on('error', () => {});
     });
   });
   return {
-    server, store, contexts, health,
+    server, store, securityStore, contexts, health,
     async listen() { await new Promise((resolveListen, reject) => { server.once('error', reject); server.listen(port, host, () => { server.removeListener('error', reject); resolveListen(); }); }); return server.address(); },
     async close() {
-      clearInterval(presenceTimer);
+      clearInterval(presenceTimer);clearInterval(securityTimer);
       for (const context of [...contexts.values(), directoryContext]) { context.stopping = true; clearTimeout(context.timer); }
+      for (const context of [...contexts.values(),directoryContext]) for(const ws of context.sockets) ws.data.removed=true;
       for (const raw of websocket.clients) raw.terminate();
       await new Promise(resolveClose => server.close(resolveClose));
       for (const context of [...contexts.values(), directoryContext]) await context.queue;
-      websocket.close(); store.close();
+      websocket.close(); store.close();securityStore.close();
     },
   };
 }

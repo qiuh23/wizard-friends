@@ -116,6 +116,7 @@ export class RoomSocial {
     this.latestChat = state.chatSeq || 0;
     const own = state.players.find(p => p.id === me);
     this.root.querySelector('.chat-context').textContent = own ? `${own.name} · 预测 ${own.bid ?? '—'} / 实赢 ${own.won} · ${own.score} 分` : '观战中 · 仅公开信息';
+    this.notices.syncCurrent(this.messages);
     this.notices.update(this.messages, me, connected && !document.hidden, Date.now(), matchMedia('(max-width:850px)').matches ? 4 : 6);
     if (!this.chat.hidden) this.notices.items = [];
     this.renderNotices();
@@ -150,14 +151,15 @@ export class RoomSocial {
       this.key = key;
       // Retain existing nodes so screen readers announce only newly added messages.
       const retained = new Set(this.messages.map(m => String(m.seq)));
-      for (const node of this.list.children) if (!retained.has(node.dataset.seq)) node.remove();
+      for (const node of [...this.list.children]) if (!retained.has(node.dataset.seq)) node.remove();
+      for(const node of [...this.list.children]) {const message=this.messages.find(message=>String(message.seq)===node.dataset.seq);if(message && (node.querySelector('b')?.textContent!==message.name || node.querySelector('span')?.textContent!==message.text))node.remove();}
       for (const message of this.messages) {
         if ([...this.list.children].some(node => node.dataset.seq === String(message.seq))) continue;
         const row = document.createElement('p'); row.dataset.seq = message.seq;
         row.className = message.player === me ? 'own-message' : '';
         const name = document.createElement('b'); name.textContent = message.name;
         const text = document.createElement('span'); text.textContent = message.text;
-        row.append(name, text); this.list.append(row);
+        const identifier=document.createElement('small');identifier.textContent=` #${message.seq}`;identifier.title='举报时提供此消息编号和房间码';row.append(name, text,identifier); this.list.append(row);
       }
       if (atBottom) this.list.scrollTop = this.list.scrollHeight;
     }

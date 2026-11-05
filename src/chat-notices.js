@@ -9,6 +9,10 @@ export class ChatNotices {
       .map(n => ({ ...n, leaving: now >= n.expiresAt }));
     return this.items;
   }
+  syncCurrent(messages) {
+    const current=new Map(messages.map(message=>[message.seq,message]));
+    this.items=this.items.filter(notice=>current.has(notice.message.seq)).map(notice=>({...notice,message:{...current.get(notice.message.seq)}}));
+  }
   update(messages, me, connected, now = Date.now(), limit = 6) {
     const fresh = connected && this.hydrated ? messages.filter(m => m.seq > this.latest && m.player !== me) : [];
     this.latest = Math.max(this.latest, 0, ...messages.map(m => m.seq));

@@ -196,7 +196,7 @@ export class RoomAuthority {
   recordPublicAction(before, actor, action, now) {
     const after = spectatorView(this.game);
     const member = after.players.find(p => p.id === actor), name = member?.name || '玩家';
-    const append = text => appendPublicEvent(this.game, text, now);
+    const append = text => {appendPublicEvent(this.game,text,now);this.game.publicEvents.at(-1).source={actor,type:action.type,...(action.type==='rename'?{previousName:before.players.find(p=>p.id===actor)?.name,name}: {})};};
     const cardLabel = card => card.kind === 'wizard' ? '巫师 W' : card.kind === 'jester' ? '小丑 J' : `${SUIT_NAMES[card.suit]?.split(' · ')[0]} ${card.rank}`;
     if (['play', 'timeout'].includes(action.type)) {
       const play = after.trick.at(-1);
@@ -204,7 +204,7 @@ export class RoomAuthority {
     } else if (action.type === 'bid') append(member?.bid == null ? `${name} 已提交预估` : `${name} 预估 ${member.bid} 墩`);
     else if (action.type === 'trump') append(`${name} 选择主牌：${SUIT_NAMES[after.trump]?.split(' · ')[0]}`);
     else if (action.type === 'rename') append(`${before.players.find(p => p.id === actor)?.name || '玩家'} 改名为 ${name}`);
-    else if (action.type === 'chat') append(`${name} 发送消息：${action.text.trim()}`);
+    else if (action.type === 'chat') { append(`${name} 发送消息：${action.text.trim()}`); const event=this.game.publicEvents.at(-1); event.source={chatSeq:this.game.chatSeq,actor}; }
     else if (action.type === 'configure') append('房主更新了整局规则');
     else if (action.type === 'rematch') append('房主开启新的一局');
     if (after.round > before.round) append(`第 ${after.round} 轮开始，每人 ${after.cardsPerRound} 张牌`);

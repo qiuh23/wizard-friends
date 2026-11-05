@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { createWriteStream } from 'node:fs';
+import { createWriteStream, existsSync } from 'node:fs';
 import { mkdtemp, readFile, realpath, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -62,7 +62,14 @@ async function site(enabled) {
   run('/usr/bin/flock', ['--wait', '120', '/run/lock/game-sites.configure.lock', '/bin/bash', '-euc', script]);
 }
 async function restore(previous) {
-  if (previous) { await link('current', checkedRelease(previous)); run('/usr/bin/systemctl', ['restart', 'wizard-friends']); }
+  if (previous) {
+    checkedRelease(previous);
+    if (!existsSync(`${previous}/.security-aware`)) {
+      try { run('/usr/bin/python3', [`${library}/security-ops.py`, 'rollback-check', '--database', '/var/lib/wizard-friends/security.sqlite']); }
+      catch (error) { run('/usr/bin/systemctl', ['stop', 'wizard-friends']); throw error; }
+    }
+    await link('current', previous); run('/usr/bin/systemctl', ['restart', 'wizard-friends']);
+  }
   else { run('/usr/bin/systemctl', ['stop', 'wizard-friends']); await rm(`${base}/current`, { force: true }); await site(false); }
 }
 export async function install(encoded, user) {
@@ -80,6 +87,8 @@ export async function install(encoded, user) {
     return;
   }
   if (state && (state.runId > request.runId || (state.runId === request.runId && state.commit !== request.commit))) throw Error('A newer Wizard release already exists.');
+  // Root-owned storage check runs before artifact download or app switching.
+  run('/bin/bash', [`${library}/security-preflight.sh`]);
   await validateCurrent(request);
   const work = await mkdtemp(join(tmpdir(), 'wizard-deploy-'));
   try {
@@ -109,6 +118,10 @@ export async function install(encoded, user) {
     try {
       await link('current', destination); run('/usr/bin/systemctl', ['restart', 'wizard-friends']);
       await waitProbe(`http://127.0.0.1:${config.port}`, request.commit, config.origin);
+      const security = await fetch(`http://127.0.0.1:${config.port}/api/security/health`, { signal: AbortSignal.timeout(5000) });
+      if (!security.ok || (await security.json()).ok !== true) throw Error('Required Wizard security storage is not ready.');
+      run('/bin/bash', [`${library}/security-maintenance.sh`]);
+      await writeFile(`${destination}/.security-aware`, 'validated audit readiness\n', { mode: 0o640 });
       await site(true);
       await waitProbe(config.origin, request.commit);
       run('/usr/bin/systemctl', ['enable', 'wizard-friends']);

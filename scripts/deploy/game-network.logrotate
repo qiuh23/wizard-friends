@@ -1,0 +1,18 @@
+# One shared host policy, identical in both game repositories. Install once.
+# Never remove by count/size: security-ops.py applies six CALENDAR months after
+# closure. maxsize rotates early; it does not discard an unexpired file.
+/var/log/game-network/*.log {
+    daily
+    maxsize 10M
+    rotate -1
+    dateext
+    dateformat -%Y%m%dT%H%M%S
+    missingok
+    notifempty
+    compress
+    create 0640 www-data adm
+    sharedscripts
+    postrotate
+        invoke-rc.d nginx rotate >/dev/null 2>&1
+    endscript
+}

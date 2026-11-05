@@ -27,7 +27,7 @@ const otherToken = '22222222-2222-4222-a222-222222222222';
 const descriptor = { room: 'ABCDEFGH', hostName: '房主', players: 3, round: 1, maxRounds: 5, phase: 'bid', spectators: 0 };
 function setup() {
   const ctx = context(), advertisements = [];
-  const env = { DIRECTORY: { getByName: () => ({ fetch: async (url, init) => { advertisements.push(JSON.parse(init.body)); return Response.json({}); } }) } };
+  const env = { SECURITY_TEST_NO_AUDIT:true, DIRECTORY: { getByName: () => ({ fetch: async (url, init) => { advertisements.push(JSON.parse(init.body)); return Response.json({}); } }) } };
   const relay = new RoomRelay(ctx, env);
   const add = (id) => { const ws = new Socket({ id, room: 'ABCDEFGH' }); ctx.sockets.push(ws); return ws; };
   const message = (ws, value) => relay.webSocketMessage(ws, JSON.stringify(value));
@@ -45,8 +45,8 @@ test('new human handshakes require a nickname even with the legacy automatic fla
     assert.equal(unnamed.sent.at(-1).type, 'fatal');
     assert.match(unnamed.sent.at(-1).message, /昵称/);
     assert.equal(unnamed.data.authenticated, undefined);
-    assert.equal(s.relay.authority.game.players.length, host ? 0 : 1);
-    assert.deepEqual(s.relay.authority.record.identities, before);
+    assert.equal(s.relay.authority?.game.players.length || 0, host ? 0 : 1);
+    assert.deepEqual(s.relay.authority?.record.identities || {}, before);
     if (host) assert.equal(s.ctx.store.has('owner'), false);
   }
 });
