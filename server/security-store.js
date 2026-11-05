@@ -47,7 +47,7 @@ export class SecurityStore {
           this.db.exec('COMMIT');
         }catch(error){this.db.exec('ROLLBACK');throw error;}value={ok:true};
       }
-      else if(action==='health'){this.checkCapacity();value={ok:true};}
+      else if(action==='health'){this.checkCapacity();if(this.db.prepare('UPDATE security_usage SET bytes=bytes WHERE id=1').run().changes!==1)throw Error('Security usage row missing');value={ok:true};}
       else return Response.json({error:'Unknown operation'},{status:400});
       return Response.json(value);
     }catch(error){if(error.status===429)return Response.json({error:'Connection rate limited'},{status:429});console.error('SECURITY_STORAGE_FAILURE');return Response.json({error:'Security storage unavailable'},{status:503});}

@@ -73,6 +73,22 @@ test('required record failure blocks chat, rename and administrator publication 
   const authority=f.app.contexts.get(room).controller.authority;assert.equal(authority.game.chat.length,0);assert.equal(authority.game.players[0].name,'房主');
   assert.equal((await admin(f.base,{action:'close-room',reason:'write failure test'})).status,503);assert.equal(authority.closed,false);assert.deepEqual(f.app.securityStore.moderation(room),{});assert.equal(f.app.securityStore.db.prepare('SELECT count(*) AS n FROM security_events').get().n,before);
 });
+
+test('read-only audit storage fails write readiness and blocks dependent publications without changing counters',async t=>{
+  const f=await nodeFixture(t),host=await connect(f.base,{host:true});
+  const before=f.app.securityStore.db.prepare('SELECT bytes FROM security_usage WHERE id=1').get().bytes;
+  assert.equal((await fetch(`${f.base}/api/security/health`)).status,200);
+  assert.equal(f.app.securityStore.db.prepare('SELECT bytes FROM security_usage WHERE id=1').get().bytes,before);
+  const events=f.app.securityStore.db.prepare('SELECT count(*) AS n FROM security_events').get().n;
+  f.app.securityStore.db.exec('PRAGMA query_only=ON');
+  assert.equal((await fetch(`${f.base}/api/security/health`)).status,503);
+  await host.action({type:'chat',text:'must not publish from read-only storage'});
+  await host.action({type:'rename',name:'must not rename'});
+  const authority=f.app.contexts.get(room).controller.authority;
+  assert.equal(authority.game.chat.length,0);assert.equal(authority.game.players[0].name,'房主');
+  assert.equal(f.app.securityStore.db.prepare('SELECT count(*) AS n FROM security_events').get().n,events);
+  assert.equal(f.app.securityStore.db.prepare('SELECT bytes FROM security_usage WHERE id=1').get().bytes,before);
+});
 test('connection guard has bounded source windows and invalid-room handshakes do not persist empty rooms',async t=>{
   const guard=new ConnectionGuard();for(let i=0;i<120;i++)assert.equal(guard.allow('192.0.2.1',0),true);assert.equal(guard.allow('192.0.2.1',1),false);assert.equal(guard.allow('192.0.2.1',60000),true);
   const f=await nodeFixture(t);for(let i=0;i<4;i++){const code=`AAAAAAA${'BCDE'[i]}`,socket=new WebSocket(`${f.base.replace('http:','ws:')}/api/rooms/${code}/ws`);await new Promise((resolve,reject)=>{socket.once('open',resolve);socket.once('error',reject);});const closed=new Promise(resolve=>socket.once('close',resolve));socket.send(JSON.stringify({type:'hello',host:true,token:i%2?'invalid':crypto.randomUUID(),name:''}));await closed;}

@@ -92,7 +92,7 @@ export class SecurityLedger {
   async fetch(request) {
     try {
       const action=new URL(request.url).pathname.slice(1), input=await request.json();
-      if(action==='health') { this.checkCapacity(); this.sql.exec('SELECT 1'); return Response.json({ok:true}); }
+      if(action==='health') { this.checkCapacity();this.sql.exec('UPDATE security_usage SET bytes=bytes WHERE id=1');return Response.json({ok:true}); }
       if(action==='moderation') return Response.json(this.rows('SELECT state FROM security_moderation WHERE room=?',input.room).map(row=>JSON.parse(row.state))[0] || {});
       if(action==='list') return Response.json({events:this.rows('SELECT * FROM security_events WHERE id>? ORDER BY id LIMIT 100',Number(input.after)||0).map(row=>({...row,event:JSON.parse(row.event)}))});
       if(action==='hold') {

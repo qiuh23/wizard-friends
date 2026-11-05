@@ -26,7 +26,7 @@ Cloudflare 绑定独立 `SECURITY` / `SecurityLedger` SQLite Durable Object，�
 
 Node 每分钟最多清理 500 条已到期且未保全事件；Cloudflare 每小时批次 500 条，积压时约一分钟继续，持续写入不推迟已有清理闹钟。SQLite 删除后空间先供后续写入复用，文件通常不会立即变小，不在请求中执行 VACUUM。
 
-默认 `SECURITY_MAX_BYTES=268435456`（256MiB），Node `SECURITY_MIN_FREE_BYTES=268435456`，可调整。Node 用活跃 SQLite 页和文件系统可用空间判断；Cloudflare 用 SQL trigger 维护的活跃记录字节估算，避免每次写入全表扫描。80% 发出容量警告。遇到容量/写入问题输出明确错误，`/api/security/health` 返回 503；依赖审计的新增连接、身份确认、聊天、改名及站长发布处置失败，不删除未到期/保全数据腾空间。告警的接收与线上监控仍需站长配置；不得将本地失败注入当作生产告警链路验收。
+默认 `SECURITY_MAX_BYTES=268435456`（256MiB），Node `SECURITY_MIN_FREE_BYTES=268435456`，可调整。Node 用活跃 SQLite 页和文件系统可用空间判断；Cloudflare 用 SQL trigger 维护的活跃记录字节估算，避免每次写入全表扫描。80% 发出容量警告。`/api/security/health` 还对固定用量行执行一次值不变的 UPDATE，验证当前可写而不增加事件或改变计数。遇到容量/写入问题输出明确错误并返回 503；依赖审计的新增连接、身份确认、聊天、改名及站长发布处置失败，不删除未到期/保全数据腾空间。告警的接收与线上监控仍需站长配置；不得将本地失败注入当作生产告警链路验收。
 
 表：`security_events(id,at,expires_at,event,held)`；`security_moderation(room,state,expires_at,held)`；`security_usage(id,bytes)` 为触发器维护的容量计数。备份恢复先建表/触发器、恢复事件和完整处置状态，计数由触发器重建；不要覆盖仍需保全的较新处置。
 
