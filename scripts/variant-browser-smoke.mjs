@@ -8,17 +8,22 @@ const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 
 const observe = page => page.on('pageerror', error => errors.push(error.message));
 async function expectForesightEdges(page) {
   const bounds = await page.locator('.foresight-hands').evaluate(panel => {
-    const cards = panel.querySelectorAll('.foresight-cards .card');
-    const viewport = panel.getBoundingClientRect();
-    panel.scrollLeft = 0;
-    const firstLeft = cards[0].getBoundingClientRect().left;
-    panel.scrollLeft = panel.scrollWidth;
-    const lastRight = cards[cards.length - 1].getBoundingClientRect().right;
-    panel.scrollLeft = 0;
-    return { firstLeft, lastRight, left: viewport.left, right: viewport.right };
+    const viewport = panel.getBoundingClientRect(), heading = panel.querySelector('header');
+    const sticky = getComputedStyle(heading).position === 'sticky' ? heading.offsetHeight : 0;
+    const reachable = [...panel.querySelectorAll('.foresight-player')].every(group => {
+      const cards = group.querySelectorAll('.card');
+      return [cards[0], cards[cards.length - 1]].every(card => {
+        panel.scrollTop += card.getBoundingClientRect().top - viewport.top - panel.clientTop - sticky;
+        const box = card.getBoundingClientRect();
+        return box.left >= viewport.left && box.right <= viewport.right &&
+          box.top >= viewport.top + panel.clientTop + sticky - 1 && box.bottom <= viewport.top + panel.clientTop + panel.clientHeight + 1;
+      });
+    });
+    panel.scrollTop = 0;
+    return { reachable, horizontalOverflow: panel.scrollWidth > panel.clientWidth };
   });
-  expect(bounds.firstLeft, 'The first revealed card must be reachable at the scroll start').toBeGreaterThanOrEqual(bounds.left);
-  expect(bounds.lastRight, 'The last revealed card must be reachable at the scroll end').toBeLessThanOrEqual(bounds.right);
+  expect(bounds.reachable, 'Each player’s first and last revealed cards must be fully reachable').toBe(true);
+  expect(bounds.horizontalOverflow).toBe(false);
 }
 if (process.argv.includes('--foresight-layout-only')) {
   try {
@@ -49,7 +54,7 @@ if (process.argv.includes('--foresight-layout-only')) {
     await page.locator('.scene-host.ready canvas').waitFor({ timeout: 20000 });
     for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
       await page.setViewportSize(viewport);
-      await expect(page.locator('.concealed-hand')).toContainText('8 张手牌暂时保密');
+      await expect(page.locator('.concealed-hand')).toHaveText('手牌暂时保密，全员预测后揭晓');
       await expect(page.locator('.hand .card')).toHaveCount(0);
       await expect(page.locator('.foresight-hands .card')).toHaveCount(24);
       await expectForesightEdges(page);
@@ -98,7 +103,7 @@ async function checkVariantGame() {
   await expect(page.locator('input[name="strict"][value="true"]')).toBeDisabled();
   await page.screenshot({ path: '.local/variants-setup-mobile.png', fullPage: true });
   await page.locator('#start').click();
-  await expect(page.locator('.concealed-hand')).toContainText('4 张手牌暂时保密');
+  await expect(page.locator('.concealed-hand')).toHaveText('手牌暂时保密，全员预测后揭晓');
   expect(await page.locator('.hand .card').count()).toBe(0);
   expect(await page.locator('.foresight-hands .card').count()).toBe(8);
   await expect(page.locator('.table-trump')).toContainText('本轮无主牌');

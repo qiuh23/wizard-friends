@@ -1,0 +1,69 @@
+{
+  "cases": [
+    {
+      "case": "1440x900-6-play",
+      "identical": true
+    },
+    {
+      "case": "320x568-6-bid",
+      "identical": true
+    },
+    {
+      "case": "320x568-6-finished",
+      "identical": true
+    },
+    {
+      "case": "320x568-6-play",
+      "identical": true
+    },
+    {
+      "case": "320x568-6-roundEnd",
+      "identical": true
+    },
+    {
+      "case": "360x640-5-play",
+      "identical": true
+    },
+    {
+      "case": "390x844-3-play",
+      "identical": true
+    },
+    {
+      "case": "390x844-4-bid",
+      "identical": true
+    },
+    {
+      "case": "568x320-6-play",
+      "identical": true
+    },
+    {
+      "case": "768x1024-6-bid",
+      "identical": true
+    },
+    {
+      "case": "768x1024-6-play",
+      "identical": true
+    },
+    {
+      "case": "844x300-6-finished",
+      "identical": true
+    },
+    {
+      "case": "844x300-6-play",
+      "identical": true
+    },
+    {
+      "case": "expanded-320x568",
+      "identical": true
+    },
+    {
+      "case": "expanded-568x320",
+      "identical": true
+    },
+    {
+      "case": "expanded-844x300",
+      "identical": true
+    }
+  ],
+  "allIdentical": true
+}

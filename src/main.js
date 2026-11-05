@@ -51,6 +51,7 @@ import './score-bubbles.css';
 import { ScreenDirection, screenDirectionControlHTML } from './screen-direction.js';
 import './screen-direction.css';
 import './room-experience.css';
+import './foresight.css';
 import { FloatingLayers, containsEvent } from './floating-layers.js';
 
 new ScreenDirection();
@@ -154,7 +155,8 @@ const handMotion = new HandMotion(showHoveredCard);
 const tableMotion = new TableMotion();
 const trumpReveal = new TrumpReveal();
 const scoreBubbles = new ScoreBubbles();
-let selectedCard = null, handExpanded = false, handCollapsed = false, handSort = 'suit', handScroll = 0, gridScroll = 0, selectionContext = '';
+let selectedCard = null, handExpanded = false, handCollapsed = false, handSort = sessionStore.getItem('wizard-hand-sort') === 'rank' ? 'rank' : 'suit', handScroll = 0, gridScroll = 0, selectionContext = '';
+let foresightSort = ['suit', 'rank'].includes(sessionStore.getItem('wizard-foresight-sort')) ? sessionStore.getItem('wizard-foresight-sort') : null;
 let renderedTableKey = null, renderedJournal = '';
 let selectionPointer = null;
 document.addEventListener('pointerdown', event => {
@@ -220,7 +222,7 @@ function cardHTML(c, inspectable = false, legal = false, selected = false) {
   const special = c.kind !== 'number';
   const label = c.kind === 'wizard' ? '巫师' : c.kind === 'jester' ? '小丑' : SUIT_NAMES[c.suit].split(' · ')[1];
   const value = special ? (c.kind === 'wizard' ? 'W' : 'J') : c.rank;
-  return `<button class="card ${c.suit || c.kind} ${legal ? 'playable' : ''} ${selected ? 'selected' : ''}" style="--card-color:${cardMark(c).color};background-image:url('${cardImage(c)}')" ${inspectable ? `data-card="${escape(c.id)}" aria-pressed="${selected}"` : 'disabled tabindex="-1"'} aria-label="${escape(cardLabel(c))}${legal ? '，合法牌' : ''}${selected ? '，已选中' : ''}" title="${label} ${value}">${cardMarksHTML(c)}</button>`;
+  return `<button class="card ${c.suit || c.kind} ${legal ? 'playable' : ''} ${selected ? 'selected' : ''}" style="--card-color:${cardMark(c).color};background-image:url('${cardImage(c)}')" ${inspectable ? `data-card="${escape(c.id)}" aria-pressed="${selected}"` : `data-visible-card="${escape(c.id)}" disabled tabindex="-1"`} aria-label="${escape(cardLabel(c))}${legal ? '，合法牌' : ''}${selected ? '，已选中' : ''}" title="${label} ${value}">${cardMarksHTML(c)}</button>`;
 }
 const avatarColors = ['#94d6cb', '#eeb9a4', '#a9caff', '#f1d37b', '#c9b4ec', '#b9d59a'];
 function avatarHTML(player, index, lead = null) {
@@ -234,9 +236,10 @@ function ownStatusHTML(p) {
   return `<section class="own-status ${(state.phase === 'bid' ? state.canBid : ['play','trump'].includes(state.phase) && state.players[state.turn]?.id === me) ? 'active' : ''}" aria-label="你的本轮预测和成绩">${avatarHTML(p, index, lead?.seat === index ? lead : null)}<span class="own-name" title="${escape(p.name)}">${escape(p.name)}<small>你</small></span><div class="own-metrics"><span>实赢<b>${p.won}</b></span><span>预测<b>${p.bid ?? '—'}</b></span></div>${compactAction}</section>`;
 }
 function handHTML(p, myTurn) {
+  if (state.foresightActive) return '<section class="concealed-hand" aria-label="你的手牌" role="status">手牌暂时保密，全员预测后揭晓</section>';
   const cards = sortCards(p?.hand || [], handSort), selected = cards.find(c => c.id === selectedCard);
   const reason = pendingPlay ? '正在提交，等待房间确认' : selected ? (!networkReady && !practice ? '连接恢复中，重新连接后再选择' : playBlockedReason(state, me, selected)) : '';
-  return `<div class="hover-preview" hidden aria-live="polite"></div><div class="selected-preview" aria-live="polite" ${selected ? '' : 'hidden'}>${selected ? `${cardHTML(selected)}<span>已选 ${escape(cardLabel(selected))}</span>${reason ? `<small>${escape(reason)}</small>` : ''}` : ''}</div><section class="hand-section ${handExpanded ? 'expanded' : ''} ${handCollapsed ? 'collapsed' : ''}" aria-label="你的手牌"><div class="hand-heading"><b>手牌 · ${p?.count ?? cards.length} 张</b><span>${handExpanded ? '点击查看 · 确认出牌' : '选牌后确认'}</span><button id="hand-collapse" aria-expanded="${!handCollapsed}">${handCollapsed ? '展开手牌' : '收起手牌'}</button><button id="hand-sort" aria-label="切换手牌排序">${handSort === 'suit' ? '花色排序' : '点数排序'}</button><button id="hand-expand" aria-label="${handExpanded ? '收起展开手牌' : '展开全部手牌'}" title="${handExpanded ? '收起展开手牌' : '展开全部手牌'}" aria-expanded="${handExpanded}">${handExpanded ? '⌄' : '⤢'}</button></div><div class="hand ${handExpanded ? 'hand-grid' : 'hand-strip'}" tabindex="0">${cards.map(c => cardHTML(c, true, myTurn && state.legal.includes(c.id), c.id === selectedCard)).join('') || (state.foresightActive ? `<div class="concealed-hand"><strong>你的 ${p?.count || 0} 张手牌暂时保密</strong><span>先见之明 · 全员预估后揭开</span></div>` : '<p class="muted">本轮手牌已出完。</p>')}</div>${state.phase === 'play' && myTurn && !state.lifecycle?.paused && !state.lifecycle?.continuationVote && (practice || networkReady) ? `<div class="play-confirm" data-submitting="${!!pendingPlay}" aria-busy="${!!pendingPlay}"><button id="confirm-play" class="primary" ${!selected || reason ? 'disabled' : ''} title="${escape(reason || (selected ? `打出 ${cardLabel(selected)}` : '请先选择手牌'))}">${pendingPlay ? '正在提交…' : '出牌'}</button></div>` : ''}</section>`;
+  return `<div class="hover-preview" hidden aria-live="polite"></div><div class="selected-preview" aria-live="polite" ${selected ? '' : 'hidden'}>${selected ? `${cardHTML(selected)}<span>已选 ${escape(cardLabel(selected))}</span>${reason ? `<small>${escape(reason)}</small>` : ''}` : ''}</div><section class="hand-section ${handExpanded ? 'expanded' : ''} ${handCollapsed ? 'collapsed' : ''}" aria-label="你的手牌"><div class="hand-heading"><b>手牌 · ${p?.count ?? cards.length} 张</b><span>${handExpanded ? '点击查看 · 确认出牌' : '选牌后确认'}</span><button id="hand-collapse" aria-expanded="${!handCollapsed}">${handCollapsed ? '展开手牌' : '收起手牌'}</button><button id="hand-sort" aria-label="切换手牌排序">${handSort === 'suit' ? '花色排序' : '点数排序'}</button><button id="hand-expand" aria-label="${handExpanded ? '收起展开手牌' : '展开全部手牌'}" title="${handExpanded ? '收起展开手牌' : '展开全部手牌'}" aria-expanded="${handExpanded}">${handExpanded ? '⌄' : '⤢'}</button></div><div class="hand ${handExpanded ? 'hand-grid' : 'hand-strip'}" tabindex="0">${cards.map(c => cardHTML(c, true, myTurn && state.legal.includes(c.id), c.id === selectedCard)).join('') || '<p class="muted">本轮手牌已出完。</p>'}</div>${state.phase === 'play' && myTurn && !state.lifecycle?.paused && !state.lifecycle?.continuationVote && (practice || networkReady) ? `<div class="play-confirm" data-submitting="${!!pendingPlay}" aria-busy="${!!pendingPlay}"><button id="confirm-play" class="primary" ${!selected || reason ? 'disabled' : ''} title="${escape(reason || (selected ? `打出 ${cardLabel(selected)}` : '请先选择手牌'))}">${pendingPlay ? '正在提交…' : '出牌'}</button></div>` : ''}</section>`;
 }
 function lifecycleHTML() {
   const life = state.lifecycle || {}, vote = life.continuationVote;
@@ -261,6 +264,9 @@ function tableDecorHTML() {
   return '<div class="table-props" aria-hidden="true"><i class="prop-candle candle-left"></i><i class="prop-candle candle-right"></i><i class="prop-book">✦</i><i class="prop-orb"></i><i class="prop-deck"></i><i class="prop-coins"></i></div>';
 }
 function render() {
+  const previousForesight = $('.foresight-hands');
+  const foresightScroll = previousForesight?.scrollTop || 0;
+  const foresightFocus = previousForesight?.contains(document.activeElement) ? document.activeElement.id || 'foresight-hands' : null;
   const previousLobby = $('.lobby-table');
   if (previousLobby) lobbyPanelScroll[previousLobby.dataset.activePanel] = previousLobby.scrollTop;
   if ($('#rule-extras')) ruleExtrasOpen = $('#rule-extras').open;
@@ -357,7 +363,7 @@ function render() {
     const turnName = escape(state.players[state.turn]?.name);
     const prompt = state.phase === 'finished' ? `${state.players.filter(p => p.score === highScore).map(p => escape(p.name)).join('、')} 赢得本局` : done ? `${escape(state.players[state.lastWinner]?.name)} 赢下这一墩` : state.phase === 'bid' ? (state.canBid ? '预测赢墩' : p?.bidSubmitted ? '等待其他玩家预测' : `等待 ${turnName} 预测`) : myTurn ? ({ trump: '选择本轮主牌', play: '轮到你出牌' }[state.phase]) : `等待 ${turnName} ${state.phase === 'trump' ? '选色' : '出牌'}`;
     const actionUI = state.canBid ? `<div class="bid-options">${state.bids.map(n => `<button class="bid" data-bid="${n}">${n}</button>`).join('')}</div>` : myTurn && state.phase === 'trump' ? `<div class="trump-options">${SUITS.map(s => `<button data-trump="${s}" class="suit-chip ${s}">${symbols[s]} ${SUIT_NAMES[s]}</button>`).join('')}</div>` : '';
-    const foresight = state.foresightActive ? `<section class="foresight-hands" aria-label="先见之明：其他玩家手牌">${state.players.filter(x => x.id !== me).map(x => `<div class="foresight-player"><p>${escape(x.name)}</p><div class="foresight-cards">${(x.hand || []).map(c => cardHTML(c)).join('')}</div></div>`).join('')}</section>` : '';
+    const foresight = state.foresightActive && !spectating ? `<section id="foresight-hands" class="foresight-hands" tabindex="0" aria-label="先见之明：其他玩家手牌，可上下滚动"><header class="foresight-heading"><b>其他玩家手牌</b><button id="foresight-sort" type="button"></button></header>${state.players.filter(x => x.id !== me).map(x => `<section class="foresight-player" data-foresight-player="${escape(x.id)}" aria-label="${escape(x.name)}的手牌"><h3>${escape(x.name)}<small>${x.count} 张</small></h3><div class="foresight-cards">${sortCards(x.hand || [], foresightSort || handSort).map(c => cardHTML(c)).join('')}</div></section>`).join('')}</section>` : '';
     const currentWinner = state.trick.length ? winner(state.trick, state.trump, state.options.deckMode) : null;
     const followHint = followSuitHint(state, me);
     const settlement = settlementHTML(state, { me, isHost, practice, spectating, pending:!!pendingSettlement });
@@ -405,6 +411,12 @@ function render() {
   $('#continue-no')?.addEventListener('click', () => roomControl('continuationVote', {accept:false}));
   $('#confirm-results')?.addEventListener('click', () => submitSettlement('confirmResults'));
   bindHand();
+  refreshForesightSort();
+  if ($('.foresight-hands')) {
+    layoutSchedule.flush();
+    $('.foresight-hands').scrollTop = foresightScroll;
+    if (foresightFocus) document.getElementById(foresightFocus)?.focus({preventScroll:true});
+  }
   const selectedOptions = () => Object.fromEntries([...$('#rules-form').querySelectorAll('input:checked')].map(input => [input.name, ['true', 'false'].includes(input.value) ? input.value === 'true' : input.value]));
   $('#rules-form')?.addEventListener('change', () => send({ type: 'configure', options: selectedOptions() }));
   $('#rules-form')?.addEventListener('submit', event => { event.preventDefault(); if (isHost) send({ type: 'start', options: selectedOptions() }); });
@@ -428,6 +440,7 @@ function render() {
 function bindCommon() {
   const pregame = state && ['lobby', 'rules'].includes(state.phase);
   document.body.dataset.phase = state?.phase || '';
+  document.body.dataset.foresight = String(!!state?.foresightActive && !spectating);
   document.body.dataset.screen = !state ? 'home' : pregame ? 'lobby' : 'game';
   document.body.dataset.connection = !state ? 'home' : practice || networkReady ? 'connected' : 'reconnecting';
   document.body.dataset.spectator = String(spectating);
@@ -503,7 +516,8 @@ function bindCommon() {
   document.body.classList.toggle('hand-collapsed', handCollapsed);
   layoutSchedule.request({force:true});
   tableLayoutObserver.disconnect();
-  document.querySelectorAll('.table,.own-status,.action-panel,.hand-section').forEach(node=>tableLayoutObserver.observe(node));
+  const observed = '.table,.own-status,.action-panel,.hand-section,.concealed-hand' + (state?.foresightActive ? ',.opponents .player,.foresight-heading,.trump-display' : '');
+  document.querySelectorAll(observed).forEach(node=>tableLayoutObserver.observe(node));
   syncScene(); updateGraphicsButton();
   if (trumpReveal.effect && !trumpReveal.root) layoutSchedule.flush();
   let deckRect = null;
@@ -888,7 +902,12 @@ function bindHand() {
   }
   if ($('#hand-expand')) $('#hand-expand').onclick = () => {handCollapsed=false;handExpanded=!handExpanded;refreshHand();};
   if ($('#hand-collapse')) $('#hand-collapse').onclick = () => {handCollapsed=!handCollapsed;refreshHand();};
-  if ($('#hand-sort')) $('#hand-sort').onclick = () => {handSort=handSort==='suit' ? 'rank' : 'suit';refreshHand({sort:true});};
+  if ($('#hand-sort')) $('#hand-sort').onclick = () => {handSort=handSort==='suit' ? 'rank' : 'suit';sessionStore.setItem('wizard-hand-sort',handSort);refreshHand({sort:true});refreshForesightSort();};
+  if ($('#foresight-sort')) $('#foresight-sort').onclick = () => {
+    foresightSort = (foresightSort || handSort) === 'suit' ? 'rank' : 'suit';
+    sessionStore.setItem('wizard-foresight-sort', foresightSort);
+    refreshForesightSort();
+  };
   if ($('#confirm-play')) $('#confirm-play').onclick = () => {
     const card = state.players.find(p => p.id === me)?.hand?.find(c => c.id === selectedCard);
     if (pendingPlay || !card || !practice && !networkReady || playBlockedReason(state,me,card)) return;
@@ -897,6 +916,26 @@ function bindHand() {
     if (!send({type:'play',card:id},pendingPlay.requestId)) pendingPlay=null;
     refreshSelection();
   };
+}
+function refreshForesightSort() {
+  const panel = $('.foresight-hands'), button = $('#foresight-sort');
+  if (!panel || !button || !state?.foresightActive) return;
+  const mode = foresightSort || handSort, label = mode === 'suit' ? '花色' : '点数';
+  button.textContent = `${label}排序 ⇄`;
+  button.setAttribute('aria-label', `其他玩家手牌按${label}排序，切换为${mode === 'suit' ? '点数' : '花色'}排序`);
+  panel.dataset.sort = mode;
+  // Move only the already permitted, read-only card nodes. Never touch state,
+  // send a room action, or consult the authority's complete hands.
+  for (const group of panel.querySelectorAll('[data-foresight-player]')) {
+    const player = state.players.find(player => player.id === group.dataset.foresightPlayer);
+    if (!player || player.id === me) continue;
+    const cards = group.querySelector('.foresight-cards');
+    const nodes = new Map([...cards.children].map(node => [node.dataset.visibleCard, node]));
+    for (const card of sortCards(player.hand || [], mode)) {
+      const node = nodes.get(card.id);
+      if (node) cards.append(node);
+    }
+  }
 }
 function updateEventEffects(initial = false) {
   const seq = state?.eventSeq || 0;

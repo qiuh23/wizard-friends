@@ -1,0 +1,17 @@
+{
+  "checks": [
+    {
+      "independentPlayers": 3,
+      "realWebSockets": true,
+      "guestReconnectBeforeAndAfterBid": true,
+      "sortIsLocal": true,
+      "rotation": true,
+      "ownCardsNeverReceivedEarly": true,
+      "submittedStatusVisible": true,
+      "allBidsRevealOnlyOwnHand": true,
+      "spectatorPrivacy": true
+    }
+  ],
+  "stateFrames": 40,
+  "errors": []
+}

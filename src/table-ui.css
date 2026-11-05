@@ -82,7 +82,6 @@ body.turn-arrival .action-panel.your-action { animation:action-arrival 1.8s ease
 @keyframes trick-win { 50%{translate:0 -8px;scale:1.08;} }
 @keyframes action-arrival { 20%,65%{box-shadow:0 0 30px #eed29488;} }
 body[data-screen="game"] .trump-display { top:27%; }.trump-display .table-trump { font-size:13px; }
-body[data-screen="game"] .foresight-hands { top:27%;bottom:auto;max-height:28dvh;overflow:auto;background:#0a211ce8;z-index:5; }
 body[data-screen="lobby"] .room-operations { top:14px;right:18px; }
 body[data-screen="lobby"] .lifecycle-banner { top:75px; }
 body[data-screen="game"] .notice { top:119px;max-width:90vw;z-index:17; }
