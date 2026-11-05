@@ -2,7 +2,7 @@ import { chromium, webkit, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 const base = process.env.GAME_URL || 'http://127.0.0.1:5184/';
 const stage = process.env.UI_STAGE || 'after';
-const output = 'docs/qa/room-entry-ui';
+const output = process.env.REVIEW_OUTPUT || 'docs/qa/room-entry-ui';
 await mkdir(output, { recursive:true });
 const engine=process.env.BROWSER_ENGINE || 'chromium';
 const browser = engine==='webkit' ? await webkit.launch({headless:true}) : await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'msedge', headless:true, args:['--disable-webgl'] });
@@ -41,6 +41,7 @@ try {
     await page.locator('[data-remove]').last().click();await expect(page.locator('#addbot')).toBeVisible();
     await expect(page.locator('#start')).toBeEnabled();
     await page.locator('[data-lobby-panel="rules"]').click();
+    await page.locator('#rule-extras > summary').click();
     for (const group of await page.locator('.rule-groups fieldset').all()) {
       await group.locator('label').first().scrollIntoViewIfNeeded();
       expect(await group.locator('label').first().evaluate(n=>{const r=n.getBoundingClientRect();return n.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})).toBe(true);

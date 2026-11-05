@@ -47,7 +47,12 @@ import { copyInvitation } from './share-link.js';
 import { readNickname, saveNickname } from './nickname-preference.js';
 import { ScoreBubbles } from './score-bubbles.js';
 import './score-bubbles.css';
+import { ScreenDirection } from './screen-direction.js';
+import './screen-direction.css';
+import './room-experience.css';
 import { FloatingLayers, containsEvent } from './floating-layers.js';
+
+new ScreenDirection();
 
 const sessionStore = backendStorage(globalThis.sessionStorage);
 const localStore = backendStorage(globalThis.localStorage);
@@ -136,6 +141,7 @@ let spectating = false;
 let botTimer, status = '', busy = false, rulesOpen = false, networkReady = false;
 let preferredBotDifficulty = 'smart';
 let lobbyPanelRoom = '', lobbyPanel = 'players', lobbyPanelScroll = {players:0,rules:0};
+let ruleExtrasOpen = false;
 let roomEpoch = 0;
 let scoresOpen = false, menuOpen = false;
 let scoreSource = null;
@@ -234,7 +240,7 @@ function handHTML(p, myTurn) {
 function lifecycleHTML() {
   const life = state.lifecycle || {}, vote = life.continuationVote;
   const deadline = life.retentionDeadline ? new Date(life.retentionDeadline).toLocaleString('zh-CN', {hour12:false}) : null;
-  return `${life.paused || life.hostOffline || life.closeAfterRound ? `<div class="lifecycle-banner" role="status">${life.paused ? `已暂停 · ${escape(life.pauseReason || '房主主动暂停')}` : life.hostOffline ? '房主离线 · 牌局由房间服务保留' : ''}${life.closeAfterRound ? ' · 仅完成当前轮，结果确认后关闭' : ''}<small>${deadline ? `保留截止 ${deadline}` : practice ? '离开后原浏览器保留 10 分钟' : '房主在线时不因闲置过期'}</small></div>` : ''}${vote ? `<div class="continuation-panel" role="dialog" aria-modal="true" aria-label="到期续赛投票"><h2>房间保留时间已到</h2><p>全体在线真人同意后，仅完成当前轮；任一拒绝或 60 秒未全员确认即关闭。</p><p>${vote.accepted.length} / ${vote.voters.length} 已同意 · <span id="continuation-countdown"></span></p>${vote.voters.includes(me) ? `<button id="continue-no">拒绝并关闭</button><button id="continue-yes" class="primary" ${vote.accepted.includes(me) ? 'disabled' : ''}>${vote.accepted.includes(me) ? '已同意，等待其他人' : '同意完成本轮'}</button>` : '<p>等待投票结果</p>'}</div>` : ''}`;
+  return `${life.paused || life.hostOffline || life.closeAfterRound ? `<div class="lifecycle-banner" role="status">${life.paused ? `已暂停 · ${escape(life.pauseReason || '房主主动暂停')}` : life.hostOffline ? '房主离线 · 牌局进度已保留' : ''}${life.closeAfterRound ? ' · 仅完成当前轮，结果确认后关闭' : ''}<small>${deadline ? `保留截止 ${deadline}` : practice ? '离开后原浏览器保留 10 分钟' : '房主在线时不因闲置过期'}</small></div>` : ''}${vote ? `<div class="continuation-panel" role="dialog" aria-modal="true" aria-label="到期续赛投票"><h2>房间保留时间已到</h2><p>全体在线真人同意后，仅完成当前轮；任一拒绝或 60 秒未全员确认即关闭。</p><p>${vote.accepted.length} / ${vote.voters.length} 已同意 · <span id="continuation-countdown"></span></p>${vote.voters.includes(me) ? `<button id="continue-no">拒绝并关闭</button><button id="continue-yes" class="primary" ${vote.accepted.includes(me) ? 'disabled' : ''}>${vote.accepted.includes(me) ? '已同意，等待其他人' : '同意完成本轮'}</button>` : '<p>等待投票结果</p>'}</div>` : ''}`;
 }
 
 function shell(body) {
@@ -248,7 +254,7 @@ function rulesHTML() {
     <h3>开局前，房主选择整局玩法</h3><p>牌库、局长、预估方式、加减预估和先见之明都在大厅由房主选定，整个游戏沿用。其他玩家可以查看选项。每轮结算后直接发下一轮的牌；整局结束后可返回大厅调整玩法。</p>
     <ul><li><b>加减预估：</b>最后一人的预估不能使总和等于本轮墩数，仅搭配公开预估，可同时开启先见之明。</li><li><b>隐藏预估：</b>独立提交，全部提交后同时公开。</li><li><b>秘密数字：</b>独立提交，只能看自己的预估，本轮打完才公开所有人的数字。</li><li><b>先见之明：</b>开启的当轮预估时隐藏自己的整手牌，展示其他人的手牌。全部预估完恢复正常；单色模式也适用于当轮全部手牌。</li><li><b>单色牌库（3–4 人）：</b>每人独占一个随机花色 1–13，加 1 张巫师和 1 张小丑。第一轮发 4 张，逐轮增加，12 轮结束。每轮将所有牌归还原牌库重新洗牌；无主牌、不跟花色，数字跨花色比较，最大数字胜，同数字先出者较强。巫师、小丑及计分沿用基本规则。</li></ul>
     <p>标准完整局：3/4/5/6 人分别 20/15/12/10 轮。两种牌库均可选本站的 5 轮快速局，单色快速局每轮发 4–8 张。</p>
-    <p class="muted">真人房由房间服务校验、保存和推进。普通房主离线保留 30 分钟；主动暂停的真人房最多保留 4 小时。离线练习在原浏览器离开后保留 10 分钟。</p><a href="https://blog.amigo-spiele.de/content/ap/rule/06900-GB-AmigoRule.pdf" target="_blank" rel="noopener">查看 AMIGO 官方基本规则 ↗</a></section></div>`;
+    <p class="muted">牌局自动保存。房主离线后保留 30 分钟；主动暂停的好友房最多保留 4 小时。练习离开后在原浏览器保留 10 分钟。</p><a href="https://blog.amigo-spiele.de/content/ap/rule/06900-GB-AmigoRule.pdf" target="_blank" rel="noopener">查看 AMIGO 官方基本规则 ↗</a></section></div>`;
 }
 function tableDecorHTML() {
   return '<div class="table-props" aria-hidden="true"><i class="prop-candle candle-left"></i><i class="prop-candle candle-right"></i><i class="prop-book">✦</i><i class="prop-orb"></i><i class="prop-deck"></i><i class="prop-coins"></i></div>';
@@ -256,6 +262,7 @@ function tableDecorHTML() {
 function render() {
   const previousLobby = $('.lobby-table');
   if (previousLobby) lobbyPanelScroll[previousLobby.dataset.activePanel] = previousLobby.scrollTop;
+  if ($('#rule-extras')) ruleExtrasOpen = $('#rule-extras').open;
   const tableKey = tableViewKey(state, [roomEpoch,me,isHost,practice,spectating,networkReady,!!pendingSettlement]);
   if (tableKey && tableKey === renderedTableKey && $('.table')) {
     updateSocialRegions(); refreshSelection(); scoreBubbles.mount(app); htmlFrame.request();
@@ -278,6 +285,8 @@ function render() {
       <section class="home-menu" aria-label="主菜单">
         <div class="home-title"><span class="title-ornament" aria-hidden="true">✦</span><h1>巫师牌</h1><span class="home-wordmark">W I Z A R D</span></div>
         <nav class="entry-context" aria-label="当前线路与游戏大厅"><span class="current-route">当前线路 · ${backendId() === 'aliyun' ? '阿里云国内' : 'Cloudflare'}</span><a href="${gameLobbyURL()}" data-lobby-navigation ${busy ? 'aria-disabled="true"' : ''}>返回游戏大厅 ↗</a></nav>
+        <div class="menu-identity"><label for="nickname">昵称</label><input id="nickname" maxlength="16" placeholder="请输入昵称" required autocomplete="nickname" value="${escape(nickname)}"></div>
+        <p class="home-setup-hint">创建后选择玩法、邀请朋友，3–6 人即可开局。</p>
         <nav class="menu-options" aria-label="开始游戏">
           ${returnRooms.map((r,i)=>`<button ${i===0 ? 'id="resume-room"' : ''} data-return-room="${i}" class="menu-choice">返回 ${escape(r.room)} · ${r.role==='host' ? '房主' : r.role==='spectator' ? '观战' : '玩家'}</button>`).join('')}<button id="create" class="menu-choice menu-primary" ${busy ? 'disabled' : ''}>${busy ? '正在连接…' : '创建房间'}<span aria-hidden="true">↗</span></button>
           <button id="join-menu" class="menu-choice" aria-expanded="${joinOpen}" aria-controls="join-form" ${busy ? 'disabled' : ''}>加入房间<span aria-hidden="true">＋</span></button>
@@ -285,7 +294,6 @@ function render() {
           ${practiceSaved ? '<button id="resume-practice" class="menu-choice">恢复练习<span>↗</span></button>' : ''}<button id="practice" class="menu-choice" ${busy ? 'disabled' : ''}>单人练习<span aria-hidden="true">↗</span></button>
           ${busy ? '<button id="cancel-connect" class="text-button">取消连接</button>' : ''}
         </nav>
-        <div class="menu-identity"><label for="nickname">昵称</label><input id="nickname" maxlength="16" placeholder="请输入昵称" required autocomplete="nickname" value="${escape(nickname)}"></div>
         <div class="home-presence"></div>
         <aside class="home-room-list" aria-label="在线房间"></aside>
       </section></main>`);
@@ -326,16 +334,17 @@ function render() {
     lobbyPanelRoom = `${backendId()}:${room}:${me}`;
     lobbyPanel = isHost ? 'rules' : 'players';
     lobbyPanelScroll = {players:0,rules:0};
+    ruleExtrasOpen = false;
   }
   const lobbyTabs = state.phase === 'lobby' ? `<nav class="room-tabs" role="tablist" aria-label="房间设置"><button type="button" id="room-players-tab" role="tab" data-lobby-panel="players" aria-controls="room-players-panel" aria-selected="${lobbyPanel === 'players'}" tabindex="${lobbyPanel === 'players' ? '0' : '-1'}">玩家入座 <span>${state.players.length} / 6</span></button><button type="button" id="room-rules-tab" role="tab" data-lobby-panel="rules" aria-controls="room-rules-panel" aria-selected="${lobbyPanel === 'rules'}" tabindex="${lobbyPanel === 'rules' ? '0' : '-1'}">整局玩法</button></nav>` : '';
-  const head = `<div class="room-heading"><div class="room-identity"><span>${practice ? '练习牌桌' : spectating ? '观战房间' : '房间'}</span><span class="room-code">${practice ? '' : escape(publicRoomCode(room))}</span><span class="seat-count">${state.players.length} / 6${!practice ? ` · ${state.spectatorCount || 0} 人观战` : ''}</span></div><div class="room-buttons">${!practice ? `<button id="invite">${spectating ? '分享观战' : '邀请好友'}</button>` : ''}<button id="leave" class="text-button">${spectating ? '退出观战' : '离开'}</button></div>${lobbyTabs}</div>`;
+  const head = `<div class="room-heading"><div class="room-identity"><span>${practice ? '练习牌桌' : spectating ? '观战房间' : '房间'}</span><span class="room-code">${practice ? '' : escape(publicRoomCode(room))}</span><span class="seat-count">${state.players.length} / 6${!practice ? ` · ${state.spectatorCount || 0} 人观战` : ''}</span></div><div class="room-buttons">${!practice ? `<button id="invite">${spectating ? '分享观战' : '邀请好友'}</button>` : ''}<button id="leave" class="text-button">${spectating ? '退出观战' : '离开'}</button></div>${lobbyTabs}${state.phase === 'lobby' ? `<p class="lobby-current" role="status"><b>当前玩法</b> ${escape(ruleSummary(state.options))}</p>` : ''}</div>`;
   let body;
   if (state.phase === 'lobby') {
     const startHint = state.players.length < 3 ? `还差 ${3 - state.players.length} 人` : state.players.some(p => !p.online) ? '等待玩家重连' : state.options.deckMode === 'mono' && state.players.length > 4 ? '单色限 3–4 人，请选择标准牌库' : '';
     body = `<main class="lobby-table has-rule-setup" data-active-panel="${lobbyPanel}"><div class="hero lobby-scene" aria-hidden="true"><div class="lobby-felt"></div></div><div class="lobby-content">
       <section id="room-players-panel" class="lobby-panel" role="tabpanel" tabindex="0" aria-labelledby="room-players-tab" ${lobbyPanel === 'players' ? '' : 'hidden'}><div class="seats" aria-label="房间座位">${state.players.map((p, i) => `<div class="seat ${p.id === me ? 'my-seat' : ''} ${p.bot ? 'bot-seat' : 'human-seat'} ${!p.online ? 'offline' : ''}"><div class="avatar" aria-hidden="true">${p.bot ? '✧' : escape(p.name.slice(0, 1))}</div><div class="seat-name"><b title="${escape(p.name)}">${escape(p.name)}</b><small>${i === 0 ? '房主' : p.bot ? `机器人 · ${p.botDifficulty === 'simple' ? '简单' : '策略'}` : p.online ? '真人' : '真人 · 离线'}${p.id === me ? ' · 你' : ''}</small></div>${isHost && i > 0 ? `<button data-remove="${escape(p.id)}" class="text-button" aria-label="移除${p.bot ? '机器人' : '玩家'} ${escape(p.name)}" title="移除${p.bot ? '机器人' : '玩家'}">×</button>` : ''}</div>`).join('')}${Array.from({ length: 6 - state.players.length }, () => '<div class="seat empty"><div class="avatar" aria-hidden="true">＋</div><div class="seat-name"><b>空位</b><small>等待好友入座</small></div></div>').join('')}</div>
       ${isHost && state.players.length < 6 ? `<div class="lobby-options bot-controls" role="group" aria-label="添加机器人"><label class="sr-only" for="bot-difficulty">机器人难度</label><select id="bot-difficulty"><option value="smart" ${preferredBotDifficulty === 'smart' ? 'selected' : ''}>策略陪练</option><option value="simple" ${preferredBotDifficulty === 'simple' ? 'selected' : ''}>简单陪练</option></select><button id="addbot" type="button">＋ 添加机器人</button></div>` : ''}
-      </section><section id="room-rules-panel" class="lobby-panel" role="tabpanel" tabindex="0" aria-labelledby="room-rules-tab" ${lobbyPanel === 'rules' ? '' : 'hidden'}>${ruleSetupHTML(state, isHost)}</section>
+      </section><section id="room-rules-panel" class="lobby-panel" role="tabpanel" tabindex="0" aria-labelledby="room-rules-tab" ${lobbyPanel === 'rules' ? '' : 'hidden'}>${ruleSetupHTML(state, isHost, ruleExtrasOpen)}</section>
     </div></main><div class="lobby-controls"><div class="lobby-start">${isHost ? `${startHint ? `<span class="start-hint">${startHint}</span>` : ''}<button id="start" class="primary" ${startHint ? 'disabled' : ''}>开始游戏 →</button>` : `<span class="start-hint">等待 ${escape(hostName)} 开始游戏</span>`}</div></div>`;
   } else {
     const done = ['trickEnd', 'roundEnd', 'finished'].includes(state.phase);
@@ -585,7 +594,12 @@ function drawHTMLCards(sample = tableMotion.snapshot()) {
   }
 }
 function updateLayoutMetrics(force = false) {
-  return updateTableLayout({state,me,tableMotion,reducedMotion:motionMedia.matches,drawHTMLCards:() => htmlFrame.request(),force});
+  const changed=updateTableLayout({state,me,tableMotion,reducedMotion:motionMedia.matches,drawHTMLCards:() => htmlFrame.request(),force});
+  // Reuse the existing layout scheduler/observer. Details must fit above the
+  // actual result dock after rotation, wrapping names or browser chrome changes.
+  const dock=$('.settlement-panel');
+  if(dock){const top=`${Math.max(0,dock.getBoundingClientRect().top)}px`;if(dock.style.getPropertyValue('--settlement-dock-top')!==top)dock.style.setProperty('--settlement-dock-top',top);}
+  return changed;
 }
 function setupClearUI() {
   if (!state || ['lobby', 'rules'].includes(state.phase)) {
@@ -597,7 +611,7 @@ function setupClearUI() {
     for (const selector of ['#graphics', '#music-toggle', '#trump-motion', '#turn-sound', ...(state ? ['#rules', '#rename-toggle'] : [])]) {
       const el = $(selector); if (el) content.append(el);
     }
-    content.insertAdjacentHTML('beforeend', lobbyNavigationHTML());
+    content.insertAdjacentHTML('beforeend', '<button type="button" data-screen-direction aria-haspopup="dialog" aria-controls="screen-direction">屏幕方向</button>' + lobbyNavigationHTML());
     if (state) $('.room-identity')?.insertAdjacentHTML('beforeend', `<a class="room-lobby-link" href="${gameLobbyURL()}" data-lobby-navigation>返回游戏大厅 ↗</a>`);
     settings.ontoggle = () => {
       if (!settings.isConnected) return;
@@ -655,7 +669,7 @@ function setupGameHUD(graphics) {
   const selectedRules = document.createElement('p');
   selectedRules.className = 'current-rules'; selectedRules.textContent = ruleSummary(state.options); menu.append(selectedRules);
   for (const el of [$('#rules'), graphics, $('#trump-motion'), $('#turn-sound'), $('#invite')]) if (el) menu.append(el);
-  menu.insertAdjacentHTML('beforeend', lobbyNavigationHTML());
+  menu.insertAdjacentHTML('beforeend', '<button type="button" data-screen-direction aria-haspopup="dialog" aria-controls="screen-direction">屏幕方向</button>' + lobbyNavigationHTML());
   for (const id of ['#hand-sort', '#hand-collapse', '#hand-expand']) {
     const control = $(id);
     if (control) { if (id === '#hand-expand') control.textContent = handExpanded ? '收起展开手牌' : '展开全部手牌'; menu.append(control); }
@@ -971,7 +985,7 @@ function launch(host, restored = null) {
   game = undefined; state = undefined; me = restored?.me || '';
   room = entered || Array.from(crypto.getRandomValues(new Uint8Array(8)), n => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[n & 31]).join('');
   seenEventSeq = null; selectedCard = null;pendingPlay=null;pendingSettlement=null;
-  notify(restored ? '正在恢复房间服务中的原牌局…' : host ? '正在创建房间…' : '正在连接房间…'); render();
+  notify(restored ? '正在恢复原来的牌局…' : host ? '正在创建房间…' : '正在连接房间…'); render();
   let migrationPending=!!restored?.game;
   transport = createRoomTransport({host,room,token,name:nickname,automaticName,spectator:watching,snapshot:restored?.game,identities:restored?.identities,
     onFatal(message) { if (current()) leaveRoom(message,false,migrationPending); },
@@ -979,7 +993,7 @@ function launch(host, restored = null) {
       if (!current()) return;
       networkReady = value === 'connected'; busy = !networkReady;
       if (!networkReady) { selectedCard = null;pendingPlay=null; seenEventSeq = null; trumpReveal.finish(); scoreBubbles.finish(); }
-      notify(networkReady ? '' : '房间服务连接恢复中，正在同步牌局与计时…'); render();
+      notify(networkReady ? '' : '正在恢复连接，同步牌局与计时…'); render();
     },
     onData(msg) {
       if (!current()) return;
@@ -1113,7 +1127,7 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) { layoutSchedule.request(); htmlFrame.request(); tableScene?.requestDraw(); }
 });
 window.addEventListener('offline',()=>{
-  if(!practice) {networkReady=false;pendingPlay=null;selectedCard=null;seenEventSeq=null;trumpReveal.finish();transport?.wake();if(state){notify('网络已断开，正在恢复房间服务连接…');render();}}
+  if(!practice) {networkReady=false;pendingPlay=null;selectedCard=null;seenEventSeq=null;trumpReveal.finish();transport?.wake();if(state){notify('网络已断开，正在恢复连接…');render();}}
   presence?.wake();
 });
 window.addEventListener('online', () => { transport?.wake(); presence?.wake(); });
