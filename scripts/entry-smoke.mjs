@@ -9,6 +9,7 @@ import { createServer } from '../server/index.js';
 // the Cloudflare runtime response is a fixture, not a public Worker acceptance.
 const directory = await mkdtemp(join(tmpdir(), 'wizard-entry-'));
 const apps = [], errors = [], requests = [], sockets = [], navigationReferrers = [];
+const lobbies = { cloudflare: 'https://magical-athlete.qiuh23.workers.dev/lobby/', aliyun: 'https://magical-athlete-online.cn/' };
 let browser;
 async function freePort() {
   const server = createPortServer();
@@ -30,6 +31,7 @@ try {
   browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'msedge', headless: true, args: ['--disable-webgl'] });
   async function context() {
     const result = await browser.newContext();
+    for (const url of Object.values(lobbies)) await result.route(url, route => route.fulfill({ contentType: 'text/html', body: '<title>本地大厅导航验收</title><main id="choices">大厅目标已拦截；不访问公网</main>' }));
     await result.route(`${origins.cloudflare}/runtime-config.json`, route => route.fulfill({ json: { backendId: 'cloudflare', relayOrigin: '', backends } }));
     result.on('request', request => {
       requests.push(request.url());
@@ -43,10 +45,18 @@ try {
   }
   const navigationContext = await context(), navigation = await navigationContext.newPage();
   await navigation.goto(`${origins.cloudflare}/?token=private&next=https://evil.test#private`);
-  await navigation.locator('[data-entry="aliyun"]').click();
-  await expect(navigation).toHaveURL(`${origins.aliyun}/`);
-  await navigation.locator('[data-entry="cloudflare"]').click();
-  await expect(navigation).toHaveURL(`${origins.cloudflare}/`);
+  await expect(navigation.locator('.backend-entries')).toHaveCount(0);
+  await navigation.locator('.entry-context [data-lobby-navigation]').click();
+  await expect(navigation).toHaveURL(lobbies.cloudflare);
+  await navigation.goto(origins.aliyun);
+  await navigation.locator('#quick-settings > summary').click();
+  await expect(navigation.locator('[data-server-entry="aliyun"]')).toBeDisabled();
+  await navigation.locator('[data-server-entry="cloudflare"]').click();
+  await expect(navigation).toHaveURL(origins.cloudflare + '/');
+  await navigation.locator('#quick-settings > summary').click();
+  await navigation.locator('[data-server-entry="aliyun"]').click();
+  await expect(navigation).toHaveURL(origins.aliyun + '/');
+  await navigation.goto(origins.cloudflare);
   await mkdir('.local/wizard-entry', { recursive: true });
   for (const viewport of [{ width: 320, height: 780 }, { width: 390, height: 844 }, { width: 844, height: 390 }]) {
     await navigation.setViewportSize(viewport);
@@ -59,12 +69,26 @@ try {
   await host.locator('#nickname').fill('入口验收房主');
   await host.locator('#create').click();
   await host.locator('body[data-connection="connected"]').waitFor();
+  await expect(host.locator('#room-rules-panel')).toBeVisible();
   const session = page => page.evaluate(() => JSON.parse(sessionStorage.getItem('wizard-room-session:aliyun') || 'null'));
   const original = await session(host);
   expect(original.role).toBe('host');
   await host.reload();
   await host.locator('body[data-connection="connected"]').waitFor();
   expect((await session(host)).me).toBe(original.me);
+
+  // Both cancel and confirmed navigation preserve the original room identity.
+  host.once('dialog', dialog => dialog.dismiss());
+  await host.locator('.room-lobby-link').click();
+  await expect(host).toHaveURL(new RegExp(origins.aliyun));
+  expect((await session(host)).me).toBe(original.me);
+  host.once('dialog', dialog => dialog.accept());
+  await host.locator('.room-lobby-link').click();
+  await expect(host).toHaveURL(lobbies.aliyun);
+  await host.goto(origins.aliyun);
+  await host.locator('body[data-connection="connected"]').waitFor();
+  expect((await session(host)).me).toBe(original.me);
+  expect((await session(host)).room).toBe(original.room);
 
   const watcherContext = await context(), watcher = await watcherContext.newPage();
   await watcher.goto(`${origins.cloudflare}/?room=${original.room}&server=aliyun&game=wizard&watch=1&token=private&next=https://evil.test#private`);
@@ -74,6 +98,49 @@ try {
   await watcher.reload();
   await watcher.locator('body[data-connection="connected"]').waitFor();
   expect((await session(watcher)).role).toBe('spectator');
+  await watcher.setViewportSize({ width: 390, height: 844 });
+  expect(await watcher.locator('.lobby-table').evaluate(node => node.getBoundingClientRect().bottom <= document.querySelector('.topbar').getBoundingClientRect().top + 1)).toBe(true);
+  await watcher.screenshot({ path: '.local/wizard-entry/spectator-390.png' });
+
+  const guestContext = await context(), guest = await guestContext.newPage();
+  await guest.goto(origins.aliyun);
+  await guest.locator('#nickname').fill('等待页真人');
+  await guest.locator('#join-menu').click();
+  await guest.locator('#room-input').fill(`A-${original.room}`);
+  await guest.locator('#join').click();
+  await guest.locator('body[data-connection="connected"]').waitFor();
+  for (const page of [guest, watcher]) {
+    await expect(page.locator('#addbot,#bot-difficulty,[data-remove]')).toHaveCount(0);
+    await page.locator('[data-lobby-panel="rules"]').click();
+    await expect(page.locator('#room-rules-panel')).toBeVisible();
+    await expect(page.locator('#rules-form input:enabled')).toHaveCount(0);
+    if (page === watcher) {
+      await page.locator('#room-rules-panel').focus();
+      await page.keyboard.press('PageDown');
+      await expect.poll(() => page.locator('.lobby-table').evaluate(node => node.scrollTop)).toBeGreaterThan(0);
+    }
+    await page.locator('[data-lobby-panel="players"]').click();
+  }
+  await host.locator('[data-lobby-panel="players"]').click();
+  await host.locator('#bot-difficulty').selectOption('simple');
+  await host.locator('#addbot').click();
+  await expect(host.locator('.seat:not(.empty)')).toHaveCount(3);
+  await expect(host.locator('.bot-seat small')).toHaveText('机器人 · 简单');
+  await host.setViewportSize({ width: 390, height: 844 });
+  await host.screenshot({ path: '.local/wizard-entry/online-room-390.png' });
+  await host.locator('#start').click();
+  await host.locator('body[data-screen="game"]').waitFor();
+  await host.locator('#table-menu').click();
+  host.once('dialog', dialog => dialog.dismiss());
+  await host.locator('[data-server-entry="cloudflare"]').click();
+  expect((await session(host)).room).toBe(original.room);
+  host.once('dialog', dialog => dialog.accept());
+  await host.locator('[data-server-entry="cloudflare"]').click();
+  await expect(host).toHaveURL(origins.cloudflare + '/');
+  await host.goto(origins.aliyun);
+  await host.locator('body[data-connection="connected"]').waitFor();
+  await host.locator('body[data-screen="game"]').waitFor();
+  expect((await session(host)).me).toBe(original.me);
 
   // Current-room recovery keeps its original authority and credentials under
   // the established transition policy, even when another pool is invited.
@@ -96,10 +163,12 @@ try {
   await expect(navigation.locator('#app')).toContainText('暂未开放');
   await navigation.getByRole('button', { name: '返回当前服务器' }).click();
   await expect(navigation).toHaveURL(`${origins.cloudflare}/`);
-  await expect(navigation.locator('[data-entry="aliyun"]')).toBeDisabled();
+  await expect(navigation.locator('[data-entry]')).toHaveCount(0);
+  await navigation.locator('#quick-settings > summary').click();
+  await expect(navigation.locator('[data-server-entry="aliyun"]')).toBeDisabled();
   expect(errors).toEqual([]);
   expect(navigationReferrers).toEqual([]);
-  expect(requests.every(url => Object.values(origins).includes(new URL(url).origin))).toBe(true);
+  expect(requests.every(url => [...Object.values(origins), ...Object.values(lobbies).map(url => new URL(url).origin)].includes(new URL(url).origin))).toBe(true);
   expect(sockets.length).toBeGreaterThan(0);
   expect(sockets.every(url => Object.values(origins).includes(new URL(url.replace(/^ws/, 'http')).origin))).toBe(true);
   console.log(JSON.stringify({ result: 'passed', origins: Object.keys(origins), widths: [320, 390, 844], requests: requests.length, webSockets: sockets.length, errors }));

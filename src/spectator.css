@@ -81,8 +81,12 @@ body[data-spectator="true"] #chat-form { display: none; }
   color: #f4dfb2; background: #101b18f5; border-top: 1px solid #b9a16b50;
   font-size: 12px; line-height: 1.5; text-align: center; overflow-wrap: anywhere;
 }
-body[data-spectator="true"][data-screen="lobby"] .topbar {
-  bottom: calc(48px + env(safe-area-inset-bottom));
+body[data-spectator="true"][data-screen="lobby"] .page {
+  grid-template-rows:auto minmax(0,1fr) auto auto;
+}
+body[data-spectator="true"][data-screen="lobby"] .topbar { bottom:auto; }
+body[data-spectator="true"][data-screen="lobby"] .spectator-banner {
+  position:static; grid-row:4; min-height:32px; padding:7px 12px;
 }
 .spectator-activity {
   position: fixed; z-index: 8; bottom: calc(40px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);

@@ -82,13 +82,15 @@ async function checkVariantGame() {
   const finalName = await page.locator('.my-seat .seat-name b').textContent();
   expect(finalName).toMatch(/^[\u4e00-\u9fff]+-[0-9a-z]+$/);
   expect(await page.evaluate(() => sessionStorage.getItem('wizard-name'))).toBe(finalName);
+  await page.locator('[data-lobby-panel="players"]').click();
   for (let i = 0; i < 4; i++) {
     await page.locator('[data-remove]').last().click();
     await page.locator('#addbot').click();
-    const names = await page.locator('.seat-name b').allTextContents();
+    const names = await page.locator('.seat:not(.empty) .seat-name b').allTextContents();
     expect(new Set(names).size).toBe(names.length);
     expect(names).toHaveLength(3);
   }
+  await page.locator('[data-lobby-panel="rules"]').click();
   await expect(page.locator('.rules-setup')).toBeVisible();
   for (const [key, value] of Object.entries({ deckMode: 'mono', predictionMode: 'secret', foresight: 'true', short: 'true' })) {
     await page.locator(`input[name="${key}"][value="${value}"]`).check();
@@ -149,6 +151,7 @@ async function checkVariantGame() {
   await page.locator('#rematch').click();
   await expect(page.locator('.my-seat .seat-name b')).toHaveText(finalName);
   await expect(page.locator('#rules-form')).toBeVisible();
+  await page.locator('[data-lobby-panel="players"]').click();
   await expect(page.locator('#addbot')).toBeVisible();
   await context.close();
 }

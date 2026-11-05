@@ -22,6 +22,7 @@ await page.screenshot({ path: '.local/smoke-desktop.png', fullPage: true });
 await page.locator('#nickname').fill('测试巫师');
 await page.locator('#practice').click();
 await page.locator('.lobby-scene .scene-host.ready canvas').waitFor();
+await page.locator('[data-lobby-panel="players"]').click();
 if (await page.locator('.seats .seat').count() !== 6) throw new Error('Lobby must have six seats');
 await page.locator('[data-remove]').last().click();
 if (await page.locator('#start').isEnabled()) throw new Error('Two players cannot start');

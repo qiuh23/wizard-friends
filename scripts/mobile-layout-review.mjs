@@ -255,7 +255,7 @@ async function settingsInteractions() {
   await summary.click();await expect(content).toBeVisible();
   await page.locator('#trump-motion').click();await expect(content).toBeVisible();
   await summary.click();await expect(content).toBeHidden();
-  await summary.click();await page.locator('.lobby-controls .start-hint').click();await expect(content).toBeHidden();
+  await summary.click();await page.locator('#setup-title').click();await expect(content).toBeHidden();
   await summary.click();await page.keyboard.press('Escape');await expect(content).toBeHidden();
   await summary.click();await page.locator('#rename-toggle').click();await expect(content).toBeHidden();
   await expect(page.locator('#rename-panel')).toBeVisible();await page.keyboard.press('Escape');

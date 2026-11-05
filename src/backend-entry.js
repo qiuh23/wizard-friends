@@ -35,6 +35,13 @@ export async function loadRuntimeConfig({ fetcher = globalThis.fetch, location =
 }
 export function runtimeConfig() { return runtime; }
 export function backendId() { return runtime?.backendId || 'cloudflare'; }
+// Keep ordinary navigation free of invitation parameters. The lobby's own
+// origin selects its line, independently of any remembered preference.
+export function gameLobbyURL(currentBackend = backendId()) {
+  if (!ids.has(currentBackend)) return null;
+  const address = { aliyun: 'https://magical-athlete-online.cn/', cloudflare: 'https://magical-athlete.qiuh23.workers.dev/lobby/' }[currentBackend];
+  return address || null;
+}
 export function relayOrigin(legacy, location = globalThis.location) {
   const base = runtime?.relayOrigin === '' ? location.origin : legacy || location.origin;
   const url = new URL(base);

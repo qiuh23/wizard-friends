@@ -41,7 +41,8 @@ import { readRoomRecoveries, saveRoomRecovery, removeRoomRecovery } from './room
 import { PRACTICE_SAVE_KEY, PRACTICE_KEEP_MS, readPractice, savePractice, restorePracticeClock } from './practice-save.js';
 import { turnStatus } from './turn-status.js';
 import { uuidV4 } from './uuid.js';
-import { backendId, backendStorage, entryURL, invitationURL, parseRoomCode, publicRoomCode, readInvitation, runtimeConfig } from './backend-entry.js';
+import { backendId, backendStorage, entryURL, gameLobbyURL, invitationURL, parseRoomCode, publicRoomCode, readInvitation, runtimeConfig } from './backend-entry.js';
+import './game-navigation.css';
 import { copyInvitation } from './share-link.js';
 import { readNickname, saveNickname } from './nickname-preference.js';
 import { ScoreBubbles } from './score-bubbles.js';
@@ -133,6 +134,8 @@ const app = $('#app');
 let transport, game, state, isHost = false, practice = false, room = '', me = '', identities = {};
 let spectating = false;
 let botTimer, status = '', busy = false, rulesOpen = false, networkReady = false;
+let preferredBotDifficulty = 'smart';
+let lobbyPanelRoom = '', lobbyPanel = 'players', lobbyPanelScroll = {players:0,rules:0};
 let roomEpoch = 0;
 let scoresOpen = false, menuOpen = false;
 let scoreSource = null;
@@ -251,6 +254,8 @@ function tableDecorHTML() {
   return '<div class="table-props" aria-hidden="true"><i class="prop-candle candle-left"></i><i class="prop-candle candle-right"></i><i class="prop-book">✦</i><i class="prop-orb"></i><i class="prop-deck"></i><i class="prop-coins"></i></div>';
 }
 function render() {
+  const previousLobby = $('.lobby-table');
+  if (previousLobby) lobbyPanelScroll[previousLobby.dataset.activePanel] = previousLobby.scrollTop;
   const tableKey = tableViewKey(state, [roomEpoch,me,isHost,practice,spectating,networkReady,!!pendingSettlement]);
   if (tableKey && tableKey === renderedTableKey && $('.table')) {
     updateSocialRegions(); refreshSelection(); scoreBubbles.mount(app); htmlFrame.request();
@@ -272,7 +277,7 @@ function render() {
       <section class="hero home-scene" aria-label="烛光牌桌"><div class="hero-cards">${cardHTML({ kind: 'number', suit: 'blue', rank: 13 })}${cardHTML({ kind: 'wizard' })}${cardHTML({ kind: 'number', suit: 'red', rank: 7 })}</div></section>
       <section class="home-menu" aria-label="主菜单">
         <div class="home-title"><span class="title-ornament" aria-hidden="true">✦</span><h1>巫师牌</h1><span class="home-wordmark">W I Z A R D</span></div>
-        <nav class="backend-entries" aria-label="游戏入口"><span class="backend-heading">选择服务器</span>${(runtimeConfig()?.backends || []).map(entry => `<button type="button" data-entry="${entry.id}" ${busy || entry.id === backendId() || !entry.enabled ? 'disabled' : ''} ${entry.id === backendId() ? 'aria-current="page"' : ''}>${entry.id === 'cloudflare' ? 'Cloudflare' : '阿里云国内'}${entry.id === backendId() ? ' · 当前' : !entry.enabled ? ' · 尚未开放' : ' · 切换 ↗'}</button>`).join('')}<small>点击切换网页与服务器；两端房间独立。</small></nav>
+        <nav class="entry-context" aria-label="当前线路与游戏大厅"><span class="current-route">当前线路 · ${backendId() === 'aliyun' ? '阿里云国内' : 'Cloudflare'}</span><a href="${gameLobbyURL()}" data-lobby-navigation ${busy ? 'aria-disabled="true"' : ''}>返回游戏大厅 ↗</a></nav>
         <nav class="menu-options" aria-label="开始游戏">
           ${returnRooms.map((r,i)=>`<button ${i===0 ? 'id="resume-room"' : ''} data-return-room="${i}" class="menu-choice">返回 ${escape(r.room)} · ${r.role==='host' ? '房主' : r.role==='spectator' ? '观战' : '玩家'}</button>`).join('')}<button id="create" class="menu-choice menu-primary" ${busy ? 'disabled' : ''}>${busy ? '正在连接…' : '创建房间'}<span aria-hidden="true">↗</span></button>
           <button id="join-menu" class="menu-choice" aria-expanded="${joinOpen}" aria-controls="join-form" ${busy ? 'disabled' : ''}>加入房间<span aria-hidden="true">＋</span></button>
@@ -286,11 +291,6 @@ function render() {
       </section></main>`);
     bindCommon();handMotion.attach(null,previousHand,null);
     $('#create').onclick = () => launch(true);
-    document.querySelectorAll('[data-entry]').forEach(button => button.addEventListener('click', () => {
-      if (busy || state) return;
-      const target = entryURL(button.dataset.entry);
-      if (target) location.assign(target);
-    }));
     document.querySelectorAll('[data-return-room]').forEach(button=>button.addEventListener('click',()=>{
       const recovery=returnRooms[Number(button.dataset.returnRoom)];if(!recovery)return;
       token=recovery.token;sessionStore.setItem(tokenKey,token);restoreRoom(recovery);
@@ -322,16 +322,21 @@ function render() {
   const myTurn = !spectating && state.players[state.turn]?.id === me;
   const hostName = state.players[0]?.name;
   const invitation = practice ? '' : invitationURL(room, spectating);
-  const head = `<div class="room-heading"><div class="room-identity"><span>${practice ? '练习牌桌' : spectating ? '观战房间' : '房间'}</span><span class="room-code">${practice ? '' : escape(publicRoomCode(room))}</span><span class="seat-count">${state.players.length} / 6${!practice ? ` · ${state.spectatorCount || 0} 人观战` : ''}</span></div><div class="room-buttons">${!practice ? `<button id="invite">${spectating ? '分享观战' : '邀请好友'}</button>` : ''}<button id="leave" class="text-button">${spectating ? '退出观战' : '离开'}</button></div></div>`;
+  if (state.phase === 'lobby' && lobbyPanelRoom !== `${backendId()}:${room}:${me}`) {
+    lobbyPanelRoom = `${backendId()}:${room}:${me}`;
+    lobbyPanel = isHost ? 'rules' : 'players';
+    lobbyPanelScroll = {players:0,rules:0};
+  }
+  const lobbyTabs = state.phase === 'lobby' ? `<nav class="room-tabs" role="tablist" aria-label="房间设置"><button type="button" id="room-players-tab" role="tab" data-lobby-panel="players" aria-controls="room-players-panel" aria-selected="${lobbyPanel === 'players'}" tabindex="${lobbyPanel === 'players' ? '0' : '-1'}">玩家入座 <span>${state.players.length} / 6</span></button><button type="button" id="room-rules-tab" role="tab" data-lobby-panel="rules" aria-controls="room-rules-panel" aria-selected="${lobbyPanel === 'rules'}" tabindex="${lobbyPanel === 'rules' ? '0' : '-1'}">整局玩法</button></nav>` : '';
+  const head = `<div class="room-heading"><div class="room-identity"><span>${practice ? '练习牌桌' : spectating ? '观战房间' : '房间'}</span><span class="room-code">${practice ? '' : escape(publicRoomCode(room))}</span><span class="seat-count">${state.players.length} / 6${!practice ? ` · ${state.spectatorCount || 0} 人观战` : ''}</span></div><div class="room-buttons">${!practice ? `<button id="invite">${spectating ? '分享观战' : '邀请好友'}</button>` : ''}<button id="leave" class="text-button">${spectating ? '退出观战' : '离开'}</button></div>${lobbyTabs}</div>`;
   let body;
   if (state.phase === 'lobby') {
     const startHint = state.players.length < 3 ? `还差 ${3 - state.players.length} 人` : state.players.some(p => !p.online) ? '等待玩家重连' : state.options.deckMode === 'mono' && state.players.length > 4 ? '单色限 3–4 人，请选择标准牌库' : '';
-    body = `<main class="lobby-table has-rule-setup"><div class="hero lobby-scene" aria-hidden="true"><div class="lobby-felt"></div></div><div class="lobby-content">
-      <div class="seats" aria-label="房间座位">${state.players.map((p, i) => `<div class="seat ${p.id === me ? 'my-seat' : ''} ${!p.online ? 'offline' : ''}"><div class="avatar">${p.bot ? '✧' : escape(p.name.slice(0, 1))}</div><div class="seat-name"><b>${escape(p.name)}</b><small>${i === 0 ? '房主' : p.bot ? '机器人' : p.online ? '已入座' : '离线'}</small></div>${isHost && i > 0 ? `<button data-remove="${escape(p.id)}" class="text-button" aria-label="移除 ${escape(p.name)}" title="移除玩家">×</button>` : ''}</div>`).join('')}${Array.from({ length: 6 - state.players.length }, () => '<div class="seat empty"><div class="avatar">＋</div><span>空位</span></div>').join('')}</div>
-      <div class="lobby-options">${isHost && state.players.length < 6 ? '<select id="bot-difficulty" aria-label="机器人难度"><option value="smart">策略陪练</option><option value="simple">简单陪练</option></select><button id="addbot" class="text-button">＋ 机器人</button>' : ''}</div>
-      ${ruleSetupHTML(state, isHost)}
-      <div class="lobby-controls"><span class="start-hint">所选规则整局固定</span><div class="lobby-start">${isHost ? `${startHint ? `<span class="start-hint">${startHint}</span>` : ''}<button id="start" class="primary" ${startHint ? 'disabled' : ''}>开始游戏 →</button>` : `<span class="start-hint">等待 ${escape(hostName)} 开始游戏</span>`}</div></div>
-    </div></main>`;
+    body = `<main class="lobby-table has-rule-setup" data-active-panel="${lobbyPanel}"><div class="hero lobby-scene" aria-hidden="true"><div class="lobby-felt"></div></div><div class="lobby-content">
+      <section id="room-players-panel" class="lobby-panel" role="tabpanel" tabindex="0" aria-labelledby="room-players-tab" ${lobbyPanel === 'players' ? '' : 'hidden'}><div class="seats" aria-label="房间座位">${state.players.map((p, i) => `<div class="seat ${p.id === me ? 'my-seat' : ''} ${p.bot ? 'bot-seat' : 'human-seat'} ${!p.online ? 'offline' : ''}"><div class="avatar" aria-hidden="true">${p.bot ? '✧' : escape(p.name.slice(0, 1))}</div><div class="seat-name"><b title="${escape(p.name)}">${escape(p.name)}</b><small>${i === 0 ? '房主' : p.bot ? `机器人 · ${p.botDifficulty === 'simple' ? '简单' : '策略'}` : p.online ? '真人' : '真人 · 离线'}${p.id === me ? ' · 你' : ''}</small></div>${isHost && i > 0 ? `<button data-remove="${escape(p.id)}" class="text-button" aria-label="移除${p.bot ? '机器人' : '玩家'} ${escape(p.name)}" title="移除${p.bot ? '机器人' : '玩家'}">×</button>` : ''}</div>`).join('')}${Array.from({ length: 6 - state.players.length }, () => '<div class="seat empty"><div class="avatar" aria-hidden="true">＋</div><div class="seat-name"><b>空位</b><small>等待好友入座</small></div></div>').join('')}</div>
+      ${isHost && state.players.length < 6 ? `<div class="lobby-options bot-controls" role="group" aria-label="添加机器人"><label class="sr-only" for="bot-difficulty">机器人难度</label><select id="bot-difficulty"><option value="smart" ${preferredBotDifficulty === 'smart' ? 'selected' : ''}>策略陪练</option><option value="simple" ${preferredBotDifficulty === 'simple' ? 'selected' : ''}>简单陪练</option></select><button id="addbot" type="button">＋ 添加机器人</button></div>` : ''}
+      </section><section id="room-rules-panel" class="lobby-panel" role="tabpanel" tabindex="0" aria-labelledby="room-rules-tab" ${lobbyPanel === 'rules' ? '' : 'hidden'}>${ruleSetupHTML(state, isHost)}</section>
+    </div></main><div class="lobby-controls"><div class="lobby-start">${isHost ? `${startHint ? `<span class="start-hint">${startHint}</span>` : ''}<button id="start" class="primary" ${startHint ? 'disabled' : ''}>开始游戏 →</button>` : `<span class="start-hint">等待 ${escape(hostName)} 开始游戏</span>`}</div></div>`;
   } else {
     const done = ['trickEnd', 'roundEnd', 'finished'].includes(state.phase);
     const roundEnd = ['roundEnd', 'finished'].includes(state.phase);
@@ -364,6 +369,16 @@ function render() {
     $('.hand-section')?.remove();
   }
   bindCommon();
+  if ($('.lobby-table')) $('.lobby-table').scrollTop = lobbyPanelScroll[lobbyPanel] || 0;
+  document.querySelectorAll('[data-lobby-panel]').forEach(button => {
+    const activate = panel => { lobbyPanel = panel; render(); $(`[data-lobby-panel="${panel}"]`)?.focus({preventScroll:true}); };
+    button.addEventListener('click', () => activate(button.dataset.lobbyPanel));
+    button.addEventListener('keydown', event => {
+      if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+      event.preventDefault();
+      activate(event.key === 'Home' ? 'players' : event.key === 'End' ? 'rules' : button.dataset.lobbyPanel === 'players' ? 'rules' : 'players');
+    });
+  });
   if ($('#table-score-panel')) $('#table-score-panel').scrollTop = scoreScroll.top;
   const updatedLedger = $('.score-ledger .history-scroll');
   if (updatedLedger) { updatedLedger.scrollLeft = scoreScroll.left; updatedLedger.scrollTop = scoreScroll.row; }
@@ -384,6 +399,7 @@ function render() {
   $('#rules-form')?.addEventListener('change', () => send({ type: 'configure', options: selectedOptions() }));
   $('#rules-form')?.addEventListener('submit', event => { event.preventDefault(); if (isHost) send({ type: 'start', options: selectedOptions() }); });
   $('#start')?.addEventListener('click', () => send({ type: 'start', options: selectedOptions() }));
+  $('#bot-difficulty')?.addEventListener('change', event => { preferredBotDifficulty = event.target.value; });
   $('#addbot')?.addEventListener('click', () => {
     if (!practice) return roomControl('addbot',{difficulty:$('#bot-difficulty')?.value || 'smart'});
     try { const id=uuidV4();addPlayer(game, id, '', true, true);game.players.find(p=>p.id===id).botDifficulty=$('#bot-difficulty')?.value || 'smart'; broadcast(); } catch (error) { notify(error.message); }
@@ -431,6 +447,9 @@ function bindCommon() {
   $('.top-actions').append(soundButton); soundButton.onclick = () => { turnSound = !turnSound; localStore.setItem('wizard-turn-sound', String(turnSound)); soundButton.textContent = `行动提示音：${turnSound ? '开' : '关'}`; };
   if (state && !pregame) setupGameHUD(graphics);
   music.mount(state && !pregame ? $('#table-menu-panel') : $('.top-actions'));
+  // Only the trigger enters the waiting-room footer; the persistent panel
+  // stays under its social root to retain visual-viewport keyboard handling.
+  if (social.chatButton) social.dock.append(social.chatButton);
   social.update(state, me, pregame ? $('.room-buttons') : $('.game-toolbar'), { connected: practice || (networkReady && seenEventSeq != null), room });
   if (state) {
     const ops = document.createElement('nav'); ops.className = 'room-operations'; ops.setAttribute('aria-label', '房间操作');
@@ -443,12 +462,17 @@ function bindCommon() {
       pause.textContent = state.lifecycle?.paused ? '▷' : 'Ⅱ';
       $('.game-toolbar').prepend(pause);
     }
-    (pregame ? $('.page') : $('#table-menu-panel')).append(ops);
+    (pregame ? $('.room-heading') : $('#table-menu-panel')).append(ops);
+    if (pregame && $('.lifecycle-banner')) $('.room-heading').append($('.lifecycle-banner'));
   }
   $('#chat-form').hidden = spectating;
   if (spectating) { $('#rename-toggle')?.remove(); $('#rename-panel').hidden = true; }
   if (state && !pregame) $('#table-menu-panel')?.append($('#rename-toggle'));
   setupClearUI();
+  if (pregame) {
+    if ($('.lobby-controls')) $('.topbar').append($('.lobby-controls'));
+    if (social.chatButton) $('.topbar').append(social.chatButton);
+  }
   if (state) {
     const ownPlayer = state.players.find(p => p.id === me);
     if (ownPlayer) { nickname = ownPlayer.name; automaticName = !!ownPlayer.automaticName; persistName(); }
@@ -573,6 +597,8 @@ function setupClearUI() {
     for (const selector of ['#graphics', '#music-toggle', '#trump-motion', '#turn-sound', ...(state ? ['#rules', '#rename-toggle'] : [])]) {
       const el = $(selector); if (el) content.append(el);
     }
+    content.insertAdjacentHTML('beforeend', lobbyNavigationHTML());
+    if (state) $('.room-identity')?.insertAdjacentHTML('beforeend', `<a class="room-lobby-link" href="${gameLobbyURL()}" data-lobby-navigation>返回游戏大厅 ↗</a>`);
     settings.ontoggle = () => {
       if (!settings.isConnected) return;
       settingsOpen = settings.open;
@@ -629,6 +655,7 @@ function setupGameHUD(graphics) {
   const selectedRules = document.createElement('p');
   selectedRules.className = 'current-rules'; selectedRules.textContent = ruleSummary(state.options); menu.append(selectedRules);
   for (const el of [$('#rules'), graphics, $('#trump-motion'), $('#turn-sound'), $('#invite')]) if (el) menu.append(el);
+  menu.insertAdjacentHTML('beforeend', lobbyNavigationHTML());
   for (const id of ['#hand-sort', '#hand-collapse', '#hand-expand']) {
     const control = $(id);
     if (control) { if (id === '#hand-expand') control.textContent = handExpanded ? '收起展开手牌' : '展开全部手牌'; menu.append(control); }
@@ -738,6 +765,26 @@ function requestLeave() {
   const until = life.retentionDeadline ? new Date(life.retentionDeadline).toLocaleString('zh-CN', {hour12:false}) : new Date(Date.now() + (practice ? PRACTICE_KEEP_MS : life.paused ? 4*3600000 : 30*60000)).toLocaleString('zh-CN',{hour12:false});
   if (confirm(`${spectating ? '离开观战' : '离开房间'}不会解散牌局。${isHost || practice ? `牌局保留 ${duration}，截止 ${until}。` : '房间期限由房主在线与暂停状态决定。'}使用原浏览器返回本页可恢复${practice ? '练习' : `，房间码 ${room}`}。到期将关闭；真人房符合条件时先发起当前轮续赛投票。确定离开？`)) leaveRoom('已离开，可从原浏览器返回恢复。');
 }
+function lobbyNavigationHTML() {
+  return `<div class="lobby-navigation"><small>当前线路 · ${backendId() === 'aliyun' ? '阿里云国内' : 'Cloudflare'}</small><button type="button" data-lobby-navigation ${busy && !state ? 'disabled' : ''}>返回游戏大厅</button><div class="server-entry-choices" role="group" aria-label="切换服务器"><span>切换服务器</span>${(runtimeConfig()?.backends || []).map(entry => `<button type="button" data-server-entry="${entry.id}" ${busy && !state || entry.id === backendId() || !entry.enabled ? 'disabled' : ''}>${entry.id === 'aliyun' ? '阿里云国内' : 'Cloudflare'}${entry.id === backendId() ? ' · 当前' : !entry.enabled ? ' · 尚未开放' : ' ↗'}</button>`).join('')}</div></div>`;
+}
+document.addEventListener('click', event => {
+  const control = event.target.closest?.('[data-lobby-navigation],[data-server-entry]');
+  if (!control) return;
+  event.preventDefault();
+  if (control.disabled || busy && !state) return;
+  const targetBackend = control.dataset.serverEntry;
+  if (targetBackend === backendId()) return;
+  const target = targetBackend ? entryURL(targetBackend) : gameLobbyURL();
+  if (!target) return;
+  if (state) {
+    const retention = practice ? '离线练习在原浏览器保留 10 分钟。' : '原房间按现有保留期限保存，离开不会解散房间。';
+    const action = targetBackend ? `切换到${targetBackend === 'aliyun' ? '阿里云国内' : 'Cloudflare'}服务器` : '返回游戏大厅';
+    if (!confirm(`${action}？${retention}请使用原浏览器返回当前游戏网址恢复；切换线路不会迁移房间或身份。`)) return;
+    persistRoom();
+  }
+  location.assign(target);
+});
 function roomControl(type, extra = {}) {
   if (!practice) { if (!networkReady) return notify('连接恢复中，请稍候。'); return transport?.send({type,...extra}); }
   if (type === 'pause') {
