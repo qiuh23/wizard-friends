@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 import { WebSocket } from 'ws';
 import { createServer } from '../server/index.js';
 import { RoomStore } from '../server/storage.js';
-import { RoomAuthority } from '../worker/room-authority.js';
+import { RoomAuthority, NORMAL_RETENTION_MS, PAUSED_RETENTION_MS } from '../worker/room-authority.js';
 import { DEFAULT_OPTIONS } from '../src/rules-options.js';
 
 const room = 'ABCDEFGH';
@@ -261,6 +261,44 @@ test('startup restores expiration alarms without clients and closes expired room
   assert.equal(store.all()[0][1].authority.lifecycle.closed, false);
   await until(() => store.all()[0][1].closed === true, 'restored expiration alarm');
   assert.equal(f.app.contexts.get(room).record.alarm, undefined);
+});
+
+test('Node cold startup counts downtime toward the missing owner budget instead of granting a new lease', async t => {
+  const store = new RoomStore(':memory:'), checkpoint = Date.now() - NORMAL_RETENTION_MS - 1000;
+  const authority = new RoomAuthority(undefined, checkpoint);
+  const host = authority.join('owner-hash', { host: true, name: '房主' }, checkpoint);
+  authority.join('guest-hash', { name: '访客' }, checkpoint);
+  authority.join('third-hash', { name: '第三人' }, checkpoint);
+  authority.handle(host, { type: 'action', action: { type: 'start' } }, checkpoint);
+  authority.record.savedAt = checkpoint;
+  store.save(room, { room, owner: 'owner-hash', authority: authority.record, alarm: checkpoint + 30000 });
+  const f = await fixture(t, { store });
+  const saved = store.all()[0][1];
+  assert.equal(saved.closed, true);
+  assert.equal(saved.authority.lifecycle.retentionDeadline, checkpoint + NORMAL_RETENTION_MS);
+  assert.equal(saved.authority.lifecycle.continuationVote, null);
+  assert.deepEqual(saved.authority.identities, {});
+  assert.deepEqual(saved.authority.game.players, []);
+  const returning = await connect(f, { host: true });
+  assert.ok(returning.messages.some(message => message.type === 'fatal' && /关闭/.test(message.message)));
+});
+
+test('Node cold startup starts a paused missing owner deadline at the checkpoint and preserves it on another restart', async t => {
+  const store = new RoomStore(':memory:'), checkpoint = Date.now() - 3600000;
+  const authority = new RoomAuthority(undefined, checkpoint);
+  const host = authority.join('owner-hash', { host: true, name: '房主' }, checkpoint);
+  authority.handle(host, { type: 'pause' }, checkpoint);
+  authority.record.savedAt = checkpoint;
+  store.save(room, { room, owner: 'owner-hash', authority: authority.record, alarm: checkpoint + 30000 });
+  const f = await fixture(t, { store });
+  assert.equal(f.app.store.all()[0][1].authority.lifecycle.retentionDeadline, checkpoint + PAUSED_RETENTION_MS);
+  // Reopen a normal SQLite fixture for actual restart coverage; the in-memory
+  // store above verifies startup without waiting an hour in the test process.
+  const disk = await fixture(t);
+  disk.app.store.save(room, structuredClone(f.app.store.all()[0][1]));
+  await disk.restart();
+  assert.equal(disk.app.store.all()[0][1].authority.lifecycle.retentionDeadline, checkpoint + PAUSED_RETENTION_MS);
+  assert.equal(disk.app.store.all()[0][1].closed, undefined);
 });
 
 test('Node sockets and SQLite restart preserve bounded reconnect timing and legal automatic play', async t => {

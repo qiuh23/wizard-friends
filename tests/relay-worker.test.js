@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker, { RoomRelay, RoomDirectory } from '../worker/index.js';
+import { NORMAL_RETENTION_MS, PAUSED_RETENTION_MS } from '../worker/room-authority.js';
 
 globalThis.WebSocketRequestResponsePair = class {};
 class Socket {
@@ -34,6 +35,52 @@ function setup() {
   const hello = (ws, host, secret = token) => message(ws, { type: 'hello', version: 2, host, token: secret, name: host ? '房主' : ws.data.id });
   return { ctx, env, relay, add, message, hello, advertisements };
 }
+
+test('cold Worker recovery counts missing connections from the saved checkpoint and cannot revive expired links', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: 100000 });
+  const s = setup(), host = s.add('host'), guest = s.add('guest'), third = s.add('third');
+  await s.hello(host, true); await s.hello(guest, false, otherToken);
+  await s.hello(third, false, '33333333-3333-4333-a333-333333333333');
+  await s.message(host, { type: 'send', data: { type: 'action', action: { type: 'start' } } });
+  assert.ok(['bid','trump'].includes(s.relay.authority.game.phase));
+  const checkpoint = Date.now();
+  s.ctx.sockets.length = 0;
+  t.mock.timers.tick(NORMAL_RETENTION_MS + 1);
+  const restored = new RoomRelay(s.ctx, s.env);
+  await restored.initialized;
+  assert.equal(restored.authority.life.hostOfflineSince, checkpoint);
+  assert.equal(restored.authority.life.retentionDeadline, checkpoint + NORMAL_RETENTION_MS);
+  assert.equal(restored.authority.closed, true, 'missing peers are not phantom continuation voters');
+  await restored.alarm();
+  assert.equal(s.ctx.store.get('closed'), true);
+  assert.deepEqual(s.ctx.store.get('authority').identities, {});
+  assert.equal(s.ctx.store.get('authority').game.players.length, 0);
+  const returning = s.add('returning');
+  await restored.webSocketMessage(returning, JSON.stringify({ type: 'hello', version: 2, host: true, token }));
+  assert.match(returning.sent.at(-1).message, /关闭/);
+});
+
+test('cold Worker recovery keeps the first paused disconnect deadline and hibernated sockets keep presence', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: 100000 });
+  const s = setup(), host = s.add('host'); await s.hello(host, true);
+  await s.message(host, { type: 'send', data: { type: 'pause' } });
+  const checkpoint = Date.now();
+  t.mock.timers.tick(3600000);
+  const hibernated = new RoomRelay(s.ctx, s.env); await hibernated.initialized;
+  assert.equal(hibernated.authority.hostOnline(), true);
+  assert.equal(hibernated.authority.life.retentionDeadline, null);
+  s.ctx.sockets.length = 0;
+  const restored = new RoomRelay(s.ctx, s.env); await restored.initialized;
+  assert.equal(restored.authority.life.pauseOfflineDeadline, checkpoint + PAUSED_RETENTION_MS);
+  assert.equal(restored.authority.closed, false);
+  const returning = s.add('returning');
+  await restored.webSocketMessage(returning, JSON.stringify({ type: 'hello', version: 2, host: true, token }));
+  assert.equal(restored.authority.life.retentionDeadline, checkpoint + PAUSED_RETENTION_MS);
+  await restored.webSocketClose(returning);
+  t.mock.timers.tick(3 * 3600000);
+  await restored.alarm();
+  assert.equal(restored.authority.closed, true);
+});
 
 test('new human handshakes require a nickname even with the legacy automatic flag', async () => {
   for (const host of [true, false]) for (const [name, automaticName] of [[undefined, false], ['', true], ['   ', true]]) {
