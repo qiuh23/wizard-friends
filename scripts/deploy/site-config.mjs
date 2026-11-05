@@ -25,8 +25,8 @@ export function siteConfig({ origin, port = '3002', publicPort, legacyOrigin = '
   return { origin: url.origin, hostname: url.hostname, tls: url.protocol === 'https:', port: internal, publicPort: external, legacy };
 }
 const proxy = port => `    client_max_body_size 256k;
-    access_log /var/log/nginx/wizard-friends.access.log;
-    error_log /var/log/nginx/wizard-friends.error.log;
+    access_log /var/log/game-network/wizard.log game_network;
+    error_log /dev/null emerg;
     location / {
         proxy_pass http://127.0.0.1:${port};
         proxy_http_version 1.1;
@@ -35,6 +35,7 @@ const proxy = port => `    client_max_body_size 256k;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_read_timeout 100s;
         proxy_send_timeout 100s;
@@ -51,6 +52,8 @@ ${proxy(config.port)}
 server {
     listen 80;
     server_name ${config.hostname};
+    access_log /var/log/game-network/wizard.log game_network;
+    error_log /dev/null emerg;
     location ^~ /.well-known/acme-challenge/ {
         root /var/www/wizard-friends-acme;
         default_type text/plain;
@@ -80,6 +83,8 @@ export function renderAcmeSite(config) {
 server {
     listen 80;
     server_name ${config.hostname};
+    access_log /var/log/game-network/wizard.log game_network;
+    error_log /dev/null emerg;
     location ^~ /.well-known/acme-challenge/ {
         root /var/www/wizard-friends-acme;
         default_type text/plain;

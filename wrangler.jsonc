@@ -12,10 +12,11 @@
   "durable_objects": {
     "bindings": [
       { "name": "ROOMS", "class_name": "RoomRelay" },
-      { "name": "DIRECTORY", "class_name": "RoomDirectory" }
+      { "name": "DIRECTORY", "class_name": "RoomDirectory" },
+      { "name": "SECURITY", "class_name": "SecurityLedger" }
     ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RoomRelay", "RoomDirectory"] }],
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RoomRelay", "RoomDirectory"] }, { "tag": "v2-security", "new_sqlite_classes": ["SecurityLedger"] }],
   "vars": { "ALLOWED_ORIGINS": "https://xsk23.github.io,https://jack15678.github.io" },
   "observability": { "enabled": false }
 }

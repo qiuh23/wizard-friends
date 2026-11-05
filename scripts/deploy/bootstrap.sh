@@ -41,12 +41,14 @@ install -d -o root -g root -m 0700 /var/backups/wizard-friends /var/lib/wizard-f
 # fixed installer, service or site. Existing immutable app releases are retained.
 bash "$SOURCE/backup.sh"
 install -d -o root -g root -m 0755 /usr/local/lib/wizard-friends-deploy
-for file in install.mjs unpack.py backup.sh probe.mjs site-config.mjs; do install -o root -g root -m 0644 "$SOURCE/$file" "/usr/local/lib/wizard-friends-deploy/$file"; done
+for file in install.mjs unpack.py backup.sh probe.mjs site-config.mjs security-ops.py security-preflight.sh security-maintenance.sh; do install -o root -g root -m 0644 "$SOURCE/$file" "/usr/local/lib/wizard-friends-deploy/$file"; done
+bash "$SOURCE/install-security.sh"
 install -o root -g root -m 0755 "$SOURCE/ci-install.sh" /usr/local/sbin/wizard-friends-ci-install
 if [[ ! -f /etc/wizard-friends/server.env ]]; then
   cat > /etc/wizard-friends/server.env <<EOF
 NODE_ENV=production
 HOST=127.0.0.1
+TRUST_PROXY=1
 PORT=$PORT
 DATABASE_PATH=/var/lib/wizard-friends/rooms.sqlite
 STATIC_DIR=/opt/wizard-friends/current/dist
@@ -95,7 +97,7 @@ install -d -o root -g root -m 0755 /var/www/wizard-friends-acme
 # replacement in the active include path after a failed syntax check.
 NGINX_TEST=$(mktemp)
 trap 'rm -f -- "$NGINX_TEST" /etc/nginx/sites-available/wizard-friends.next' EXIT
-printf 'pid /run/wizard-nginx-prepare-test.pid; events {} http { include /etc/nginx/mime.types; include /etc/nginx/sites-available/wizard-friends.next; }\n' > "$NGINX_TEST"
+printf 'pid /run/wizard-nginx-prepare-test.pid; events {} http { include /etc/nginx/mime.types; include /etc/nginx/conf.d/game-network-log.conf; include /etc/nginx/sites-available/wizard-friends.next; }\n' > "$NGINX_TEST"
 nginx -t -c "$NGINX_TEST"
 if [[ -f /etc/nginx/sites-available/wizard-friends ]]; then cp -p /etc/nginx/sites-available/wizard-friends /etc/nginx/sites-available/wizard-friends.before-prepare; fi
 mv /etc/nginx/sites-available/wizard-friends.next /etc/nginx/sites-available/wizard-friends

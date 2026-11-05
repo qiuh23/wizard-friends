@@ -8,9 +8,9 @@ import path from 'node:path';
 // test process. It delegates every browser request/socket to the production DO;
 // no clock route or test method is added to the shipped Worker or web client.
 const built = await build({ stdin: { resolveDir: process.cwd(), sourcefile: 'local-continuation-harness.js', contents: `
-  import worker, {RoomRelay as ProductionRoom, RoomDirectory} from './worker/index.js';
+  import worker, {RoomRelay as ProductionRoom, RoomDirectory, SecurityLedger} from './worker/index.js';
   import {DurableObject} from 'cloudflare:workers';
-  export {RoomDirectory};
+  export {RoomDirectory,SecurityLedger};
   export class RoomRelay extends DurableObject {
     constructor(ctx,env) { super(ctx,env); this.impl=new ProductionRoom(ctx,env); this.context=ctx; }
     fetch(request) { return this.impl.fetch(request); }
@@ -34,7 +34,7 @@ const built = await build({ stdin: { resolveDir: process.cwd(), sourcefile: 'loc
 ` }, bundle: true, format: 'esm', platform: 'browser', external: ['cloudflare:workers'], write: false });
 const mf = new Miniflare(convertV4MiniflareOptions({ name: 'continuation-local', script: built.outputFiles[0].text, modules: true,
   compatibilityDate: '2026-10-20', port: Number(process.env.CONTINUATION_PORT || 8788),
-  durableObjects: { ROOMS: { className: 'RoomRelay', useSQLite: true }, DIRECTORY: { className: 'RoomDirectory', useSQLite: true } },
+  durableObjects: { ROOMS: { className: 'RoomRelay', useSQLite: true }, DIRECTORY: { className: 'RoomDirectory', useSQLite: true }, SECURITY:{className:'SecurityLedger',useSQLite:true} },
   serviceBindings: { ASSETS: async request => {
     const url = new URL(request.url);
     let filename = path.resolve('dist', `.${url.pathname}`);

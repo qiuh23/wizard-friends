@@ -1,3 +1,4 @@
+import { safetyNoticeHTML, showSafetyNotice } from './safety-notice.js';
 import { createGame, addPlayer, viewFor, botAction, normalizeGame, TRICK_REVIEW_MS, SUITS, SUIT_NAMES, winner } from './game.js';
 import './style.css';
 import './cinematic.css';
@@ -244,8 +245,8 @@ function lifecycleHTML() {
 }
 
 function shell(body) {
-  if (!state) return `<div class="page">${body}<header class="topbar home-tools"><div class="top-actions"><button class="text-button" id="rules">游戏规则</button></div></header></div><div id="notice" class="notice" role="status" aria-live="polite">${escape(status)}</div>${rulesOpen ? rulesHTML() : ''}`;
-  return `<div class="page"><header class="topbar"><a class="brand" href="${location.pathname}"><span class="brand-icon">✦</span><span>巫师牌<small>WIZARD / FRIENDS TABLE</small></span></a><div class="top-actions"><span class="tag">好友之间，预言成真</span><button class="text-button" id="rules">玩法说明</button></div></header>${body}<footer><span>一副牌，无数种预言。</span><span>非官方好友同乐版 · 牌面原创绘制</span></footer></div><div id="notice" class="notice" role="status" aria-live="polite">${escape(status)}</div>${rulesOpen ? rulesHTML() : ''}`;
+  if (!state) return `<div class="page">${body}<header class="topbar home-tools"><div class="top-actions">${safetyNoticeHTML()}<button class="text-button" id="rules">游戏规则</button></div></header></div><div id="notice" class="notice" role="status" aria-live="polite">${escape(status)}</div>${rulesOpen ? rulesHTML() : ''}`;
+  return `<div class="page"><header class="topbar"><a class="brand" href="${location.pathname}"><span class="brand-icon">✦</span><span>巫师牌<small>WIZARD / FRIENDS TABLE</small></span></a><div class="top-actions">${safetyNoticeHTML()}<span class="tag">好友之间，预言成真</span><button class="text-button" id="rules">玩法说明</button></div></header>${body}<footer><span>一副牌，无数种预言。</span><span>非官方好友同乐版 · 牌面原创绘制</span></footer></div><div id="notice" class="notice" role="status" aria-live="polite">${escape(status)}</div>${rulesOpen ? rulesHTML() : ''}`;
 }
 function rulesHTML() {
   return `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="rule-title"><button class="close" id="close-rules" aria-label="关闭规则">×</button><div class="eyebrow">THE ART OF PREDICTION</div><h2 id="rule-title">先预估，再出牌。</h2>
@@ -1134,3 +1135,5 @@ window.addEventListener('online', () => { transport?.wake(); presence?.wake(); }
 restoreRoom(watchFromURL && initialCode?.backendId === backendId() && savedSession?.role !== 'host'
   ? (savedSession?.role === 'spectator' ? savedSession : { role: 'spectator', room: initialCode.room, me: '' })
   : savedSession);
+
+document.addEventListener('click',event=>{if(event.target.closest?.('[data-safety-notice]'))showSafetyNotice(room || '');});
