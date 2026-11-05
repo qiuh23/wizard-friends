@@ -48,7 +48,7 @@ import { copyInvitation } from './share-link.js';
 import { readNickname, saveNickname } from './nickname-preference.js';
 import { ScoreBubbles } from './score-bubbles.js';
 import './score-bubbles.css';
-import { ScreenDirection } from './screen-direction.js';
+import { ScreenDirection, screenDirectionControlHTML } from './screen-direction.js';
 import './screen-direction.css';
 import './room-experience.css';
 import { FloatingLayers, containsEvent } from './floating-layers.js';
@@ -612,7 +612,7 @@ function setupClearUI() {
     for (const selector of ['#graphics', '#music-toggle', '#trump-motion', '#turn-sound', ...(state ? ['#rules', '#rename-toggle'] : [])]) {
       const el = $(selector); if (el) content.append(el);
     }
-    content.insertAdjacentHTML('beforeend', '<button type="button" data-screen-direction aria-haspopup="dialog" aria-controls="screen-direction">屏幕方向</button>' + lobbyNavigationHTML());
+    content.insertAdjacentHTML('beforeend', screenDirectionControlHTML + lobbyNavigationHTML());
     if (state) $('.room-identity')?.insertAdjacentHTML('beforeend', `<a class="room-lobby-link" href="${gameLobbyURL()}" data-lobby-navigation>返回游戏大厅 ↗</a>`);
     settings.ontoggle = () => {
       if (!settings.isConnected) return;
@@ -670,7 +670,7 @@ function setupGameHUD(graphics) {
   const selectedRules = document.createElement('p');
   selectedRules.className = 'current-rules'; selectedRules.textContent = ruleSummary(state.options); menu.append(selectedRules);
   for (const el of [$('#rules'), graphics, $('#trump-motion'), $('#turn-sound'), $('#invite')]) if (el) menu.append(el);
-  menu.insertAdjacentHTML('beforeend', '<button type="button" data-screen-direction aria-haspopup="dialog" aria-controls="screen-direction">屏幕方向</button>' + lobbyNavigationHTML());
+  menu.insertAdjacentHTML('beforeend', screenDirectionControlHTML + lobbyNavigationHTML());
   for (const id of ['#hand-sort', '#hand-collapse', '#hand-expand']) {
     const control = $(id);
     if (control) { if (id === '#hand-expand') control.textContent = handExpanded ? '收起展开手牌' : '展开全部手牌'; menu.append(control); }
