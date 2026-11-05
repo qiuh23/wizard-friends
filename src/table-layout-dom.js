@@ -22,7 +22,7 @@ function attribute(node, name, value) {
 // Positions of the animated face are deliberately excluded: only stable docks,
 // owners and layout inputs may change the public cards' established slots.
 function layoutInputs(table, state, me, reducedMotion, metrics) {
-  const nodes = [table, ...metrics, ...all('.opponents [data-player],.opponents .avatar,.own-status .avatar,.hand-section,.hand-section.expanded > .play-confirm,.trump-display,.roundbar,.foresight-hands,.lifecycle-banner,.play-confirm')];
+  const nodes = [table, ...metrics, ...all('.opponents [data-player],.opponents .avatar,.own-status .avatar,.hand-section,.concealed-hand,.hand-section.expanded > .play-confirm,.trump-display,.roundbar,.foresight-hands,.lifecycle-banner,.play-confirm')];
   const geometry = nodes.map(node => {
     if (!node) return null;
     const rect = node.getBoundingClientRect(), style = getComputedStyle(node);
@@ -30,7 +30,7 @@ function layoutInputs(table, state, me, reducedMotion, metrics) {
   });
   const padding = getComputedStyle(table);
   const key = JSON.stringify([geometry, padding.paddingLeft, padding.paddingRight,
-    window.innerWidth, window.innerHeight, document.body.classList.contains('hand-expanded'),
+    window.innerWidth, window.innerHeight, !!state.foresightActive, document.body.classList.contains('hand-expanded'),
     document.body.classList.contains('hand-collapsed'), me, reducedMotion, !!state.lifecycle?.paused,
     state.players.map(player => [player.id, player.name]),
     [...table.querySelectorAll('.played')].map(node => [node.dataset.player, node.dataset.cardId, node.classList.contains('winner')])]);
@@ -83,21 +83,28 @@ export function updateTableLayout({ state, me, tableMotion, reducedMotion = fals
   for (const dock of docks) {
     if (dock.rect.height && dock.style.display !== 'none' && dock.style.visibility !== 'hidden') area.bottom = Math.min(area.bottom, dock.rect.top - 8);
   }
-  const opponentCount = ordered.length - (hasOwnSeat ? 1 : 0);
-  const seatWidth = shortPortrait ? Math.min(68, (rect.width - side - rightSide) / opponentCount - 6) : strip ? Math.min(108, (rect.width - side - rightSide) / ordered.length - 8) : rect.width < 600 ? 68 : 78;
+  const opponentCount = ordered.length - (hasOwnSeat ? 1 : 0), foresight = !!state.foresightActive;
+  const seatWidth = foresight ? Math.min(!strip && rect.width < 600 ? 68 : 140, (rect.width - side - rightSide) / opponentCount - 8) : shortPortrait ? Math.min(68, (rect.width - side - rightSide) / opponentCount - 6) : strip ? Math.min(108, (rect.width - side - rightSide) / ordered.length - 8) : rect.width < 600 ? 68 : 78;
   css(table, '--seat-width', `${seatWidth}px`);
+  const round = $('.roundbar')?.getBoundingClientRect(), trump = table.querySelector('.trump-display');
+  if (foresight && trump && round) {
+    css(trump, 'left', `${round.left - rect.left}px`); css(trump, 'top', `${round.bottom + 4 - rect.top}px`);
+  }
+  // During foresight every identity has its own reserved top slot. Measure the
+  // whole row (including predictions and status), not just avatar positions.
+  const headerBottom = foresight ? Math.max(rect.top, ...all('.roundbar,.trump-display,.game-toolbar').map(node => node.getBoundingClientRect().bottom)) : 0;
+  const identityHeight = foresight ? Math.max(...all('.opponents .player').map(node => node.getBoundingClientRect().height)) : 0;
   const safeTop = Math.max(0, parseFloat(tableStyle.paddingTop) || 0);
   const seatTop = Math.max(rect.width < 600 ? 132 : 98, safeTop + 98);
   const seatBottom = rect.height - (shortPortrait ? 250 : rect.width < 600 ? 290 : 300);
   const seatWrites = ordered.map(player => {
     const node = table.querySelector('.opponents [data-player="' + player.id + '"]');
     const pos = seatPosition(player.index, self, state.players.length);
-    const rawX = shortPortrait ? side + (rect.width - side - rightSide) / opponentCount * (player.seat + (hasOwnSeat ? -.5 : .5)) : strip ? side + (rect.width - side - rightSide) / ordered.length * (player.seat + .5) : side + (rect.width - side - rightSide) * pos.x / 100;
+    const rawX = foresight || shortPortrait ? side + (rect.width - side - rightSide) / opponentCount * (player.seat + (hasOwnSeat ? -.5 : .5)) : strip ? side + (rect.width - side - rightSide) / ordered.length * (player.seat + .5) : side + (rect.width - side - rightSide) * pos.x / 100;
     const x = Math.max(side + seatWidth / 2, Math.min(rect.width - rightSide - seatWidth / 2, rawX));
-    const y = shortPortrait ? Math.max(110, safeTop + 94) : strip ? Math.max(low ? 84 : 92, safeTop + 76) : seatTop + (pos.y - 12) / 78 * Math.max(80, seatBottom - seatTop);
+    const y = foresight ? headerBottom - rect.top + 8 + identityHeight / 2 : shortPortrait ? Math.max(110, safeTop + 94) : strip ? Math.max(low ? 84 : 92, safeTop + 76) : seatTop + (pos.y - 12) / 78 * Math.max(80, seatBottom - seatTop);
     return { node, x, y };
   });
-  const round = $('.roundbar')?.getBoundingClientRect(), trump = table.querySelector('.trump-display');
   for (const { node, x, y } of seatWrites) {
     css(node, '--seat-x', `${x}px`); css(node, '--seat-y', `${y}px`);
   }
@@ -116,9 +123,10 @@ export function updateTableLayout({ state, me, tableMotion, reducedMotion = fals
       area.bottom = expandedHand.bottom - 8;
     }
   }
-  if (trump && round) {
+  if (!foresight && trump && round) {
     css(trump, 'left', `${round.left - rect.left}px`); css(trump, 'top', `${round.bottom + 4 - rect.top}px`);
   }
+  if (foresight) layoutForesight(table, rect, strip, side, rightSide);
 
   const avatarRects = new Map([...avatars].map(([id, avatar]) => [id, avatar?.getBoundingClientRect()]));
   if (played && avatars.size) {
@@ -179,4 +187,24 @@ export function updateTableLayout({ state, me, tableMotion, reducedMotion = fals
   layouts.set(table, layoutInputs(table, state, me, reducedMotion, metrics));
   drawHTMLCards?.();
   return true;
+}
+
+function layoutForesight(table, rect, strip, side, rightSide) {
+  const panel = table.querySelector('.foresight-hands');
+  if (!panel) return;
+  const visibleRects = selector => all(selector).filter(node => node.offsetWidth && node.offsetHeight && getComputedStyle(node).visibility !== 'hidden').map(node => node.getBoundingClientRect());
+  const top = Math.max(rect.top, ...visibleRects('.opponents .player,.trump-display,.roundbar,.lifecycle-banner').map(box => box.bottom)) + 8;
+  css(document.body, '--foresight-dock-top', `${top}px`);
+  let left = rect.left + side, right = rect.right - rightSide;
+  // A short landscape keeps prediction controls beside the reading area;
+  // portrait and desktop keep their existing lower control dock.
+  const actions = visibleRects('.action-panel');
+  if (strip && actions.length) right = Math.min(right, actions[0].left - 10);
+  const bottom = Math.min(rect.bottom - 8, ...visibleRects(`.own-status,.concealed-hand${strip ? '' : ',.action-panel'}`).map(box => box.top - 8));
+  const width = Math.max(0, Math.min(1000, right - left));
+  left += Math.max(0, (right - left - width) / 2);
+  css(table, '--foresight-left', `${left - rect.left}px`);
+  css(table, '--foresight-top', `${top - rect.top}px`);
+  css(table, '--foresight-width', `${width}px`);
+  css(table, '--foresight-height', `${Math.max(0, bottom - top)}px`);
 }
