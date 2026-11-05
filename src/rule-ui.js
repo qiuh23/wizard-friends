@@ -11,11 +11,16 @@ export function ruleSummary(options) {
   return [RULE_LABELS.deckMode.values[options.deckMode], RULE_LABELS.predictionMode.values[options.predictionMode],
     ...(options.strict ? ['加减预估'] : []), ...(options.foresight ? ['先见之明'] : []), RULE_LABELS.short.values[options.short]].join(' · ');
 }
-export function ruleSetupHTML(state, isHost) {
-  return `<section class="rules-setup" aria-labelledby="setup-title"><div class="setup-heading"><h2 id="setup-title">整局玩法</h2><span>${isHost ? '房主选择' : '由房主选择'}</span></div>
-    <p>在开始游戏前选好，之后每轮沿用。首墩由庄家左手边首攻，之后由上一墩赢家先出；公开预估也从庄家左手边开始。</p>
-    <form id="rules-form"><div class="rule-groups">${Object.entries(RULE_CHOICES).map(([key, values]) => `<fieldset><legend>${RULE_LABELS[key].title}</legend><div class="rule-choices">${values.map(value => {
+export function ruleSetupHTML(state, isHost, extrasOpen = false) {
+  const field = ([key, values]) => `<fieldset><legend>${RULE_LABELS[key].title}</legend><div class="rule-choices">${values.map(value => {
       const unavailable = (key === 'deckMode' && value === 'mono' && state.players.length > 4) || (key === 'strict' && state.options.predictionMode !== 'public');
       return `<label><input type="radio" name="${key}" value="${value}" ${state.options[key] === value ? 'checked' : ''} ${!isHost || unavailable ? 'disabled' : ''}><span>${RULE_LABELS[key].values[value]}</span></label>`;
-    }).join('')}</div><p>${RULE_LABELS[key].hint}</p></fieldset>`).join('')}</div></form></section>`;
+    }).join('')}</div><p>${RULE_LABELS[key].hint}</p></fieldset>`;
+  const optional = ['strict','foresight'];
+  const enabled = optional.filter(key => state.options[key]).map(key => RULE_LABELS[key].title);
+  return `<section class="rules-setup" aria-labelledby="setup-title"><div class="setup-heading"><h2 id="setup-title">整局玩法</h2><span>${isHost ? '房主选择' : '由房主选择'}</span></div>
+    <p>开局前可调整，之后整局沿用。</p>
+    <form id="rules-form"><div class="rule-groups">${Object.entries(RULE_CHOICES).filter(([key]) => !optional.includes(key)).map(field).join('')}</div>
+      <details id="rule-extras" ${extrasOpen ? 'open' : ''}><summary>可选玩法 <span>${enabled.length ? enabled.join(' · ') : '未开启'}</span></summary><div class="rule-groups">${Object.entries(RULE_CHOICES).filter(([key]) => optional.includes(key)).map(field).join('')}</div></details>
+    </form></section>`;
 }
