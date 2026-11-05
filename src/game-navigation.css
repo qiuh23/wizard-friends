@@ -1,0 +1,14 @@
+.entry-context { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 16px; margin: -10px 0 18px; }
+.current-route, .lobby-navigation > small { color: #b8b39f; font-size: 12px; line-height: 1.5; }
+.entry-context a, .room-lobby-link {
+  display: inline-flex; align-items: center; min-height: 44px; color: #cbb88e;
+  font-size: 13px; text-decoration: none; border-radius: 4px;
+}
+.entry-context a:hover, .room-lobby-link:hover { color: #f2dab0; text-decoration: underline; }
+.entry-context a:focus-visible, .room-lobby-link:focus-visible { outline: 2px solid #ffe0a1; outline-offset: 3px; }
+.entry-context a[aria-disabled="true"] { opacity: .45; cursor: wait; }
+.lobby-navigation { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #b5a27740; margin-top: 4px; padding-top: 12px; }
+.server-entry-choices { display: flex; flex-direction: column; gap: 8px; }
+.server-entry-choices > span { color: #b8b39f; font-size: 12px; }
+.server-entry-choices button:disabled { opacity: .55; }
+.room-identity .room-lobby-link { letter-spacing: 0; white-space: nowrap; }

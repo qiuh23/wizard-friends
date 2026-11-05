@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { backendStorage, entryURL, invitationRedirect, invitationURL, loadRuntimeConfig, normalizeRuntimeConfig, parseRoomCode, readInvitation, relayOrigin } from '../src/backend-entry.js';
+import { backendStorage, entryURL, gameLobbyURL, invitationRedirect, invitationURL, loadRuntimeConfig, normalizeRuntimeConfig, parseRoomCode, readInvitation, relayOrigin } from '../src/backend-entry.js';
 import { uuidV4 } from '../src/uuid.js';
 import { relayURL } from '../src/relay-socket.js';
 
@@ -9,6 +9,13 @@ const config = { backendId: 'aliyun', relayOrigin: '', backends: [
   { id: 'cloudflare', origin: 'https://wizard-friends.qiuh23.workers.dev', enabled: true },
   { id: 'aliyun', origin, enabled: false },
 ] };
+
+test('ordinary lobby navigation follows the current line without invitation or credential parameters', () => {
+  assert.equal(gameLobbyURL('aliyun'), 'https://magical-athlete-online.cn/');
+  assert.equal(gameLobbyURL('cloudflare'), 'https://magical-athlete.qiuh23.workers.dev/lobby/');
+  assert.equal(gameLobbyURL('untrusted'), null);
+  assert.equal(gameLobbyURL('constructor'), null);
+});
 test('HTTP UUID fallback produces cryptographic RFC 4122 version 4 identifiers', () => {
   let calls = 0;
   const id = uuidV4({ getRandomValues(bytes) { calls++; bytes.fill(255); return bytes; } });

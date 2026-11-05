@@ -54,25 +54,20 @@ body[data-screen="game"] .game-layout aside { width:min(1080px,calc(100vw - 36px
 .ledger-cell b { color:#f3ead6;font-size:15px; }
 .ledger-cell .positive { color:#b3e3b6; }.ledger-cell .negative { color:#ffb7a7; }
 .in-progress td { border-bottom:2px solid #83cbd6; }
-body[data-screen="lobby"] .has-rule-setup { overflow:visible; }
-.lobby-content { position:relative;z-index:3;width:min(1000px,92vw);margin:156px auto 100px; }
-.has-rule-setup .seats { position:static;inset:auto;gap:10px;align-content:start; }
-.has-rule-setup .seat { width:100%;max-width:none; }
-.has-rule-setup .lobby-options { margin:14px 0; }
-.has-rule-setup .lobby-controls { position:static;padding-top:18px;margin-top:20px; }
-.rules-setup { padding:22px 26px;background:#10231ff5;border:1px solid #c4a66e66;border-radius:9px; }
+.rules-setup { padding:20px 24px;background:#10231ff5;border:1px solid #c4a66e66;border-radius:9px; }
 .setup-heading { display:flex;align-items:center;justify-content:space-between;gap:16px; }
 .setup-heading h2 { margin:0;font-size:22px;color:#f3ead6; }
 .setup-heading span { font-size:13px;color:#d3b785;white-space:nowrap; }
-.rules-setup > p { font-size:14px;color:#c0cebc;line-height:1.8;margin:10px 0 20px; }
-.rule-groups { display:grid;grid-template-columns:1fr 1fr;gap:18px 24px; }
+.rules-setup > p { max-width:72ch;font-size:14px;color:#c0cebc;line-height:1.75;margin:10px 0 20px; }
+.rule-groups { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 24px; }
 .rule-groups fieldset { min-width:0;border:0;border-top:1px solid #c4a66e44;margin:0;padding:10px 0 0; }
 .rule-groups legend { font-size:15px;padding-right:10px;color:#e4c88f; }
 .rule-groups p { font-size:13px;line-height:1.7;color:#bfccb8;margin:8px 0 0; }
 .rule-choices { display:flex;flex-wrap:wrap;gap:7px; }
-.rule-choices label { display:flex;align-items:center;gap:7px;min-height:44px;margin:0;padding:8px 11px;border:1px solid #bdac8355;border-radius:5px;font-size:14px;color:#eee5d2;cursor:pointer; }
-.rule-choices input,.rule-choices label { scroll-margin-block:100px; }
+.rule-choices label { display:flex;align-items:center;gap:8px;min-height:46px;margin:0;padding:9px 11px;border:1px solid #bdac8355;border-radius:5px;font-size:14px;color:#eee5d2;cursor:pointer; }
+.rule-choices input,.rule-choices label,.lobby-start .primary { scroll-margin-block:90px; }
 .rule-choices input { flex-shrink:0;width:18px;height:18px;min-height:18px;padding:0;margin:0;accent-color:#d9b77b; }
+.rule-choices label:has(:focus-visible) { outline:2px solid #e2c58b;outline-offset:3px; }
 .rule-choices label:has(:checked) { background:#75603e50;border-color:#c9ad70; }
 .rule-choices label:has(:disabled) { cursor:default; }
 .rule-choices label:has(:disabled:not(:checked)) { opacity:.55; }
@@ -101,7 +96,6 @@ body[data-screen="lobby"] .has-rule-setup { overflow:visible; }
   .match-result { top:37%;width:min(360px,92vw);padding:17px; }
   .match-result h2 { font-size:23px; }.match-result p{font-size:16px;}
   body[data-screen="game"] .game-layout aside { width:calc(100vw - 20px);right:10px;padding:12px; }
-  .lobby-content { margin-top:160px;margin-bottom:110px; }
   .rules-setup { padding:18px 15px; }
   .rule-groups { grid-template-columns:1fr; }
 }

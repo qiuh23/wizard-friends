@@ -1,0 +1,75 @@
+{
+  "stage": "after",
+  "engine": "chromium",
+  "checks": [
+    {
+      "label": "desktop",
+      "width": 1440,
+      "height": 1000,
+      "equalBotTargets": 46,
+      "uniformSeats": {
+        "w": 325.328125,
+        "h": 84
+      },
+      "fullCapacityHidesAdd": true,
+      "startUnobscured": true,
+      "dynamicViewport": true,
+      "lowerRuleScrollPreserved": true,
+      "longNicknameClipped": true,
+      "hostDefaultsRules": true,
+      "panelsPreserved": true
+    },
+    {
+      "label": "iphone",
+      "width": 390,
+      "height": 844,
+      "equalBotTargets": 46,
+      "uniformSeats": {
+        "w": 174,
+        "h": 78
+      },
+      "fullCapacityHidesAdd": true,
+      "startUnobscured": true,
+      "dynamicViewport": true,
+      "lowerRuleScrollPreserved": true,
+      "longNicknameClipped": true,
+      "hostDefaultsRules": true,
+      "panelsPreserved": true
+    },
+    {
+      "label": "landscape",
+      "width": 844,
+      "height": 390,
+      "equalBotTargets": 46,
+      "uniformSeats": {
+        "w": 401,
+        "h": 76
+      },
+      "fullCapacityHidesAdd": true,
+      "startUnobscured": true,
+      "dynamicViewport": true,
+      "lowerRuleScrollPreserved": true,
+      "longNicknameClipped": true,
+      "hostDefaultsRules": true,
+      "panelsPreserved": true
+    },
+    {
+      "label": "narrow",
+      "width": 320,
+      "height": 780,
+      "equalBotTargets": 46,
+      "uniformSeats": {
+        "w": 139,
+        "h": 78
+      },
+      "fullCapacityHidesAdd": true,
+      "startUnobscured": true,
+      "dynamicViewport": true,
+      "lowerRuleScrollPreserved": true,
+      "longNicknameClipped": true,
+      "hostDefaultsRules": true,
+      "panelsPreserved": true
+    }
+  ],
+  "errors": []
+}

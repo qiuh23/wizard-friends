@@ -84,7 +84,6 @@ body.turn-arrival .action-panel.your-action { animation:action-arrival 1.8s ease
 body[data-screen="game"] .trump-display { top:27%; }.trump-display .table-trump { font-size:13px; }
 body[data-screen="game"] .foresight-hands { top:27%;bottom:auto;max-height:28dvh;overflow:auto;background:#0a211ce8;z-index:5; }
 body[data-screen="lobby"] .room-operations { top:14px;right:18px; }
-body[data-screen="lobby"] .room-heading { padding-top:68px; }
 body[data-screen="lobby"] .lifecycle-banner { top:75px; }
 body[data-screen="game"] .notice { top:119px;max-width:90vw;z-index:17; }
 @media(max-width:850px) {
@@ -146,7 +145,7 @@ body[data-screen="game"] .notice { top:119px;max-width:90vw;z-index:17; }
   .social-panel,body[data-screen="game"] .social-panel { top:112px;right:10px;max-height:calc(100dvh - var(--hand-height) - 185px);overflow:auto; }
   #chat-messages { height:100px; }.social-panel input { font-size:16px; }
   body[data-screen="lobby"] .room-operations { top:8px;right:10px; }
-  body[data-screen="lobby"] .room-heading { padding-top:58px; }.room-buttons { margin-top:0; }
+  .room-buttons { margin-top:0; }
 }
 @media(max-width:380px) {
  .hand-heading > span { display:none; }.own-metrics { gap:5px; }.own-metrics b{font-size:21px;}
@@ -173,7 +172,6 @@ body[data-screen="game"] .notice { top:119px;max-width:90vw;z-index:17; }
 /* Rows retain card aspect ratio and scroll; never distribute 20 cards into the panel height. */
 body[data-screen="game"] .hand.hand-grid,body[data-screen="game"] .hand.hand-grid.large-hand { grid-auto-rows:max-content;grid-template-rows:none;align-content:start;align-items:start; }
 body[data-screen="game"] .hand.hand-grid .card,body[data-screen="game"] .hand.hand-grid.large-hand .card { align-self:start;max-width:100%; }
-#bot-difficulty { min-height:44px;padding:7px 9px;background:#142a20;color:#eddbb5;border:1px solid #a99a7188;border-radius:6px; }
 @media(max-height:540px) and (min-width:600px) {
  body[data-screen="game"] .selected-preview {display:flex;right:auto;left:170px;bottom:165px;width:70px;gap:2px;}
  body[data-screen="game"] .selected-preview .card {width:54px;height:81px;}

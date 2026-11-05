@@ -47,22 +47,6 @@ button:focus-visible, summary:focus-visible, input:focus-visible {
 .settings-content label.check { margin: 0; padding: 10px 0; font-size: 14px; color: #f4e8d1; }
 .settings-content input[type=checkbox] { width: 20px; height: 20px; accent-color: #edc77e; }
 body[data-screen="lobby"] .settings-content { right: auto; left: 0; }
-body[data-screen="lobby"] .room-heading { top: 18px; }
-.room-identity { font-size: 15px; color: #e8e1d1; }
-.room-identity .room-code { font-size: 22px; font-weight: 700; }
-.seat-count { font-size: 14px; color: #e2d9c2; }
-body[data-screen="lobby"] .room-buttons button { min-height: 44px; font-size: 15px; color: #f8ecd5; padding: 10px 16px; background: #17241ff0; border-color: #c8af7a88; }
-body[data-screen="lobby"] #invite { background: #e6c486; color: #201d15; border-color: #f4d79f; font-weight: 600; }
-.lobby-table .seat { background: #14221ff5; border-color: #9d957566; padding: 15px; }
-.lobby-table .seat b { font-size: 17px; }
-.lobby-table .seat small { font-size: 13px; color: #c6d4c5; }
-.lobby-table .seat .text-button { min-width: 36px; min-height: 40px; font-size: 23px; }
-.lobby-table .seat.empty { color: #d0d7cb; background: #122019d9; font-size: 14px; }
-.lobby-start .primary { min-height: 52px; font-size: 18px; font-weight: 700; padding: 14px 32px; }
-.lobby-start .primary:disabled { opacity: 1; background: #41483e; color: #c0c5b9; border-color: #69725f; box-shadow: none; }
-.start-hint { color: #f1d69c; font-size: 15px; }
-.room-mode { color: #d7dfd2; font-size: 15px; }
-.lobby-options #addbot { min-height: 44px; padding: 10px 16px; border: 1px solid #b39e7377; color: #f2dbaf; font-size: 15px; background: #19271ff0; }
 body[data-screen="game"] .roundbar { min-height: 44px; font-size: 15px; padding: 8px 16px; color: #eee6d5; background: #102019eb; }
 body[data-screen="game"] .roundbar .trump-marker { display: none; }
 body[data-screen="game"] .roundbar b { font-size: 21px; }
@@ -127,16 +111,6 @@ body[data-screen="game"] .played.winner .played-value { color: #3c2709; font-wei
   .home-title h1 { font-size: 54px; }
   .menu-options .menu-choice { font-size: 20px; }
   .home-tools .top-actions { gap: 16px; }
-  .room-identity { gap: 9px; font-size: 13px; }
-  .room-identity .room-code { font-size: 18px; }
-  .seat-count { font-size: 13px; }
-  body[data-screen="lobby"] .room-buttons button { font-size: 14px; padding: 9px 12px; }
-  .lobby-table .seat { padding: 10px; gap: 8px; }
-  .lobby-table .seat b { font-size: 14px; }
-  .lobby-table .seat small { font-size: 12px; }
-  .lobby-table .seat .avatar { display: none; }
-  .lobby-start .primary { font-size: 16px; min-height: 48px; }
-  .lobby-options #addbot, .room-mode { font-size: 14px; }
   body[data-screen="game"] .roundbar { left: 10px; top: 10px; padding: 7px 10px; font-size: 12px; }
   body[data-screen="game"] .roundbar b { font-size: 18px; }
   body[data-screen="game"] .game-toolbar { right: 10px; top: 10px; gap: 5px; }
