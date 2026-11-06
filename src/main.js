@@ -3,7 +3,6 @@ import { createGame, addPlayer, viewFor, botAction, normalizeGame, TRICK_REVIEW_
 import './style.css';
 import './cinematic.css';
 import './fullscreen.css';
-import './home-menu.css';
 import './lobby.css';
 import './social.css';
 import './clarity.css';
@@ -54,6 +53,8 @@ import './room-experience.css';
 import './foresight.css';
 import { icon, setIconButton } from './ui-icons.js';
 import './immersive-table.css';
+// Homepage owns its full visual cascade after the shared table styles.
+import './home-menu.css';
 import { FloatingLayers, containsEvent } from './floating-layers.js';
 
 new ScreenDirection();
@@ -293,15 +294,15 @@ function render() {
     app.innerHTML = shell(`<main class="home-screen">
       <section class="hero home-scene" aria-label="烛光牌桌"><div class="hero-cards">${cardHTML({ kind: 'number', suit: 'blue', rank: 13 })}${cardHTML({ kind: 'wizard' })}${cardHTML({ kind: 'number', suit: 'red', rank: 7 })}</div></section>
       <section class="home-menu" aria-label="主菜单">
-        <div class="home-title"><span class="title-ornament" aria-hidden="true">✦</span><h1>巫师牌</h1><span class="home-wordmark">W I Z A R D</span></div>
-        <nav class="entry-context" aria-label="当前线路与游戏大厅"><span class="current-route">当前线路 · ${backendId() === 'aliyun' ? '阿里云国内' : 'Cloudflare'}</span><a href="${gameLobbyURL()}" data-lobby-navigation ${busy ? 'aria-disabled="true"' : ''}>返回游戏大厅 ↗</a></nav>
+        <nav class="entry-context" aria-label="当前线路与游戏大厅"><a href="${gameLobbyURL()}" data-lobby-navigation ${busy ? 'aria-disabled="true"' : ''}>${icon('back')}返回大厅</a><span class="current-route">${backendId() === 'aliyun' ? '阿里云国内' : 'Cloudflare'}</span></nav>
+        <div class="home-title"><h1>巫师牌</h1><p class="home-tagline">预估得准，才是赢家。</p></div>
         <div class="menu-identity"><label for="nickname">昵称</label><input id="nickname" maxlength="16" placeholder="请输入昵称" required autocomplete="nickname" value="${escape(nickname)}"></div>
         <p class="home-setup-hint">创建后选择玩法、邀请朋友，3–6 人即可开局。</p>
         <nav class="menu-options" aria-label="开始游戏">
-          ${returnRooms.map((r,i)=>`<button ${i===0 ? 'id="resume-room"' : ''} data-return-room="${i}" class="menu-choice">返回 ${escape(r.room)} · ${r.role==='host' ? '房主' : r.role==='spectator' ? '观战' : '玩家'}</button>`).join('')}<button id="create" class="menu-choice menu-primary" ${busy ? 'disabled' : ''}>${busy ? '正在连接…' : '创建房间'}<span aria-hidden="true">↗</span></button>
-          <button id="join-menu" class="menu-choice" aria-expanded="${joinOpen}" aria-controls="join-form" ${busy ? 'disabled' : ''}>加入房间<span aria-hidden="true">＋</span></button>
+          ${returnRooms.map((r,i)=>`<button ${i===0 ? 'id="resume-room"' : ''} data-return-room="${i}" class="menu-choice">返回 ${escape(r.room)} · ${r.role==='host' ? '房主' : r.role==='spectator' ? '观战' : '玩家'}</button>`).join('')}<button id="create" class="menu-choice menu-primary" ${busy ? 'disabled' : ''}>${busy ? '正在连接…' : '创建房间'}<span class="menu-choice-icon">${icon('cards')}</span></button>
+          <button id="join-menu" class="menu-choice" aria-expanded="${joinOpen}" aria-controls="join-form" ${busy ? 'disabled' : ''}>加入房间<span class="menu-choice-icon">${icon('enter')}</span></button>
           <form id="join-form" class="menu-join" ${joinOpen ? '' : 'hidden'}><label class="sr-only" for="room-input">房间码</label><input id="room-input" placeholder="输入房间码" maxlength="24" autocomplete="off" value="${escape(joinDraft ?? (roomFromURL || storedRoom))}"><button id="join" type="submit" ${busy ? 'disabled' : ''}>加入</button></form>
-          ${practiceSaved ? '<button id="resume-practice" class="menu-choice">恢复练习<span>↗</span></button>' : ''}<button id="practice" class="menu-choice" ${busy ? 'disabled' : ''}>单人练习<span aria-hidden="true">↗</span></button>
+          ${practiceSaved ? '<button id="resume-practice" class="menu-choice">恢复练习<span>↗</span></button>' : ''}<button id="practice" class="menu-choice" ${busy ? 'disabled' : ''}>单人练习<span class="menu-choice-icon">${icon('target')}</span></button>
           ${busy ? '<button id="cancel-connect" class="text-button">取消连接</button>' : ''}
         </nav>
         <div class="home-presence"></div>

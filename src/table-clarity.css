@@ -202,19 +202,3 @@ body[data-screen="game"][data-table-layout="strip"] .table[data-low-height="true
 body[data-screen="game"][data-table-layout="strip"]:has(.table[data-low-height="true"]):not(.hand-expanded):has(.hand) { --hand-height:72px; }
 body[data-screen="game"][data-table-layout="strip"]:has(.table[data-low-height="true"]) .hand-section:not(.expanded) { height:72px; }
 body[data-screen="game"][data-table-layout="strip"]:has(.table[data-low-height="true"]) .hand-section:not(.expanded) .hand .card { width:40px;min-width:40px;flex-basis:40px;height:60px; }
-
-/* Keep the directory in the menu column, leaving the scene unobstructed. */
-body[data-screen="home"] .home-menu { padding-top:clamp(28px,7dvh,80px);padding-bottom:80px; }
-body[data-screen="home"] .home-room-list { position:relative;inset:auto;width:100%;max-width:none;margin:18px 0 0; }
-body[data-screen="home"] .room-directory { max-height:300px;padding:12px;gap:8px;background:#10221bba;border-color:#b5a27755;border-radius:7px;box-shadow:none; }
-body[data-screen="home"] .room-directory-heading { gap:6px; }
-body[data-screen="home"] .room-directory-heading h2 { font-size:16px; }
-body[data-screen="home"] .room-directory-status { font-size:12px; }
-body[data-screen="home"] .room-directory-empty { padding:8px 0;font-size:13px; }
-body[data-screen="home"] .room-directory-list { max-height:220px; }
-body[data-screen="home"] .room-directory-item { grid-template-columns:1fr;gap:6px;padding:8px; }
-body[data-screen="home"] .room-directory-host { font-size:14px; }
-body[data-screen="home"] .room-directory-code { margin-bottom:4px; }
-body[data-screen="home"] .room-directory-progress,
-body[data-screen="home"] .room-directory-counts { font-size:12px;gap:4px 10px; }
-body[data-screen="home"] .room-directory-watch { width:100%;min-height:44px;padding:6px 10px;font-size:13px; }

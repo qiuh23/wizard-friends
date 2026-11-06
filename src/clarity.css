@@ -5,26 +5,7 @@ button:focus-visible, summary:focus-visible, input:focus-visible {
   outline: 3px solid #ffe0a1; outline-offset: 3px;
 }
 .muted, .fine { color: #bec5be; }
-.home-wordmark, .title-ornament { display: none; }
-.home-title { margin-bottom: 32px; }
-.home-title h1 { color: #fff0cf; font-weight: 600; }
-.home-menu { width: 320px; }
-.menu-options { gap: 10px; }
-.menu-options .menu-choice {
-  min-height: 56px; padding: 12px 20px; color: #f1eadc;
-  font-family: inherit; font-size: 21px; font-weight: 600; letter-spacing: .04em;
-  border: 1px solid #bda67566; border-radius: 8px; background: #101918dc;
-}
-.menu-options .menu-primary { background: #e6c486; color: #221b10; border-color: #f4d79f; }
-.menu-options .menu-choice:hover:not(:disabled), .menu-options .menu-choice:focus-visible { padding-left: 20px; background: #34413b; color: #fff1d1; }
-.menu-options .menu-primary:hover:not(:disabled) { background: #f6daa7; color: #221b10; }
-.menu-choice > span { display: none; }
-.menu-identity { margin-top: 24px; gap: 12px; }
-.menu-identity label, .menu-identity input { color: #f0eadb; font-size: 15px; }
-.menu-identity input { min-height: 44px; padding: 8px 10px; border: 1px solid #a3977a80; border-radius: 6px; background: #101717e6; }
-.home-presence #online-count { font-size: 14px; color: #c5d4c5; }
-.menu-join input, .menu-join button { min-height: 44px; font-size: 15px; }
-.home-tools .text-button, body[data-screen="lobby"] .top-actions button { min-height: 44px; font-size: 14px; color: #f4e8d1; }
+body[data-screen="lobby"] .top-actions button { min-height: 44px; font-size: 14px; color: #f4e8d1; }
 #quick-settings { position: relative; }
 #quick-settings > summary {
   list-style: none; min-height: 44px; display: flex; align-items: center; justify-content: center;
@@ -107,10 +88,6 @@ body[data-screen="game"] .played.winner .played-value { color: #3c2709; font-wei
 .notice { font-size: 14px; padding: 13px 18px; }
 .modal p, .modal li { color: #e1e6dc; font-size: 15px; }
 @media(max-width:700px) {
-  .home-menu { width: min(320px, calc(100vw - 48px)); margin-left: 24px; padding-top: 64px; }
-  .home-title h1 { font-size: 54px; }
-  .menu-options .menu-choice { font-size: 20px; }
-  .home-tools .top-actions { gap: 16px; }
   body[data-screen="game"] .roundbar { left: 10px; top: 10px; padding: 7px 10px; font-size: 12px; }
   body[data-screen="game"] .roundbar b { font-size: 18px; }
   body[data-screen="game"] .game-toolbar { right: 10px; top: 10px; gap: 5px; }

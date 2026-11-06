@@ -1,5 +1,7 @@
 // One stroke, grid and vocabulary for table controls. Card artwork stays intact.
 const paths = {
+  back: '<path d="m10 5-7 7 7 7M3 12h18"/>',
+  enter: '<path d="M14 3h7v18h-7M3 12h13m-5-5 5 5-5 5"/>',
   chat: '<path d="M20 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 18 0Z"/><path d="M7 10h8M7 14h5"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   scores: '<path d="M5 3h14v18H5zM9 7h6M9 11h6M9 15h2M14 15h1"/>',
