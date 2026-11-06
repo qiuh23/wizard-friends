@@ -1,3 +1,5 @@
+import { anchorChatPreview } from './chat-anchor.js';
+import { shortName } from './graphemes.js';
 import { isDomestic } from './backend-entry.js';
 // This panel lives outside #app so game-state updates never interrupt typing.
 import { ChatNotices, CHAT_NOTICE_EXIT_MS } from './chat-notices.js';
@@ -55,8 +57,9 @@ export class RoomSocial {
       this.root.style.setProperty('--chat-viewport-height', `${height}px`);
       // A keyboard can shrink only the visual viewport, or the whole layout.
       this.root.dataset.chatViewport = offset > 80 || height < 240 ? 'compact' : 'default';
-      this.onLayout();
+      this.positionNotices(); this.onLayout();
     };
+    window.addEventListener('scroll', () => this.positionNotices(), {passive:true,capture:true});
     viewport?.addEventListener('resize', keyboard); viewport?.addEventListener('scroll', keyboard);
     window.addEventListener('resize', keyboard);
     keyboard();
@@ -95,22 +98,29 @@ export class RoomSocial {
       trigger?.focus({preventScroll:true});
     }
   }
+  positionNotices() {
+    if(this.disabled)return;
+    anchorChatPreview(this.noticeRegion,this.chatButton,[...document.querySelectorAll('.player,.own-status,.hand-section,.action-panel,.roundbar,.trump-display,.game-toolbar > :not(#chat-toggle)')]);
+  }
   renderNotices() {
     clearTimeout(this.noticeTimer);
     const now = Date.now(), items = this.notices.advance(now, matchMedia('(max-width:850px)').matches ? 4 : 6);
-    const ids = new Set(items.map(n => String(n.message.seq)));
+    const visible = this.chat.hidden ? items.slice(-1) : [];
+    const ids = new Set(visible.map(n => String(n.message.seq)));
     for (const node of [...this.noticeRegion.children]) if (!ids.has(node.dataset.seq)) node.remove();
-    for (const notice of items) {
+    for (const notice of visible) {
       const { message } = notice;
       let node = [...this.noticeRegion.children].find(n => n.dataset.seq === String(message.seq));
       if (!node) {
         node = document.createElement('button'); node.type = 'button'; node.className = 'chat-notice'; node.dataset.seq = message.seq;
         const name = document.createElement('strong'), body = document.createElement('span');
-        name.textContent = message.name; body.textContent = message.text.length > 160 ? `${message.text.slice(0,160)}…` : message.text;
+        name.textContent = message.name; body.textContent = shortName(message.text,80) + (Array.from(message.text).length > 80 ? '…' : '');
         node.append(name, body); node.onclick = () => this.openChat(); this.noticeRegion.append(node);
       }
+      node.querySelector('strong').textContent = message.name; node.querySelector('span').textContent = shortName(message.text,80) + (Array.from(message.text).length > 80 ? '…' : '');
       node.classList.toggle('is-leaving', notice.leaving);
     }
+    this.positionNotices();
     if (items.length) this.noticeTimer = setTimeout(() => this.renderNotices(), Math.max(16, Math.min(...items.map(n => n.expiresAt + (n.leaving ? CHAT_NOTICE_EXIT_MS : 0) - now))));
   }
   update(state, me, controls, { connected = true, room = '' } = {}) {
@@ -175,8 +185,9 @@ export class RoomSocial {
         row.className = message.player === me ? 'own-message' : '';
         const name = document.createElement('b'); name.textContent = message.name;
         const text = document.createElement('span'); text.textContent = message.text;
-        const identifier=document.createElement('small');identifier.textContent=` #${message.seq}`;identifier.title='举报时提供此消息编号和房间码';row.append(name, text,identifier); this.list.append(row);
+        row.append(name, text); this.list.append(row);
       }
+      for(const [index,message] of this.messages.entries()) {const node=[...this.list.children].find(n=>n.dataset.seq===String(message.seq));if(node&&this.list.children[index]!==node)this.list.insertBefore(node,this.list.children[index]||null);}
       if (atBottom) this.list.scrollTop = this.list.scrollHeight;
     }
     this.refreshButton();

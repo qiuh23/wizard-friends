@@ -1,3 +1,4 @@
+import { shortName } from './graphemes.js';
 import { isDomestic } from './backend-entry.js';
 // Search obstacle edges as well as the preferred center. Every returned slot
 // fits the viewport and leaves a gap around the DOM seats and played cards.
@@ -66,7 +67,7 @@ export function stripCardSlots(area, seats, preferredWidth, emphasis = 1.15) {
 // Include a seat number so identical initials and truncated long names remain
 // unambiguous, even when the table has only room for a short owner label.
 export function shortSeatName(name, seat, self = false) {
-  const short = isDomestic() ? name : /^牌友\d+$/.test(name) ? name : [...name].slice(0, 2).join('');
+  const short = isDomestic() ? name : /^牌友\d+$/.test(name) ? name : shortName(name);
   return `${seat + 1} ${self ? '你' : short}`;
 }
 

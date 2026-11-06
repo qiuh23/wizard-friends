@@ -1,6 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadCardFace, preloadCardFaces } from '../src/card-face.js';
+import * as THREE from 'three';
+
+test('screen-aligned played cards never project elevated black shadows onto the table',async t=>{
+  const original=globalThis.matchMedia;
+  globalThis.matchMedia=()=>({matches:false});
+  t.after(()=>{if(original)globalThis.matchMedia=original;else delete globalThis.matchMedia;});
+  const {TableScene}=await import('../src/table-scene.js');
+  const scene={cards:new Map(),scene:new THREE.Scene(),mode:'game',material:TableScene.prototype.material,mesh:TableScene.prototype.mesh,face:()=>null};
+  const entries=[{player:0,card:{id:'a',kind:'number',suit:'red',rank:2}},{player:1,card:{id:'b',kind:'number',suit:'red',rank:8}}];
+  TableScene.prototype.updateCards.call(scene,entries,{phase:'play',trick:entries,trump:'blue',options:{deckMode:'standard'}});
+  for(const group of scene.cards.values())for(const mesh of [group.userData.face,group.userData.edge]) {
+    assert.equal(mesh.castShadow,false);assert.equal(mesh.receiveShadow,false);
+  }
+  assert.equal(scene.cards.size,2);
+});
 
 test('background face retry updates every existing GPU texture without another face lookup', async t => {
   const originals = new Map(['Image', 'document', 'matchMedia'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));

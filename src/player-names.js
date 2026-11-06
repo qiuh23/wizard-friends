@@ -9,7 +9,10 @@ const nameKey = name => name.trim().normalize('NFKC').toLowerCase();
 const randomValue = () => globalThis.crypto.getRandomValues(new Uint32Array(1))[0] / 0x100000000;
 
 export function validateName(name) {
-  if (typeof name !== 'string' || /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(name)) {
+  // Only joiners inside pictographic emoji chains are allowed; all other
+  // controls, bidi overrides and hidden characters remain rejected.
+  const safeEmoji = typeof name === 'string' ? name.replace(/\p{Extended_Pictographic}[\p{Mark}\p{Emoji_Modifier}]*(?:\u200d\p{Extended_Pictographic}[\p{Mark}\p{Emoji_Modifier}]*)+/gu, '') : '';
+  if (typeof name !== 'string' || /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(safeEmoji)) {
     throw new Error('昵称需要 1–16 个字符，不能包含换行或隐藏字符。');
   }
   const normalized = name.trim().normalize('NFC');
