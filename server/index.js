@@ -135,7 +135,9 @@ export async function createServer(options = {}) {
   // that no browser reconnects to. Tombstones remain in SQLite indefinitely.
   for (const context of contexts.values()) {
     await context.controller.initialized;
-    if (context.controller.authority && !context.controller.authority.closed) await context.execute(() => context.controller.alarm());
+    // Initialization can discover an already-expired missing owner. Persist that
+    // closure and compact its private data before accepting any new sockets.
+    if (context.controller.authority && !context.record.closed) await context.execute(() => context.controller.alarm());
   }
   const server = http.createServer(async (request, response) => {
     try {

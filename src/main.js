@@ -247,7 +247,7 @@ function handHTML(p, myTurn) {
 function lifecycleHTML() {
   const life = state.lifecycle || {}, vote = life.continuationVote;
   const deadline = life.retentionDeadline ? new Date(life.retentionDeadline).toLocaleString('zh-CN', {hour12:false}) : null;
-  return `${life.paused || life.hostOffline || life.closeAfterRound ? `<div class="lifecycle-banner" role="status">${life.paused ? `已暂停 · ${escape(life.pauseReason || '房主主动暂停')}` : life.hostOffline ? '房主离线 · 牌局进度已保留' : ''}${life.closeAfterRound ? ' · 仅完成当前轮，结果确认后关闭' : ''}<small>${deadline ? `保留截止 ${deadline}` : practice ? '离开后原浏览器保留 10 分钟' : '房主在线时不因闲置过期'}</small></div>` : ''}${vote ? `<div class="continuation-panel" role="dialog" aria-modal="true" aria-label="到期续赛投票"><h2>房间保留时间已到</h2><p>全体在线真人同意后，仅完成当前轮；任一拒绝或 60 秒未全员确认即关闭。</p><p>${vote.accepted.length} / ${vote.voters.length} 已同意 · <span id="continuation-countdown"></span></p>${vote.voters.includes(me) ? `<button id="continue-no">拒绝并关闭</button><button id="continue-yes" class="primary" ${vote.accepted.includes(me) ? 'disabled' : ''}>${vote.accepted.includes(me) ? '已同意，等待其他人' : '同意完成本轮'}</button>` : '<p>等待投票结果</p>'}</div>` : ''}`;
+  return `${life.paused || life.hostOffline || life.closeAfterRound ? `<div class="lifecycle-banner" role="status">${life.paused ? `已暂停 · ${escape(life.pauseReason || '房主主动暂停')}` : life.hostOffline ? '房主离线 · 牌局进度已保留' : ''}${life.closeAfterRound ? ' · 仅完成当前轮，结果确认后关闭' : ''}<small>${deadline ? `${life.paused && !life.hostOffline ? '本次暂停再次离线仍沿用截止' : '保留截止'} ${deadline}` : practice ? '离开后原浏览器保留 10 分钟' : '房主在线时不因闲置过期'}${deadline && life.hostOffline && !vote && !life.closeAfterRound ? ' · <span id="retention-countdown" role="timer"></span>；到期符合条件时发起 60 秒续赛投票，否则关闭' : ''}</small></div>` : ''}${vote ? `<div class="continuation-panel" role="dialog" aria-modal="true" aria-label="到期续赛投票"><h2>房间保留时间已到</h2><p>全体在线真人同意后，仅完成当前轮；任一拒绝或 60 秒未全员确认即关闭。</p><p>${vote.accepted.length} / ${vote.voters.length} 已同意 · <span id="continuation-countdown"></span></p>${vote.voters.includes(me) ? `<button id="continue-no">拒绝并关闭</button><button id="continue-yes" class="primary" ${vote.accepted.includes(me) ? 'disabled' : ''}>${vote.accepted.includes(me) ? '已同意，等待其他人' : '同意完成本轮'}</button>` : '<p>等待投票结果</p>'}</div>` : ''}`;
 }
 
 function shell(body) {
@@ -663,6 +663,11 @@ function setupClearUI() {
 function updateCountdown() {
   if (!state) return;
   const text = (node,value) => { if (node.textContent !== value) node.textContent = value; };
+  const retentionTimer = $('#retention-countdown');
+  if (retentionTimer) {
+    const seconds = Math.max(0, Math.ceil((state.lifecycle.retentionDeadline - Date.now() - serverClockOffset) / 1000));
+    text(retentionTimer, seconds ? `剩余 ${Math.floor(seconds / 3600)} 小时 ${Math.floor(seconds % 3600 / 60)} 分 ${seconds % 60} 秒` : '保留期限已到，等待服务器处理');
+  }
   const voteTimer = $('#continuation-countdown'); if (voteTimer) text(voteTimer,`${Math.max(0,Math.ceil((state.lifecycle.continuationVote.deadline - Date.now() - serverClockOffset)/1000))} 秒`);
   const review = $('#trick-review-timer');
   if (review) {
@@ -802,11 +807,19 @@ function leaveRoom(message = '', announce = true, keep = true) {
   history.replaceState(null, '', location.pathname);
   notify(message); render();
 }
-function requestLeave() {
+function roomDepartureText() {
   const life = state.lifecycle || {};
-  const duration = practice ? '10 分钟' : life.paused ? '最多 4 小时（首次离线固定截止）' : '30 分钟';
-  const until = life.retentionDeadline ? new Date(life.retentionDeadline).toLocaleString('zh-CN', {hour12:false}) : new Date(Date.now() + (practice ? PRACTICE_KEEP_MS : life.paused ? 4*3600000 : 30*60000)).toLocaleString('zh-CN',{hour12:false});
-  if (confirm(`${spectating ? '离开观战' : '离开房间'}不会解散牌局。${isHost || practice ? `牌局保留 ${duration}，截止 ${until}。` : '房间期限由房主在线与暂停状态决定。'}使用原浏览器返回本页可恢复${practice ? '练习' : `，房间码 ${room}`}。到期将关闭；真人房符合条件时先发起当前轮续赛投票。确定离开？`)) leaveRoom('已离开，可从原浏览器返回恢复。');
+  if (spectating) return '这会退出观战，不会解散房间。';
+  if (practice) return '这会暂离练习，不会解散；练习在原浏览器保留 10 分钟，暂停不延长。';
+  const deadline = life.retentionDeadline ? `现有截止 ${new Date(life.retentionDeadline).toLocaleString('zh-CN', {hour12:false})}。` : '';
+  const retention = life.continuationVote ? '当前续赛投票继续按原截止处理，离开不撤销投票。'
+    : life.closeAfterRound ? '仅完成当前轮，结果确认或展示到期后关闭。'
+    : isHost ? `房主最后一个有效连接离线后${life.paused ? '保留最多 4 小时；同次暂停首次离线固定截止，重连不顺延。' : '保留 30 分钟。'}${deadline}到期符合条件时先发起 60 秒当前轮续赛投票，否则关闭。`
+    : `房间期限由房主在线和暂停状态决定。${deadline}到期符合条件时先发起 60 秒当前轮续赛投票，否则关闭。`;
+  return `这会暂离房间，不会解散；座位与原身份保留。${retention}使用原浏览器返回当前游戏网址可恢复，房间码 ${room}。`;
+}
+function requestLeave() {
+  if (confirm(`${roomDepartureText()}确定离开？`)) leaveRoom('已离开，可从原浏览器返回恢复。');
 }
 function lobbyNavigationHTML() {
   return `<div class="lobby-navigation"><small>当前线路 · ${backendId() === 'aliyun' ? '阿里云国内' : 'Cloudflare'}</small><button type="button" data-lobby-navigation ${busy && !state ? 'disabled' : ''}>返回游戏大厅</button><div class="server-entry-choices" role="group" aria-label="切换服务器"><span>切换服务器</span>${(runtimeConfig()?.backends || []).map(entry => `<button type="button" data-server-entry="${entry.id}" ${busy && !state || entry.id === backendId() || !entry.enabled ? 'disabled' : ''}>${entry.id === 'aliyun' ? '阿里云国内' : 'Cloudflare'}${entry.id === backendId() ? ' · 当前' : !entry.enabled ? ' · 尚未开放' : ' ↗'}</button>`).join('')}</div></div>`;
@@ -821,10 +834,12 @@ document.addEventListener('click', event => {
   const target = targetBackend ? entryURL(targetBackend) : gameLobbyURL();
   if (!target) return;
   if (state) {
-    const retention = practice ? '离线练习在原浏览器保留 10 分钟。' : '原房间按现有保留期限保存，离开不会解散房间。';
     const action = targetBackend ? `切换到${targetBackend === 'aliyun' ? '阿里云国内' : 'Cloudflare'}服务器` : '返回游戏大厅';
-    if (!confirm(`${action}？${retention}请使用原浏览器返回当前游戏网址恢复；切换线路不会迁移房间或身份。`)) return;
+    if (!confirm(`${action}？${roomDepartureText()}切换线路不会迁移房间或身份。`)) return;
     persistRoom();
+    // Record an explicit departure before navigating, including the practice
+    // deadline; pagehide is a fallback rather than the only persistence path.
+    leaveRoom();
   }
   location.assign(target);
 });
