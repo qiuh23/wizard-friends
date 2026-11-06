@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { exactOrigin, renderSite, siteConfig } from '../scripts/deploy/site-config.mjs';
-import { probe } from '../scripts/deploy/probe.mjs';
+import { probe, transportFailure } from '../scripts/deploy/probe.mjs';
 import { exactAllowedOrigins, entryURL, invitationRedirect, invitationURL, normalizeRuntimeConfig, relayOrigin, loadRuntimeConfig } from '../src/backend-entry.js';
 import { relayURL } from '../src/relay-socket.js';
 
@@ -86,4 +86,16 @@ test('release probe checks HTTPS runtime persistence, same-origin assets and sec
   await assert.rejects(probe(domestic, revision, { fetcher: fetchFixture({ config: { ...runtime, backends: [{ ...runtime.backends[0], origin: legacy }] } }), socketFactory }), /overwritten/);
   await assert.rejects(probe(domestic, revision, { fetcher: fetchFixture({ badAsset: true }), socketFactory }), /content type/);
   await assert.rejects(probe(domestic, revision, { fetcher: fetchFixture({ externalAsset: true }), socketFactory }), /assets must be served/);
+});
+
+test('release transport diagnostics retain errno and stage without leaking signed URLs', async () => {
+  const secret = 'https://storage.example/file?sig=private-secret';
+  const failure = Error(`connect ${secret}`, { cause: new AggregateError([
+    Object.assign(Error(secret), { code: 'ECONNREFUSED' }),
+    Object.assign(Error(secret), { code: 'ETIMEDOUT' }),
+  ]) });
+  const safe = transportFailure('Checked artifact download failed', failure);
+  assert.match(safe.message, /ECONNREFUSED/); assert.match(safe.message, /ETIMEDOUT/);
+  assert.doesNotMatch(safe.message, /sig=|private-secret|storage\.example/);
+  await assert.rejects(probe(domestic, revision, { fetcher: async () => { throw failure; }, socketFactory }), /Wizard HTTP probe \/api\/health failed \[ECONNREFUSED, ETIMEDOUT\]/);
 });

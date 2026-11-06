@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { probe } from './probe.mjs';
+import { probe, transportFailure } from './probe.mjs';
 import { siteConfig } from './site-config.mjs';
 
 const repo = 'qiuh23/wizard-friends';
@@ -30,7 +30,9 @@ function run(command, args) {
   if (result.error || result.status !== 0) throw Error(`Fixed Wizard operation failed: ${command}`);
 }
 async function api(path) {
-  const response = await fetch(`https://api.github.com/repos/${repo}/${path}`, { headers: { Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(20000) });
+  let response;
+  try { response = await fetch(`https://api.github.com/repos/${repo}/${path}`, { headers: { Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(20000) }); }
+  catch (error) { throw transportFailure('Wizard GitHub metadata request failed', error); }
   if (!response.ok) throw Error(`Cannot verify current public GitHub release metadata: HTTP ${response.status}`);
   return response.json();
 }
@@ -92,7 +94,9 @@ export async function install(encoded, user) {
   await validateCurrent(request);
   const work = await mkdtemp(join(tmpdir(), 'wizard-deploy-'));
   try {
-    const response = await fetch(request.artifactUrl, { redirect: 'error', signal: AbortSignal.timeout(600000) });
+    let response;
+    try { response = await fetch(request.artifactUrl, { redirect: 'error', signal: AbortSignal.timeout(600000) }); }
+    catch (error) { throw transportFailure('Wizard checked artifact download failed', error); }
     if (!response.ok || !response.body) throw Error('Artifact download failed.');
     let bytes = 0; const hash = createHash('sha256');
     const limit = new Transform({ transform(chunk, _, done) { bytes += chunk.length; if (bytes > 300 * 1024 * 1024) return done(Error('Artifact too large.')); hash.update(chunk); done(null, chunk); } });
