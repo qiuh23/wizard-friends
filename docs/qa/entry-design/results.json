@@ -1,0 +1,250 @@
+{
+  "results": [
+    {
+      "label": "desktop",
+      "geometry": "pass",
+      "joinDraftAndRules": "pass"
+    },
+    {
+      "label": "portrait",
+      "geometry": "pass",
+      "joinDraftAndRules": "pass"
+    },
+    {
+      "label": "landscape",
+      "geometry": "pass",
+      "joinDraftAndRules": "pass"
+    },
+    {
+      "label": "narrow",
+      "geometry": "pass",
+      "joinDraftAndRules": "pass"
+    },
+    {
+      "label": "tablet",
+      "geometry": "pass",
+      "joinDraftAndRules": "pass"
+    }
+  ],
+  "states": [
+    {
+      "selector": "#create",
+      "state": "default",
+      "contrast": 10.23,
+      "ink": "rgb(34, 27, 16)",
+      "surface": "rgb(230, 196, 134)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#create",
+      "state": "hover",
+      "contrast": 12.58,
+      "ink": "rgb(34, 27, 16)",
+      "surface": "rgb(246, 218, 167)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#create",
+      "state": "focus",
+      "contrast": 12.58,
+      "ink": "rgb(34, 27, 16)",
+      "surface": "rgb(246, 218, 167)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#create",
+      "state": "disabled",
+      "contrast": 6.19,
+      "ink": "rgb(48, 41, 28)",
+      "surface": "rgb(188, 168, 126)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#join-menu",
+      "state": "default",
+      "contrast": 14.12,
+      "ink": "rgb(247, 237, 218)",
+      "surface": "rgb(21, 34, 31)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#join-menu",
+      "state": "hover",
+      "contrast": 10.64,
+      "ink": "rgb(255, 243, 217)",
+      "surface": "rgb(43, 60, 49)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#join-menu",
+      "state": "focus",
+      "contrast": 10.64,
+      "ink": "rgb(255, 243, 217)",
+      "surface": "rgb(43, 60, 49)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#join-menu",
+      "state": "disabled",
+      "contrast": 7.4,
+      "ink": "rgb(193, 198, 182)",
+      "surface": "rgb(41, 52, 45)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#practice",
+      "state": "default",
+      "contrast": 14.12,
+      "ink": "rgb(247, 237, 218)",
+      "surface": "rgb(21, 34, 31)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#practice",
+      "state": "hover",
+      "contrast": 10.64,
+      "ink": "rgb(255, 243, 217)",
+      "surface": "rgb(43, 60, 49)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#practice",
+      "state": "focus",
+      "contrast": 10.64,
+      "ink": "rgb(255, 243, 217)",
+      "surface": "rgb(43, 60, 49)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#practice",
+      "state": "disabled",
+      "contrast": 7.4,
+      "ink": "rgb(193, 198, 182)",
+      "surface": "rgb(41, 52, 45)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#nickname",
+      "state": "default",
+      "contrast": 15.16,
+      "ink": "rgb(247, 237, 218)",
+      "surface": "rgb(16, 27, 25)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#nickname",
+      "state": "hover",
+      "contrast": 15.16,
+      "ink": "rgb(247, 237, 218)",
+      "surface": "rgb(16, 27, 25)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#nickname",
+      "state": "focus",
+      "contrast": 15.16,
+      "ink": "rgb(247, 237, 218)",
+      "surface": "rgb(16, 27, 25)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#nickname",
+      "state": "disabled",
+      "contrast": 6.84,
+      "ink": "rgb(187, 184, 172)",
+      "surface": "rgb(39, 48, 43)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#room-input",
+      "state": "default",
+      "contrast": 15.16,
+      "ink": "rgb(247, 237, 218)",
+      "surface": "rgb(16, 27, 25)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#room-input",
+      "state": "hover",
+      "contrast": 15.16,
+      "ink": "rgb(247, 237, 218)",
+      "surface": "rgb(16, 27, 25)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#room-input",
+      "state": "focus",
+      "contrast": 15.16,
+      "ink": "rgb(247, 237, 218)",
+      "surface": "rgb(16, 27, 25)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#room-input",
+      "state": "disabled",
+      "contrast": 6.84,
+      "ink": "rgb(187, 184, 172)",
+      "surface": "rgb(39, 48, 43)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#join",
+      "state": "default",
+      "contrast": 11.03,
+      "ink": "rgb(247, 237, 218)",
+      "surface": "rgb(36, 54, 44)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#join",
+      "state": "hover",
+      "contrast": 8.36,
+      "ink": "rgb(255, 243, 217)",
+      "surface": "rgb(59, 76, 58)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#join",
+      "state": "focus",
+      "contrast": 11.03,
+      "ink": "rgb(247, 237, 218)",
+      "surface": "rgb(36, 54, 44)",
+      "image": "none",
+      "opacity": "1"
+    },
+    {
+      "selector": "#join",
+      "state": "disabled",
+      "contrast": 7.4,
+      "ink": "rgb(193, 198, 182)",
+      "surface": "rgb(41, 52, 45)",
+      "image": "none",
+      "opacity": "1"
+    }
+  ],
+  "navigation": "server switch and lobby return intercepted locally; clean URLs",
+  "entry": "real local Node create, invitation guest, invitation spectator and local practice pass",
+  "errors": []
+}
