@@ -66,6 +66,7 @@ export function updateTableLayout({ state, me, tableMotion, reducedMotion = fals
   css(table, '--leader-scale', emphasis);
   tableMotion.setEmphasisScale(emphasis, { immediate: reducedMotion || !!state.lifecycle?.paused });
   const low = strip && rect.height <= 340, shortPortrait = mode === 'portrait-grid';
+  const expandedPortrait = rect.width <= 850 && rect.height > rect.width && document.body.classList.contains('hand-expanded');
   const self = Math.max(0, state.players.findIndex(player => player.id === me));
   const ordered = state.players.map((player, index) => ({ id: player.id, index, seat: relativeSeat(index, self, state.players.length) })).sort((a, b) => a.seat - b.seat);
   const hasOwnSeat = state.players.some(player => player.id === me);
@@ -100,9 +101,9 @@ export function updateTableLayout({ state, me, tableMotion, reducedMotion = fals
   const seatWrites = ordered.map(player => {
     const node = table.querySelector('.opponents [data-player="' + player.id + '"]');
     const pos = seatPosition(player.index, self, state.players.length);
-    const rawX = foresight || shortPortrait ? side + (rect.width - side - rightSide) / opponentCount * (player.seat + (hasOwnSeat ? -.5 : .5)) : strip ? side + (rect.width - side - rightSide) / ordered.length * (player.seat + .5) : side + (rect.width - side - rightSide) * pos.x / 100;
+    const rawX = foresight || shortPortrait || expandedPortrait ? side + (rect.width - side - rightSide) / opponentCount * (player.seat + (hasOwnSeat ? -.5 : .5)) : strip ? side + (rect.width - side - rightSide) / ordered.length * (player.seat + .5) : side + (rect.width - side - rightSide) * pos.x / 100;
     const x = Math.max(side + seatWidth / 2, Math.min(rect.width - rightSide - seatWidth / 2, rawX));
-    const y = foresight ? headerBottom - rect.top + 8 + identityHeight / 2 : shortPortrait ? Math.max(110, safeTop + 94) : strip ? Math.max(low ? 84 : 92, safeTop + 76) : seatTop + (pos.y - 12) / 78 * Math.max(80, seatBottom - seatTop);
+    const y = foresight ? headerBottom - rect.top + 8 + identityHeight / 2 : shortPortrait || expandedPortrait ? Math.max(110, safeTop + 94) : strip ? Math.max(low ? 84 : 92, safeTop + 76) : seatTop + (pos.y - 12) / 78 * Math.max(80, seatBottom - seatTop);
     return { node, x, y };
   });
   for (const { node, x, y } of seatWrites) {
@@ -110,7 +111,7 @@ export function updateTableLayout({ state, me, tableMotion, reducedMotion = fals
   }
   // Compact rows now include both numbers. Reserve their measured bottom,
   // rather than assuming an avatar-only row above the public cards.
-  if (strip || shortPortrait) {
+  if (strip || shortPortrait || expandedPortrait) {
     const seatBottoms = seatWrites.filter(({ node }) => node).map(({ node }) => node.getBoundingClientRect().bottom);
     area.top = Math.max(area.top, ...seatBottoms.map(bottom => bottom + 8));
   }
@@ -139,7 +140,7 @@ export function updateTableLayout({ state, me, tableMotion, reducedMotion = fals
         y: player.seat === 0 ? area.bottom + 80 : avatar ? avatar.top + avatar.height / 2 : center.y };
     });
     const preferredWidth = strip ? low ? 56 : 84 : rect.width < 600 ? 62 : 94;
-    const layout = strip ? stripCardSlots(area, seats, preferredWidth, emphasis) : shortPortrait ? compactCardSlots(area, seats, preferredWidth, emphasis) : playedCardSlots(area, seats, center, obstacles, preferredWidth, emphasis, 46);
+    const layout = strip ? stripCardSlots(area, seats, preferredWidth, emphasis) : shortPortrait || expandedPortrait ? compactCardSlots(area, seats, preferredWidth, emphasis) : playedCardSlots(area, seats, center, obstacles, preferredWidth, emphasis, 46);
     data(played, 'layout', layout ? mode : 'unavailable');
     let links = played.querySelector('.played-links');
     if (!links) {

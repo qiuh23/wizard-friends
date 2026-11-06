@@ -39,11 +39,20 @@ export function updateHandSelection(root, { id, card, label, faceHTML, reason, p
   }
   const hover = root.querySelector('.hover-preview');
   if (hover) hover.hidden = true;
+  // The preview is deliberately hidden in expanded/short/fine-pointer layouts.
+  // Invalid selections must still explain themselves without hover or a title.
+  const feedback = root.querySelector('.play-block-reason');
+  if (feedback) {
+    const text = reason || '';
+    if (feedback.textContent !== text) feedback.textContent = text;
+    feedback.hidden = !text;
+  }
   const button = root.querySelector('#confirm-play');
   if (button) {
     button.disabled = !card || !!reason;
     const title = reason || (card ? `打出 ${label}` : '请先选择手牌');
     if (button.title !== title) button.title = title;
+    button.setAttribute('aria-label', pending ? '正在提交出牌' : card ? `确认打出 ${label}${reason ? `，${reason}` : ''}` : '请先选择手牌后确认出牌');
     const text = pending ? '正在提交…' : '出牌';
     if (button.textContent !== text) button.textContent = text;
     const busy = String(!!pending);

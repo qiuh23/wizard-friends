@@ -66,7 +66,7 @@ try {
   await expect(spectator.locator('.foresight-hands,.hand .card')).toHaveCount(0);
   await host.locator('[data-bid]').first().click();
   for (const page of pages) await verify(page, page === guest ? 'rank' : 'suit');
-  await expect(guest.locator(`.player[data-player="${initial[0].identity}"] .prediction`)).toContainText('✓');
+  await expect(guest.locator(`.player[data-player="${initial[0].identity}"] .prediction > span`).last()).toHaveAttribute('aria-label','预测已锁定，未公开');
   // A new snapshot must retain the scroll/focus and the local sort choice.
   await guest.reload(); await connected(guest); await guest.locator('.foresight-hands').waitFor(); await verify(guest, 'rank');
   await guest.locator('[data-bid]').first().click();
@@ -82,6 +82,47 @@ try {
     expect(state.players[index].hand, 'Own hand must never arrive over a foresight socket').toBeUndefined();
     expect(state.players.filter((_, i) => i !== index).every(p => Array.isArray(p.hand))).toBe(true);
   }
+  // Complete a real round through the unchanged select/confirm action, then
+  // observe the authority's automatic next deal on players and spectator.
+  for (let played = 0; played < 3; played++) {
+    const current = await session(host);
+    const actorId = current.state.players[current.state.turn].id;
+    const actor = pages.find((_, index) => initial[index].identity === actorId);
+    const saved = await session(actor);
+    await actor.locator(`.hand [data-card="${saved.state.legal[0]}"]`).click();
+    await expect(actor.locator('#confirm-play')).toBeEnabled();
+    await actor.locator('#confirm-play').click();
+    await expect.poll(async () => (await session(host)).state.trick.length).toBe(played + 1);
+  }
+  for (const page of [...pages,spectator]) {
+    await expect(page.locator('.table-result')).toBeVisible();
+    await expect(page.locator('.round-settlement,#next')).toHaveCount(0);
+  }
+  await host.screenshot({path:`${out}/round-result-desktop.png`});
+  await guest.screenshot({path:`${out}/round-result-phone.png`});
+  const result = (await session(host)).state.history;
+  for (const page of [...pages,spectator]) await expect.poll(async () => (await session(page)).state.round).toBe(2);
+  expect((await session(host)).state.history).toEqual(result);
+  expect((await session(spectator)).state.players.every(p=>!Object.hasOwn(p,'hand'))).toBe(true);
+  await expect(spectator.locator('[data-bid],#confirm-play,#hand-expand,#room-pause')).toHaveCount(0);
+  // Unread count and short-lived bubbles remain available with the closed chat.
+  await host.locator('#chat-toggle').click();await host.locator('#chat-input').fill('下一轮见');
+  await host.locator('#chat-form button').click();await host.locator('#close-chat').click();
+  await expect(guest.locator('#chat-toggle .chat-unread')).toHaveText('1');
+  await expect(guest.locator('.chat-notice').last()).toContainText('下一轮见');
+  await guest.locator('#chat-toggle').click();await expect(guest.locator('#chat-toggle .chat-unread')).toHaveCount(0);
+  await guest.locator('#chat-input').fill('键盘草稿');
+  for (const viewport of [{width:390,height:220},{width:844,height:220},{width:390,height:844}]) {
+    await guest.setViewportSize(viewport);
+    await expect(guest.locator('#chat-input')).toHaveValue('键盘草稿');
+    const reachable = await guest.locator('#chat-form').evaluate(form => [...form.querySelectorAll('input,button')].every(node=>{
+      const r=node.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight&&node.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2));
+    }));
+    expect(reachable,`chat composer inside ${viewport.width}x${viewport.height}`).toBe(true);
+    if(viewport.height===220)await guest.screenshot({path:`${out}/chat-keyboard-${viewport.width}.png`});
+  }
+  await guest.locator('#close-chat').click();await expect(guest.locator('#room-chat')).toBeHidden();
+  checks.push({automaticRoundAfterAnimation:true,oneScorePerRound:true,selectThenConfirm:true,unreadBadge:true,chatBubble:true,keyboardDraft:true,keyboardComposerReachable:true});
   expect(messages.some(message => message.state.foresightActive)).toBe(true);
   expect(errors).toEqual([]);
   checks.push({ independentPlayers: 3, realWebSockets: true, guestReconnectBeforeAndAfterBid: true, sortIsLocal: true, rotation: true,

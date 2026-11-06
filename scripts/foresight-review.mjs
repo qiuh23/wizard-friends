@@ -182,6 +182,13 @@ async function nativeTouch(page) {
   await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await expect.poll(() => panel.evaluate(node => node.scrollTop)).toBeGreaterThan(0);
   await session.detach();
+  // A native touch release can keep scrolling after dispatchTouchEvent returns.
+  // Let momentum settle before testing snapshot scroll restoration.
+  await panel.evaluate(node => new Promise(resolve => {
+    let last=node.scrollTop, stable=0;
+    const sample=()=>{const next=node.scrollTop;stable=next===last?stable+1:0;last=next;if(stable>=5)resolve();else requestAnimationFrame(sample);};
+    requestAnimationFrame(sample);
+  }));
 }
 async function finishPrediction(page, count) {
   const cardCount = await page.locator('.foresight-hands .card').count();

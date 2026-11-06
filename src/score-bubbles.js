@@ -1,3 +1,4 @@
+import { icon } from './ui-icons.js';
 export const SCORE_BUBBLE_MS = 1800;
 
 // Only fresh public settlement events trigger bubbles. Rebuilt DOM nodes share
@@ -38,7 +39,7 @@ export class ScoreBubbles {
       if (delta === undefined || this.nodes.has(avatar)) continue;
       const node = avatar.ownerDocument.createElement('span');
       node.className = `round-score-bubble ${delta >= 0 ? 'score-gain' : 'score-loss'}`;
-      node.textContent = `${delta >= 0 ? '+' : ''}${delta}`;
+      node.innerHTML = `${icon(delta >= 0 ? 'check' : 'miss')}<span>${delta >= 0 ? '+' : ''}${delta}</span>`;
       node.setAttribute('aria-hidden', 'true');
       node.style.animationDuration = `${SCORE_BUBBLE_MS}ms`;
       node.style.animationDelay = `${-Math.max(0, this.clock() - this.effect.start)}ms`;

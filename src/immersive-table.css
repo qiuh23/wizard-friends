@@ -1,0 +1,112 @@
+/* Small, labelled controls share a single SVG vocabulary on every table. */
+.ui-icon { display:inline-block;width:20px;height:20px;flex:none;vertical-align:middle; }
+.table-icon-button { position:relative;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px; }
+.control-label { font:500 10px/12px system-ui,sans-serif;white-space:nowrap; }
+body[data-screen="game"] .game-toolbar { gap:4px; }
+body[data-screen="game"] .game-toolbar > .table-icon-button,
+body[data-screen="game"] .hand-tools > .table-icon-button,
+body[data-screen="game"] .foresight-heading > .table-icon-button {
+  width:44px;min-width:44px;height:44px;min-height:44px;padding:4px;border:1px solid #c4a66e38;border-radius:12px;
+  color:#e5ddcb;background:#10271eaa;box-shadow:none;line-height:1;
+}
+body[data-screen="game"] .table-icon-button[aria-expanded="true"] { border-color:#b9f3f4;color:#d4fcff;background:#193b32; }
+body[data-screen="game"] .table-icon-button:focus-visible { outline:2px solid #b9f3f4;outline-offset:3px; }
+body[data-screen="game"] .table-icon-button:hover:not(:disabled) { background:#25483a; }
+.chat-unread { position:absolute;right:-3px;top:-4px;min-width:17px;height:17px;padding:1px 4px;border-radius:10px;background:#e9c57c;color:#18251a;font:700 11px/15px system-ui,sans-serif;border:1px solid #213b2c; }
+body[data-screen="game"] .roundbar { display:flex;flex-direction:row;align-items:baseline;gap:10px;max-width:calc(100% - 216px);font-size:12px;line-height:20px; }
+body[data-screen="game"] .roundbar > .trick-progress:nth-child(2) { display:inline;white-space:nowrap;font-size:11px;color:#c0cdbf; }
+body[data-screen="game"] .roundbar b { font:600 16px/20px Georgia,serif; }
+body[data-screen="game"] .table .trump-display .table-trump { border:0;background:none;padding:3px 0;font-size:12px;min-height:28px; }
+body[data-screen="game"] .trump-suit-icon { width:18px;height:18px;transform:none; }
+.trump-suit-icon .ui-icon { width:18px;height:18px; }
+body[data-screen="game"] .suit-chip { display:flex;align-items:center;justify-content:center;gap:5px; }
+body[data-screen="game"] .table .player .turn-label { display:flex;align-items:center;justify-content:center;gap:3px; }
+.turn-label .ui-icon { width:12px;height:12px; }
+body[data-screen="game"] .prediction .ui-icon { width:12px;height:12px; }
+body[data-screen="game"] .own-metrics > span { align-items:center;gap:4px; }
+body[data-screen="game"] .own-metrics small { font-size:11px; }
+.own-metrics .ui-icon { width:14px;height:14px;color:#c4b58a; }
+body[data-screen="game"] .own-action { display:flex;align-items:center;justify-content:space-between; }
+body[data-screen="game"] .own-action > span:first-child { display:block;min-width:0; }
+body[data-screen="game"] .own-action b { display:flex;align-items:center;gap:4px; }
+.own-action b .ui-icon { width:13px;height:13px; }
+body[data-screen="game"] .own-action .follow-requirement { display:block;font-size:11px;line-height:15px;white-space:normal;color:#d5ddcd; }
+.follow-requirement:empty { display:none!important; }
+body[data-screen="game"] .own-action .play-block-reason { display:block;font-size:12px;line-height:17px;color:#ffd0b6;max-width:100%;overflow-wrap:anywhere;white-space:normal;overflow:visible;text-overflow:clip; }
+body[data-screen="game"] .own-action .play-block-reason[hidden] { display:none; }
+body[data-screen="game"] .selected-preview { display:none; }
+body[data-screen="game"].hand-expanded .played-links { display:none; }
+body[data-screen="game"] .own-action:has(.play-block-reason:not([hidden])) :is(b,.follow-requirement) { display:none; }
+body[data-screen="game"] #turn-countdown { display:inline-flex;align-items:center;gap:4px;padding:3px 5px;font-size:14px;border-radius:5px;background:none;font-variant-numeric:tabular-nums; }
+body[data-screen="game"] #turn-countdown.urgent { color:#ffe4d5;background:#783d2b; }
+#turn-countdown .ui-icon { width:14px;height:14px; }
+body[data-screen="game"] .hand-tools { position:fixed;z-index:10;right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));display:flex;align-items:center;gap:4px;pointer-events:auto; }
+.hand-count { display:flex;align-items:center;gap:4px;color:#c7d1c0;font:600 13px/20px Georgia,serif;padding-inline:4px; }
+.hand-count .ui-icon { width:16px;height:16px; }
+body[data-screen="game"] .hand-tools #hand-collapse,
+body[data-screen="game"].hand-collapsed .hand-tools #hand-sort,
+body[data-screen="game"].hand-collapsed .hand-tools #hand-expand { display:inline-flex; }
+body[data-screen="game"].hand-collapsed { --hand-height:44px; }
+body[data-screen="game"].hand-collapsed[data-table-layout] .hand-section.collapsed .hand { display:none!important; }
+body[data-screen="game"] .hand-tools > #hand-expand { width:44px;min-height:44px;height:44px;padding:4px;border:1px solid #c4a66e38;border-radius:12px;background:#10271eaa; }
+body[data-screen="game"]:is([data-phase="trickEnd"],[data-phase="roundEnd"],[data-phase="finished"]) .hand-tools { display:none; }
+body[data-screen="game"]:has(.table-result) { --hand-height:0px; }
+body[data-screen="game"]:has(.table-result) .hand-section { display:none; }
+body[data-screen="game"] .hand-section.expanded .hand { height:100%; }
+body[data-screen="game"] .foresight-heading { min-height:48px;background:#102b23ed;backdrop-filter:none; }
+body[data-screen="game"] .foresight-heading > b { font-size:13px; }
+body[data-screen="game"] .close-scores { flex-direction:row;width:auto;margin-left:auto;margin-bottom:8px;padding:5px 8px; }
+body[data-screen="game"] .table-result { position:fixed;z-index:7;left:50%;bottom:max(24px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;gap:8px;max-width:calc(100vw - 28px);font-size:13px;color:#f3ead6; }
+.table-result strong { font:600 24px/1.2 Georgia,serif;color:#f1d18d; }
+.table-result small { font-size:12px;color:#c2cfbd; }
+.table-result .result-icon { color:#efd08b;display:flex;align-items:center;gap:4px;white-space:nowrap; }
+body[data-screen="game"] .lifecycle-banner { padding:5px 9px;font-size:12px;border:0;background:#10271ee8; }
+body[data-screen="game"] .lifecycle-banner .ui-icon { width:16px;height:16px;margin-right:4px; }
+@media(max-width:850px) and (orientation:portrait) {
+  body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]).hand-expanded:not([data-foresight="true"]) { --hand-height:min(36dvh,350px,calc(100dvh - 360px)); }
+  body[data-screen="game"]:has(.play-confirm) .own-action > span:first-child { display:block; }
+  body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .own-action { grid-column:1 / -1;grid-row:3;max-width:none;justify-content:space-between;flex-wrap:nowrap; }
+  body[data-screen="game"] .own-status { column-gap:8px; }
+  body[data-screen="game"] .roundbar { flex-direction:column;gap:0;line-height:16px; }
+  body[data-screen="game"] .roundbar .trick-progress { font-size:10px;line-height:14px; }
+  body[data-screen="game"] .table .trump-display .table-trump { min-height:24px;font-size:11px; }
+  body[data-screen="game"] .table-result { width:max-content;bottom:72px;flex-wrap:wrap;justify-content:center; }
+  body[data-screen="game"]:has(.table-result) .own-status { bottom:max(10px,env(safe-area-inset-bottom)); }
+}
+body[data-screen="game"][data-table-layout="strip"] .hand-tools { bottom:max(8px,env(safe-area-inset-bottom)); }
+body[data-screen="game"][data-table-layout="strip"] .hand-tools .hand-count { display:none; }
+body[data-screen="game"][data-table-layout="strip"] .hand-section > .play-confirm { bottom:calc(60px + env(safe-area-inset-bottom)); }
+body[data-screen="game"][data-table-layout="strip"] .hand-section.expanded { right:calc(152px + env(safe-area-inset-right)); }
+body[data-screen="game"][data-table-layout="strip"] .hand-section.expanded .hand-grid { grid-template-columns:repeat(auto-fit,minmax(84px,1fr)); }
+body[data-screen="game"][data-table-layout="strip"] .hand-section.expanded .hand-grid .card { width:80px;min-width:80px;height:120px;margin:0; }
+body[data-screen="game"][data-table-layout="strip"] .own-action b { display:flex;max-width:none; }
+body[data-screen="game"][data-table-layout="strip"] .own-action { flex-wrap:wrap; }
+body[data-screen="game"][data-table-layout="strip"] .table-result { left:calc(164px + env(safe-area-inset-left));right:10px;bottom:16px;transform:none;justify-content:flex-end; }
+body[data-screen="game"][data-table-layout="strip"] .roundbar { left:max(10px,env(safe-area-inset-left));right:auto; }
+body[data-screen="game"][data-table-layout="strip"] .game-toolbar { left:auto;right:max(10px,env(safe-area-inset-right)); }
+body[data-screen="game"][data-table-layout] .table .played-cards .played > small { width:max-content;max-width:100%;padding-inline:4px; }
+body[data-screen="game"][data-table-layout] .table .played-cards .played.winner::before { content:'领先'; }
+body[data-screen="game"][data-table-layout]:is([data-phase="trickEnd"],[data-phase="roundEnd"],[data-phase="finished"]) .table .played-cards .played.winner::before { content:'赢墩'; }
+@media(min-width:851px) and (min-height:541px) {
+  body[data-screen="game"] #room-chat { position:fixed;left:auto;right:max(10px,env(safe-area-inset-right));top:64px;bottom:auto;width:360px;height:min(420px,calc(100dvh - 90px)); }
+}
+body[data-screen="game"] .table .player .turn-label { line-height:14px; }
+body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .action-panel.settlement-panel { grid-template-columns:minmax(120px,1fr) 100px auto; }
+body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .final-results { grid-column:1;grid-row:1;max-height:70px; }
+body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .settlement-summary { grid-column:2;grid-row:1; }
+body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .settlement-actions { grid-column:3;grid-row:1; }
+body[data-screen="game"][data-phase="finished"] .action-panel.settlement-panel { border:0;background:#0b211cbb;box-shadow:none; }
+/* Explicit columns keep headings and values aligned, including long names and
+   the horizontal-scroll view on phones. No header relies on body-only classes. */
+body[data-screen="game"] .final-results table { table-layout:fixed;width:100%;min-width:400px;border-collapse:collapse; }
+.final-col-rank { width:36px; }
+.final-col-player { width:auto; }
+.final-col-bid { width:92px; }
+.final-col-delta { width:72px; }
+.final-col-total { width:64px; }
+body[data-screen="game"] .final-results :is(th,td) { padding:6px;text-align:right;font-variant-numeric:tabular-nums; }
+body[data-screen="game"] .final-results :is(th,td):nth-child(1) { text-align:center; }
+body[data-screen="game"] .final-results :is(th,td):nth-child(2) { text-align:left;white-space:normal;overflow-wrap:anywhere; }
+body[data-screen="game"] .final-results thead th { white-space:nowrap;font-size:11px; }
+body[data-screen="game"] .final-results { scrollbar-width:auto;scrollbar-color:#b9a374 #10291f; }
+@media(max-width:359px) { body[data-screen="game"] .hand-tools { gap:2px; } }
