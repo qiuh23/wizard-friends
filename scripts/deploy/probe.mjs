@@ -1,10 +1,26 @@
 import { pathToFileURL } from 'node:url';
 import { exactOrigin } from './site-config.mjs';
 
+// Transport messages may embed signed artifact URLs. Only retain bounded errno
+// codes, never nested messages, request headers or query strings.
+export function transportFailure(context, error) {
+  const codes = new Set();
+  const visit = (value, depth = 0) => {
+    if (!value || typeof value !== 'object' || depth > 4) return;
+    if (typeof value.code === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(value.code)) codes.add(value.code);
+    visit(value.cause, depth + 1);
+    if (Array.isArray(value.errors)) for (const nested of value.errors.slice(0, 4)) visit(nested, depth + 1);
+  };
+  visit(error);
+  return Error(`${context}${codes.size ? ` [${[...codes].join(', ')}]` : ''}`);
+}
+
 export async function probe(origin, revision, { publicOrigin = origin, fetcher = fetch, socketFactory = url => new WebSocket(url) } = {}) {
   exactOrigin(origin); exactOrigin(publicOrigin);
   const read = async path => {
-    const response = await fetcher(new URL(path, origin), { cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(8000) });
+    let response;
+    try { response = await fetcher(new URL(path, origin), { cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(8000) }); }
+    catch (error) { throw transportFailure(`Wizard HTTP probe ${path} failed`, error); }
     if (!response.ok) throw Error(`${path}: HTTP ${response.status}`);
     return response;
   };
