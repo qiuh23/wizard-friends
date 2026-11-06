@@ -1,0 +1,49 @@
+{
+  "results": [
+    {
+      "edition": "cn",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "online": true,
+      "spectator": true,
+      "identityRecovery": true
+    },
+    {
+      "edition": "cn",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "online": true,
+      "spectator": true,
+      "identityRecovery": true
+    },
+    {
+      "edition": "cn",
+      "legacyPracticeCache": true
+    },
+    {
+      "edition": "global",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "online": true,
+      "spectator": true,
+      "identityRecovery": true
+    },
+    {
+      "edition": "global",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "online": true,
+      "spectator": true,
+      "identityRecovery": true
+    }
+  ],
+  "errors": []
+}

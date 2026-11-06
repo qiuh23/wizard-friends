@@ -11,6 +11,10 @@ export async function showSafetyNotice(room='') {
     const contact=document.createElement('p');contact.dataset.reportContact='';
     const close=document.createElement('button');close.textContent='关闭';close.onclick=()=>dialog.close();
     dialog.append(title,text,chat,contact,close);document.body.append(dialog);
+    dialog.addEventListener('click', event => {
+      const rect = dialog.getBoundingClientRect();
+      if (event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) dialog.close();
+    });
   }
   const contact=dialog.querySelector('[data-report-contact]');contact.textContent='正在读取联系方式…';dialog.showModal();
   try {

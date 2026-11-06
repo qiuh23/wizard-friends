@@ -10,7 +10,7 @@ async function fits(page,locator) {
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
   if(locator)await expect.poll(()=>locator.evaluate(n=>{const r=n.getBoundingClientRect();return r.width>=40&&r.height>=40&&r.left>=0&&r.right<=innerWidth+1&&r.top>=0&&r.bottom<=innerHeight+1&&n.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})).toBe(true);
 }
-test.beforeEach(async({page})=>{await mockDirection(page);await page.addInitScript(()=>{for(const key of ['wizard-low-graphics:aliyun','wizard-trump-motion:aliyun','wizard-turn-sound:aliyun'])localStorage.setItem(key,key.includes('low')?'true':'false');});});
+test.beforeEach(async({page})=>{await mockDirection(page);await page.addInitScript(()=>{for(const key of ['wizard-low-graphics','wizard-trump-motion','wizard-turn-sound'])localStorage.setItem(key,key.includes('low')?'true':'false');});});
 
 test('首页草稿与规则弹窗保留；房间沿用两个页签且旋转不重建连接',async({page,application},info)=>{
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -23,15 +23,15 @@ test('首页草稿与规则弹窗保留；房间沿用两个页签且旋转不�
   await page.locator('#create').click();await expect(page.locator('.lobby-table')).toBeVisible();
   await expect(page.locator('[data-lobby-panel="rules"]')).toHaveAttribute('aria-selected','true');
   await page.locator('input[name="predictionMode"][value="hidden"]').check();await page.locator('input[name="short"][value="true"]').check();
-  await page.locator('#rule-extras>summary').click();await page.locator('input[name="foresight"][value="true"]').check();
-  await expect(page.locator('#rule-extras')).toHaveAttribute('open','');
+  await expect(page.locator('input[name="foresight"][value="true"]')).toBeVisible();await page.locator('input[name="foresight"][value="true"]').check();
+  await expect(page.locator('input[name="foresight"][value="true"]')).toBeChecked();
   await expect(page.locator('.lobby-current')).toContainText('隐藏预估');await expect(page.locator('.lobby-current')).toContainText('快速局');
   await page.locator('[data-lobby-panel="players"]').click();await page.locator('#bot-difficulty').selectOption('simple');await page.locator('#addbot').click();
   const beforeSockets=sockets,beforeRooms=application.contexts.size;
   await page.locator('#chat-toggle').click();await page.locator('#chat-input').fill('旋转中仍在输入');
   await page.locator('#close-chat').tap();
   await landscapeCycle(page,await openControls(page,false));await page.locator('#quick-settings > summary').tap();await page.locator('#chat-toggle').tap();await expect(page.locator('#chat-input')).toHaveValue('旋转中仍在输入');
-  for(const [width,height] of sizes){await page.setViewportSize({width,height});await settle(page);await fits(page);await expect(page.locator('#chat-input')).toHaveValue('旋转中仍在输入');await expect(page.locator('[data-lobby-panel="players"]')).toHaveAttribute('aria-selected','true');await expect(page.locator('#bot-difficulty')).toHaveValue('simple');await expect(page.locator('#rule-extras')).toHaveAttribute('open','');}
+  for(const [width,height] of sizes){await page.setViewportSize({width,height});await settle(page);await fits(page);await expect(page.locator('#chat-input')).toHaveValue('旋转中仍在输入');await expect(page.locator('[data-lobby-panel="players"]')).toHaveAttribute('aria-selected','true');await expect(page.locator('#bot-difficulty')).toHaveValue('simple');await expect(page.locator('input[name="foresight"][value="true"]')).toBeChecked();}
   expect(sockets).toBe(beforeSockets);expect(application.contexts.size).toBe(beforeRooms);
   await page.locator('#close-chat').click();await page.setViewportSize({width:390,height:844});await page.screenshot({path:info.outputPath('compact-room-players.png')});
   await page.locator('[data-lobby-panel="rules"]').click();await expect(page.locator('input[name="predictionMode"][value="hidden"]')).toBeChecked();
@@ -56,7 +56,7 @@ function fixture(count,phase,round=10,seed=8) {
   throw Error('Fixture exhausted');
 }
 async function openFixture(page,record) {
-  await page.addInitScript(record=>{record.game.turnDeadline=Date.now()+600000;sessionStorage.setItem('wizard-room-session:aliyun',JSON.stringify(record));},record);
+  await page.addInitScript(record=>{record.game.turnDeadline=Date.now()+600000;sessionStorage.setItem('wizard-room-session',JSON.stringify(record));},record);
   await page.goto('/');await expect(page.locator('.table')).toBeVisible();
 }
 async function selectCard(card) {
@@ -96,16 +96,24 @@ for(const phase of ['trump','bid'])test(`${phase} 选色或预言经横屏进出
   await options.first().tap();await expect(options).toHaveCount(0);
 });
 
-for(const phase of ['roundEnd','finished'])test(`${phase} 结算、明细展开与确认在短横屏可达且保留`,async({page},info)=>{
-  await openFixture(page,fixture(3,phase,5));
+for(const phase of ['roundEnd','finished'])test(`${phase} 分数与记分表在短横屏可达且不触发下一局`,async({page},info)=>{
+  const record=fixture(3,phase,5);if(phase==='roundEnd')record.paused=true;
+  await openFixture(page,record);
   await page.locator('#table-menu').tap();await page.locator('[data-screen-direction]').tap();await page.locator('#table-menu').tap();
-  const detail=page.locator('.settlement-details');if(await detail.count())await detail.locator('summary').click();
   await page.evaluate(()=>window.__direction.leave());
   for(const [width,height] of [...sizes.slice(0,9),[568,250],[667,280]]){
-    await page.setViewportSize({width,height});await settle(page);await fits(page);await expect(page.locator('.settlement-panel')).toBeVisible();
-    if(await detail.count())await expect(detail).toHaveAttribute('open','');
-    await fits(page,page.locator('.settlement-details-body'));
-    const button=page.locator('.settlement-actions button').first();await button.scrollIntoViewIfNeeded();await fits(page,button);
+    await page.setViewportSize({width,height});await settle(page);await fits(page);
+    await expect(page.locator('body')).toHaveAttribute('data-phase',phase);
+    if(phase==='finished'){
+      await expect(page.locator('.settlement-panel')).toBeVisible();
+      await fits(page,page.locator('.final-results'));
+      const button=page.locator('.settlement-actions button').first();await button.scrollIntoViewIfNeeded();await fits(page,button);
+    }else{
+      await expect(page.locator('.table-result')).toContainText('已暂停');
+      await expect(page.locator('.round-settlement,#next')).toHaveCount(0);
+    }
+    await page.locator('#table-scores').click();await expect(page.locator('.score-ledger')).toBeVisible();
+    await fits(page,page.locator('.close-scores'));await page.locator('.close-scores').click();
     if(width===568)await page.screenshot({path:info.outputPath(`${phase}-short-landscape.png`)});
   }
 });

@@ -19,7 +19,7 @@ export class RoomSocial {
         <form id="chat-form"><label class="sr-only" for="chat-input">聊天消息</label><input id="chat-input" maxlength="300" autocomplete="off" placeholder="说点什么…"><button type="submit">发送</button></form>
       </section>
       <section id="rename-panel" class="social-panel" aria-label="修改昵称" hidden>
-        <div class="social-heading"><b>修改昵称</b><button id="close-rename" aria-label="取消改名">×</button></div>
+        <div class="social-heading"><b>修改昵称</b><button id="close-rename" aria-label="关闭改名">×</button></div>
         <form id="rename-form"><label class="sr-only" for="rename-input">新昵称</label><input id="rename-input" maxlength="16" required autocomplete="off"><button type="submit">保存</button></form>
       </section>`;
     document.body.append(this.root);
@@ -32,8 +32,10 @@ export class RoomSocial {
     this.list = this.root.querySelector('#chat-messages');
     this.input = this.root.querySelector('#chat-input');
     this.nameInput = this.root.querySelector('#rename-input');
+    this.nameDraft = null;
+    this.nameInput.oninput = () => { this.nameDraft = this.nameInput.value; };
     setIconButton(this.root.querySelector('#close-chat'), 'close', '关闭', '收起聊天');
-    setIconButton(this.root.querySelector('#close-rename'), 'close', '取消', '取消改名');
+    setIconButton(this.root.querySelector('#close-rename'), 'close', '关闭', '关闭改名');
     this.root.querySelector('#close-chat').onclick = () => { this.closeChat(); this.chatButton?.focus({preventScroll:true}); };
     this.root.querySelector('#close-rename').onclick = () => this.closeRename(true);
     this.root.querySelector('#chat-form').onsubmit = event => {
@@ -117,16 +119,17 @@ export class RoomSocial {
     this.root.hidden = !state;
     if (!state) {
       this.chat.hidden = this.rename.hidden = true;
-      this.list.replaceChildren(); this.key = null; this.seen = 0; this.input.value = ''; this.roomKey = null;
+      this.list.replaceChildren(); this.key = null; this.seen = 0; this.input.value = ''; this.nameDraft = null; this.roomKey = null;
       this.notices.reset(); this.renderNotices(); this.refreshButton();
       return;
     }
     if (!controls) return;
-    if (this.roomKey !== `${room}:${me}`) { this.notices.reset(); this.list.replaceChildren(); this.key = null; this.seen = state.chatSeq || 0; this.roomKey = `${room}:${me}`; }
+    if (this.roomKey !== `${room}:${me}`) { this.notices.reset(); this.list.replaceChildren(); this.key = null; this.nameDraft = null; this.seen = state.chatSeq || 0; this.roomKey = `${room}:${me}`; }
     this.me = me;
     this.messages = state.chat || [];
     this.latestChat = state.chatSeq || 0;
     const own = state.players.find(p => p.id === me);
+    if (this.nameDraft !== null && own?.name === this.nameDraft.trim()) this.nameDraft = null;
     this.root.querySelector('.chat-context').textContent = own ? `${own.name} · 预测 ${own.bid ?? '—'} / 实赢 ${own.won} · ${own.score} 分` : '观战中 · 仅公开信息';
     this.notices.syncCurrent(this.messages);
     this.notices.update(this.messages, me, connected && !document.hidden, Date.now(), matchMedia('(max-width:850px)').matches ? 4 : 6);
@@ -148,7 +151,7 @@ export class RoomSocial {
       const open = this.rename.hidden;
       if (open) this.onOpen('rename');
       this.chat.hidden = true; this.rename.hidden = !open;
-      this.nameInput.value = state.players.find(p => p.id === me)?.name || '';
+      if (open) this.nameInput.value = this.nameDraft ?? state.players.find(p => p.id === me)?.name ?? '';
       if (open) { this.nameInput.focus({preventScroll:true}); this.nameInput.select(); }
       this.refreshButton();
     };

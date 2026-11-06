@@ -1,0 +1,95 @@
+{
+  "results": [
+    {
+      "edition": "global",
+      "name": "desktop",
+      "home": true,
+      "joinDraft": true,
+      "rulesInsideAndBackdrop": true,
+      "settingsCloseOutsideEscape": true,
+      "joinError": true
+    },
+    {
+      "edition": "global",
+      "name": "portrait",
+      "home": true,
+      "joinDraft": true,
+      "rulesInsideAndBackdrop": true,
+      "settingsCloseOutsideEscape": true,
+      "joinError": true
+    },
+    {
+      "edition": "global",
+      "name": "landscape",
+      "home": true,
+      "joinDraft": true,
+      "rulesInsideAndBackdrop": true,
+      "settingsCloseOutsideEscape": true,
+      "joinError": true
+    },
+    {
+      "edition": "global",
+      "name": "narrow",
+      "home": true,
+      "joinDraft": true,
+      "rulesInsideAndBackdrop": true,
+      "settingsCloseOutsideEscape": true,
+      "joinError": true
+    },
+    {
+      "edition": "global",
+      "realRoom": true,
+      "inviteCopied": true,
+      "guestJoined": true,
+      "fullRoomWatch": true,
+      "communicationPolicy": true,
+      "disconnectRecovery": true
+    },
+    {
+      "edition": "cn",
+      "name": "desktop",
+      "home": true,
+      "joinDraft": true,
+      "rulesInsideAndBackdrop": true,
+      "settingsCloseOutsideEscape": true,
+      "joinError": true
+    },
+    {
+      "edition": "cn",
+      "name": "portrait",
+      "home": true,
+      "joinDraft": true,
+      "rulesInsideAndBackdrop": true,
+      "settingsCloseOutsideEscape": true,
+      "joinError": true
+    },
+    {
+      "edition": "cn",
+      "name": "landscape",
+      "home": true,
+      "joinDraft": true,
+      "rulesInsideAndBackdrop": true,
+      "settingsCloseOutsideEscape": true,
+      "joinError": true
+    },
+    {
+      "edition": "cn",
+      "name": "narrow",
+      "home": true,
+      "joinDraft": true,
+      "rulesInsideAndBackdrop": true,
+      "settingsCloseOutsideEscape": true,
+      "joinError": true
+    },
+    {
+      "edition": "cn",
+      "realRoom": true,
+      "inviteCopied": true,
+      "guestJoined": true,
+      "fullRoomWatch": true,
+      "communicationPolicy": true,
+      "disconnectRecovery": true
+    }
+  ],
+  "errors": []
+}
