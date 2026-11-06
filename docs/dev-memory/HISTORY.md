@@ -543,3 +543,4 @@
 - 基线 `1f564076d5794815eb72676e512314b1e1ade0a2`，独立工作树 `C:/Game/WizardFriends-table-ui`，分支 `codex/review-only/immersive-table-ui`；交付前 fetch 无 main 新增提交。当前用户授权 PR，未合并、部署或增加远端 CI/依赖。沿用代码与本地仓库记录一起提交策略。
 - 采用方案见 [D-038](DECISIONS.md#d-038)。完整实现、检查命令、截图、过程修正及模拟边界集中见 [QA](../qa/immersive-table/README.md)，避免在此复制布局尺寸和生命周期定义。
 - 本地 335/335 单测、语法、构建、Worker dry-run、空白检查通过；3–6 人桌面/竖横屏 64 组、极窄/平板等 17 组及窄屏禁出/终局列对齐复核通过；先见之明 103 项、生产包真实三玩家加观众 55 状态帧、Chromium/WebKit 横屏 37 通过/1 能力跳过，页面错误为空。
+- 交付：[PR #31](https://github.com/qiuh23/wizard-friends/pull/31)，目标 main，保持 open、未合并/未部署；实现提交 `83f7960` 与 `4c7e678`，本记录为交付补记。
