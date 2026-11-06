@@ -1,8 +1,1 @@
-{
-  "backendId": "cloudflare",
-  "relayOrigin": null,
-  "backends": [
-    { "id": "cloudflare", "origin": "", "enabled": true },
-    { "id": "aliyun", "origin": "https://wizard.magical-athlete-online.cn", "enabled": true }
-  ]
-}
+{"siteEdition":"global","backendId":"cloudflare","relayOrigin":"","backends":[{"id":"cloudflare","origin":"","enabled":true}]}

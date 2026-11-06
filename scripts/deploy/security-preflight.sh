@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ -f /etc/wizard-friends/server.env ]] && grep -Fqx 'SITE_EDITION=cn' /etc/wizard-friends/server.env; then exit 0; fi
 [[ $EUID -eq 0 ]] || { echo 'Run as root.' >&2; exit 1; }
 SCRIPT_DIR=$(cd -- "$(dirname -- "$0")" && pwd)
 DATABASE=/var/lib/wizard-friends/security.sqlite

@@ -5,9 +5,8 @@ import { uuidV4 } from '../src/uuid.js';
 import { relayURL } from '../src/relay-socket.js';
 
 const origin = 'http://115.29.188.62:8081';
-const config = { backendId: 'aliyun', relayOrigin: '', backends: [
-  { id: 'cloudflare', origin: 'https://wizard-friends.qiuh23.workers.dev', enabled: true },
-  { id: 'aliyun', origin, enabled: false },
+const config = { siteEdition: 'cn', backendId: 'aliyun', relayOrigin: '', backends: [
+  { id: 'aliyun', origin, enabled: true },
 ] };
 
 test('ordinary lobby navigation follows the current line without invitation or credential parameters', () => {
@@ -27,9 +26,9 @@ test('HTTP UUID fallback produces cryptographic RFC 4122 version 4 identifiers',
 });
 test('only trusted runtime entries supply navigation addresses and disabled entries do not navigate', () => {
   const normalized = normalizeRuntimeConfig(config, origin);
-  assert.equal(entryURL('aliyun', {}, normalized), null);
+  assert.equal(entryURL('aliyun', {}, normalized), `${origin}/`);
   assert.equal(entryURL('https://evil.example', {}, normalized), null);
-  assert.equal(entryURL('cloudflare', { room: 'ABCDEFGH', watch: true }, normalized), 'https://wizard-friends.qiuh23.workers.dev/?room=C-ABCDEFGH&watch=1');
+  assert.equal(entryURL('cloudflare', { room: 'ABCDEFGH', watch: true }, normalized), null);
   for (const address of ['javascript:alert(1)', 'https://user:secret@example.test', 'https://example.test/?token=secret', 'https://example.test/path', 'https://example.test/#secret']) {
     assert.throws(() => normalizeRuntimeConfig({ ...config, backends: [{ id: 'aliyun', origin: address, enabled: true }] }, origin));
   }
@@ -47,23 +46,23 @@ test('public invitation includes backend and port but no caller query, hash or c
 test('a foreign invitation never switches a recovering current game to another backend', () => {
   const normalized = normalizeRuntimeConfig(config, origin);
   const location = new URL(`${origin}/?room=C-ABCDEFGH&watch=1&token=secret#secret`);
-  assert.equal(invitationRedirect(location, true, normalized), null);
-  assert.equal(invitationRedirect(location, false, normalized), 'https://wizard-friends.qiuh23.workers.dev/?room=C-ABCDEFGH&watch=1');
+  assert.throws(() => invitationRedirect(location, true, normalized), /此邀请不属于当前站点/);
+  assert.throws(() => invitationRedirect(location, false, normalized), /此邀请不属于当前站点/);
   assert.equal(invitationRedirect(new URL(`${origin}/?room=A-ABCDEFGH`), false, normalized), null);
 });
 
 test('explicit invitation server and watch are preserved; ambiguous invitations never enter a different pool', () => {
   assert.deepEqual(readInvitation('?room=ABCDEFGH&server=aliyun&game=wizard&watch=1', 'cloudflare'), { backendId: 'aliyun', room: 'ABCDEFGH', watch: true });
   assert.deepEqual(readInvitation('?room=ABCDEFGH', 'cloudflare'), { backendId: 'cloudflare', room: 'ABCDEFGH', watch: false });
-  assert.equal(invitationRedirect(new URL(`${origin}/?room=ABCDEFGH&server=cloudflare&watch=1&token=private&next=https://evil.test#secret`), false, config), 'https://wizard-friends.qiuh23.workers.dev/?room=C-ABCDEFGH&watch=1');
+  assert.throws(() => invitationRedirect(new URL(`${origin}/?room=ABCDEFGH&server=cloudflare&watch=1&token=private&next=https://evil.test#secret`), false, config), /此邀请不属于当前站点/);
   for (const search of [
     '?room=A-ABCDEFGH&server=cloudflare', '?room=ABCDEFGH&server=unknown',
     '?room=ABCDEFGH&room=HGFEDCBA', '?room=ABCDEFGH&watch=1&watch=0',
     '?room=ABCDEFGH&server=aliyun&server=cloudflare', '?room=ABCDEFGH&game=athlete',
     '?room=ABCDEFGH&game=wizard&game=wizard', '?room=ABCDEFGH&watch=yes', '?room=bad',
   ]) assert.throws(() => invitationRedirect(new URL(`${origin}/${search}`), false, config), /邀请/);
-  assert.throws(() => invitationRedirect(new URL('https://wizard-friends.qiuh23.workers.dev/?room=A-ABCDEFGH&watch=1'), false, { ...config, backendId: 'cloudflare' }), /暂未开放/);
-  assert.equal(invitationRedirect(new URL('https://wizard-friends.qiuh23.workers.dev/?room=A-ABCDEFGH'), true, { ...config, backendId: 'cloudflare' }), null, 'an existing room keeps the established recovery policy');
+  assert.throws(() => invitationRedirect(new URL('https://wizard-friends.qiuh23.workers.dev/?room=A-ABCDEFGH&watch=1'), false, { ...config, backendId: 'cloudflare' }), /此邀请不属于当前站点/);
+  assert.throws(() => invitationRedirect(new URL('https://wizard-friends.qiuh23.workers.dev/?room=A-ABCDEFGH'), true, { ...config, backendId: 'cloudflare' }), /此邀请不属于当前站点/);
 });
 test('runtime same-origin relay overrides fixed Cloudflare build configuration without an external probe', async () => {
   const location = new URL(`${origin}/`);
@@ -75,8 +74,8 @@ test('runtime same-origin relay overrides fixed Cloudflare build configuration w
   const https = new URL('https://wizard-friends.qiuh23.workers.dev');
   assert.equal(relayOrigin('http://115.29.188.62:8081', https), https.origin);
   await assert.rejects(loadRuntimeConfig({ location, fetcher: async () => new Response('', { status: 503 }) }), /配置暂不可用/);
-  await loadRuntimeConfig({ location: https, fetcher: async () => Response.json({ ...config, backendId: 'cloudflare', relayOrigin: null }) });
-  assert.throws(() => relayOrigin('http://115.29.188.62:8081', https), /协议不兼容/);
+  await loadRuntimeConfig({ location: https, fetcher: async () => Response.json({ siteEdition:'global', backendId:'cloudflare', relayOrigin:'', backends:[{id:'cloudflare',origin:'',enabled:true}] }) });
+  assert.equal(relayOrigin('http://115.29.188.62:8081', https), https.origin);
 });
 test('origin-local pool scopes retain existing Cloudflare credentials without sharing Aliyun identities', () => {
   const values = new Map();

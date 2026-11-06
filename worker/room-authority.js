@@ -1,3 +1,4 @@
+import { assignNickname, enforceRequest, migrateCNGame, nicknameFromId } from '../src/site-policy.js';
 import { createGame, normalizeGame, addPlayer, act, botAction, viewFor, spectatorView, SUIT_NAMES, TURN_MS, TURN_ENTRY_MS, TRICK_REVIEW_MS } from '../src/game.js';
 import { appendPublicEvent } from '../src/spectator-events.js';
 
@@ -14,7 +15,8 @@ const clone = value => structuredClone(value);
 // A serializable room controller. Its clock is supplied by the DO, so tests can
 // exercise four-hour lifetimes without sleeping or changing the process clock.
 export class RoomAuthority {
-  constructor(record, now = Date.now()) {
+  constructor(record, now = Date.now(), edition = 'global') {
+    this.edition = edition;
     this.record = record || {
       version: 2, game: createGame(), identities: {}, hostId: null,
       lifecycle: { paused: false, pauseReason: '', hostOfflineSince: null, retentionDeadline: null,
@@ -22,7 +24,9 @@ export class RoomAuthority {
         resultsDeadline: null, resultsConfirmed: [], closed: false },
       reconnectUntil: {}, task: null, frozen: null, savedAt: now,
     };
+    this.record.game.siteEdition = edition;
     normalizeGame(this.record.game);
+    this.enforcePolicy();
     this.record.reconnectUntil ||= {};
     this.record.lifecycle.resultsConfirmed ||= [];
     if (!this.closed && this.game.phase === 'play') {
@@ -31,19 +35,33 @@ export class RoomAuthority {
     }
     this.syncClock(now);
   }
+  enforcePolicy() {
+    if (this.edition !== 'cn') return;
+    migrateCNGame(this.game);
+    if (this.life.pauseReason) this.life.pauseReason = '房主主动暂停';
+    this.record.requests = (this.record.requests || []).filter(entry => { try { enforceRequest('cn', JSON.parse(entry.payload)); return true; } catch { return false; } });
+  }
   get game() { return this.record.game; }
   get life() { return this.record.lifecycle; }
   get closed() { return this.life.closed; }
   hostOnline() { return this.game.players.find(p => p.id === this.record.hostId)?.online === true; }
-  join(hash, { host = false, name = '', automaticName = false, spectator = false } = {}, now = Date.now()) {
+  join(hash, { host = false, name = '', automaticName = false, nicknameId, spectator = false } = {}, now = Date.now()) {
     this.tick(now);
     if (this.closed) throw new Error('房间已关闭，旧链接不能重新开启牌局。');
-    if (spectator) return { id: `spectator:${hash}`, spectator: true, host: false };
+    if (spectator) {
+      const id = `spectator:${hash}`;
+      if (this.edition === 'cn') {
+        this.game.spectatorNames ||= {};
+        if (!this.game.spectatorNames[id]) this.game.spectatorNames[id] = assignNickname({ id }, [...this.game.players, ...Object.values(this.game.spectatorNames)], nicknameId);
+      }
+      return { id, spectator: true, host: false };
+    }
     let id = this.record.identities[hash];
     if (!id) {
       if (!host && !this.record.hostId) throw new Error('等待原房主迁移牌局，请稍后重新连接。');
+      if (this.edition === 'cn' && (name || nicknameId != null && !nicknameFromId(nicknameId))) throw Error('当前站点仅接受固定昵称编号。');
       id = crypto.randomUUID();
-      addPlayer(this.game, id, name, false, automaticName);
+      addPlayer(this.game, id, name, false, automaticName, nicknameId);
       this.record.identities[hash] = id;
     }
     if (host && this.record.hostId && this.record.hostId !== id) throw new Error('房主身份不匹配。');
@@ -170,10 +188,12 @@ export class RoomAuthority {
     }
   }
   execute(actor, action, now, system = false) {
+    enforceRequest(this.edition, action);
     if (!system && ['timeout'].includes(action?.type)) throw new Error('自动出牌仅由房间服务执行。');
     if (this.life.closeAfterRound && ['configure', 'start', 'rematch'].includes(action?.type)) throw new Error('续赛仅完成当前轮，结果确认后关闭。');
     if (this.life.closeAfterRound && action?.type === 'next' && this.game.phase !== 'trickEnd') throw new Error('当前轮结束后关闭房间。');
     if (!system && action?.type === 'next' && ['trickEnd', 'roundEnd'].includes(this.game.phase) && now < (this.record.collection?.at ?? this.record.task?.at ?? now)) throw new Error('请先看完本墩结算，稍后会自动继续。');
+    this.enforcePolicy();
     const before = spectatorView(this.game);
     const frozenDeadline = this.game.turnDeadline;
     const phase = this.game.phase, turn = this.game.turn;
@@ -213,6 +233,7 @@ export class RoomAuthority {
     if (after.history.length > before.history.length) append(`第 ${after.round} 轮结算：${after.history.at(-1).result.map(result => `${after.players.find(p => p.id === result.id)?.name} ${result.delta >= 0 ? '+' : ''}${result.delta} 分`).join('，')}`);
   }
   handle(identity, message, now = Date.now()) {
+    enforceRequest(this.edition, message);
     if (this.closed) throw new Error('房间已关闭。');
     const player = this.game.players.find(p => p.id === identity.id);
     if (identity.spectator || !player?.online) throw new Error('观众不能执行玩家操作。');
@@ -245,7 +266,7 @@ export class RoomAuthority {
       if (this.life.closeAfterRound || this.life.continuationVote) throw new Error('续赛投票或收尾期间不能另行暂停。');
       if (!this.life.paused) {
         this.life.paused = true;
-        this.life.pauseReason = typeof message.reason === 'string' && message.reason.trim() ? message.reason.trim().slice(0, 100) : '房主主动暂停';
+        this.life.pauseReason = this.edition === 'cn' ? '房主主动暂停' : typeof message.reason === 'string' && message.reason.trim() ? message.reason.trim().slice(0, 100) : '房主主动暂停';
         this.life.pauseOfflineDeadline = null;
         this.syncClock(now);
       }
@@ -351,6 +372,7 @@ export class RoomAuthority {
     return values.length ? Math.max(now + 1, Math.min(...values)) : null;
   }
   view(identity, spectators = 0, now = Date.now()) {
+    this.enforcePolicy();
     const result = identity.spectator ? spectatorView(this.game) : viewFor(this.game, identity.id);
     result.spectatorCount = spectators;
     result.lifecycle = {

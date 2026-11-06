@@ -1,3 +1,6 @@
+import { FOREIGN_INVITATION, normalizeEdition } from './site-policy.js';
+export const BUILD_SITE_EDITION = typeof __SITE_EDITION__ === 'undefined' ? null : __SITE_EDITION__;
+export const isDomestic = () => (runtime?.siteEdition || BUILD_SITE_EDITION) === 'cn';
 const ids = new Set(['cloudflare', 'aliyun']);
 const prefixes = { cloudflare: 'C', aliyun: 'A' };
 let runtime;
@@ -10,7 +13,10 @@ export function exactAllowedOrigins(value = '') {
   });
 }
 
-export function normalizeRuntimeConfig(value, currentOrigin) {
+export function normalizeRuntimeConfig(value, currentOrigin, expectedEdition = BUILD_SITE_EDITION) {
+  const edition = normalizeEdition(value?.siteEdition);
+  if (expectedEdition && expectedEdition !== edition) throw Error('前端与服务端 SITE_EDITION 不匹配。');
+  if ((edition === 'cn' ? 'aliyun' : 'cloudflare') !== value.backendId) throw Error('站点与入口不匹配。');
   if (!value || !ids.has(value.backendId) || !Array.isArray(value.backends)) throw new Error('入口配置无效。');
   const seen = new Set();
   const backends = value.backends.map(item => {
@@ -21,10 +27,10 @@ export function normalizeRuntimeConfig(value, currentOrigin) {
     return { id: item.id, origin: url.origin, enabled: item.enabled };
   });
   if (!seen.has(value.backendId)) throw new Error('缺少当前入口配置。');
-  // null preserves the optional legacy Pages relay. Empty explicitly selects
-  // this deployment, including when the build contains a fixed Cloudflare URL.
+  // Legacy null is accepted only as the same-origin relay; external relay URLs are retired.
   if (value.relayOrigin != null && value.relayOrigin !== '') throw new Error('房间服务必须使用当前入口。');
-  return { backendId: value.backendId, relayOrigin: value.relayOrigin, backends };
+  if (backends.length !== 1 || backends[0].id !== value.backendId || !backends[0].enabled) throw Error('公开入口配置只能包含本站。');
+  return { siteEdition: edition, backendId: value.backendId, relayOrigin: '', backends };
 }
 
 export async function loadRuntimeConfig({ fetcher = globalThis.fetch, location = globalThis.location } = {}) {
@@ -43,10 +49,7 @@ export function gameLobbyURL(currentBackend = backendId()) {
   return address || null;
 }
 export function relayOrigin(legacy, location = globalThis.location) {
-  const base = runtime?.relayOrigin === '' ? location.origin : legacy || location.origin;
-  const url = new URL(base);
-  if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || (location?.protocol === 'https:' && url.protocol !== 'https:')) throw new Error('房间服务地址与当前入口协议不兼容。');
-  return url.origin;
+  return location.origin;
 }
 export function parseRoomCode(value, currentBackend = backendId()) {
   const match = /^(?:([CA])-)?([A-Z2-9]{8})$/.exec(String(value || '').trim().toUpperCase());
@@ -77,6 +80,7 @@ export function invitationURL(room, watch = false, location = globalThis.locatio
   return url.href;
 }
 export function entryURL(target, { room = '', watch = false } = {}, config = runtime) {
+  if (target !== config?.backendId) return null;
   const entry = config?.backends.find(item => item.id === target && item.enabled);
   if (!entry) return null;
   const url = new URL('/', entry.origin);
@@ -89,10 +93,8 @@ export function entryURL(target, { room = '', watch = false } = {}, config = run
 }
 export function invitationRedirect(location, hasCurrentRoom, config = runtime) {
   const invite = readInvitation(location.search, config?.backendId);
-  if (hasCurrentRoom || !invite || invite.backendId === config?.backendId) return null;
-  const target = entryURL(invite.backendId, invite, config);
-  if (!target) throw new Error('该邀请所属服务器暂未开放，请联系邀请人确认原入口；不会跨服查找房间。');
-  return target;
+  if (!invite || invite.backendId === config?.backendId) return null;
+  throw new Error(FOREIGN_INVITATION);
 }
 // Origins already isolate real deployments. Also scope by the configured pool
 // so changing a local/test origin's runtime cannot reuse another pool's token.

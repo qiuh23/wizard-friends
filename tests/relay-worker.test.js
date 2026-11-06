@@ -181,7 +181,7 @@ test('directory strips secrets, deduplicates browsers and expires missing host s
   await directory.webSocketClose(a); assert.equal(b.sent.at(-1).count, 1);
 });
 test('public worker refuses unexpected origins and cannot expose directory write routes', async () => {
-  const env = { ASSETS: { fetch: () => new Response('assets') } };
+  const env = { SITE_EDITION:'global', ASSETS: { fetch: () => Response.json({siteEdition:'global'}) } };
   const request = (path, origin) => new Request(`https://game.example${path}`, { headers: { Upgrade: 'websocket', Origin: origin } });
   assert.equal((await worker.fetch(request('/api/presence', 'https://evil.example'), env)).status, 403);
   assert.equal((await worker.fetch(request('/api/update', 'https://game.example'), env)).status, 404);

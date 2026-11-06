@@ -1,8 +1,11 @@
+import { isDomestic } from './backend-entry.js';
 // This panel lives outside #app so game-state updates never interrupt typing.
 import { ChatNotices, CHAT_NOTICE_EXIT_MS } from './chat-notices.js';
 import { setIconButton } from './ui-icons.js';
 export class RoomSocial {
   constructor(send, onLayout = () => {}, onOpen = () => {}) {
+    this.disabled = isDomestic();
+    if (this.disabled) { this.root = document.createElement('div'); this.root.hidden = true; return; }
     this.send = send;
     this.onLayout = onLayout; this.onOpen = onOpen; this.notices = new ChatNotices();
     this.seen = 0;
@@ -109,6 +112,7 @@ export class RoomSocial {
     if (items.length) this.noticeTimer = setTimeout(() => this.renderNotices(), Math.max(16, Math.min(...items.map(n => n.expiresAt + (n.leaving ? CHAT_NOTICE_EXIT_MS : 0) - now))));
   }
   update(state, me, controls, { connected = true, room = '' } = {}) {
+    if (this.disabled) return;
     this.connected = connected;
     this.root.hidden = !state;
     if (!state) {

@@ -29,6 +29,6 @@ with tarfile.open(destination / 'wizard.tar.gz') as archive:
         if not (entry.isfile() or entry.isdir()): raise ValueError('Links and special files are not allowed')
     meta = json.load(archive.extractfile('release.json'))
     frontend = json.load(archive.extractfile('dist/build-info.json'))
-    if any(meta.get(k) != request[k] for k in ('commit', 'runId')) or meta.get('repository') != 'qiuh23/wizard-friends' or meta.get('schema') != 1 or meta.get('stateSchema') != 1 or meta.get('nodeMajor') != 24 or meta.get('platform') != 'linux' or meta.get('arch') != 'x64' or frontend.get('revision') != request['commit']:
+    if meta.get('siteEdition') != 'cn' or frontend.get('siteEdition') != 'cn' or any(meta.get(k) != request[k] for k in ('commit', 'runId')) or meta.get('repository') != 'qiuh23/wizard-friends' or meta.get('schema') != 1 or meta.get('stateSchema') != 1 or meta.get('nodeMajor') != 24 or meta.get('platform') != 'linux' or meta.get('arch') != 'x64' or frontend.get('revision') != request['commit']:
         raise ValueError('Release identity or compatibility mismatch')
     archive.extractall(target, filter='data')

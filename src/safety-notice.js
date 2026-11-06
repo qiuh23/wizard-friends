@@ -1,6 +1,7 @@
-import { backendId, publicRoomCode } from './backend-entry.js';
-export function safetyNoticeHTML() { return '<button type="button" class="text-button" data-safety-notice>隐私 / 举报</button>'; }
+import { backendId, publicRoomCode, isDomestic } from './backend-entry.js';
+export function safetyNoticeHTML() { if(isDomestic()) return ''; return '<button type="button" class="text-button" data-safety-notice>隐私 / 举报</button>'; }
 export async function showSafetyNotice(room='') {
+  if(isDomestic()) return;
   let dialog=document.querySelector('#safety-notice');
   if(!dialog) {
     dialog=document.createElement('dialog');dialog.id='safety-notice';dialog.className='safety-notice';

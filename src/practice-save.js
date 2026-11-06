@@ -1,3 +1,5 @@
+import { isDomestic } from './backend-entry.js';
+import { migrateCNGame } from './site-policy.js';
 import { TURN_MS, TURN_ENTRY_MS } from './game.js';
 
 export const PRACTICE_SAVE_KEY = 'wizard-practice-save';
@@ -27,6 +29,7 @@ export function readPractice(storage, now = Date.now()) {
       (saved.leftAt != null && now - saved.leftAt >= PRACTICE_KEEP_MS)) {
       storage.removeItem(PRACTICE_SAVE_KEY); return null;
     }
+    if (isDomestic()) { migrateCNGame(saved.game); storage.setItem(PRACTICE_SAVE_KEY, JSON.stringify(saved)); }
     return saved;
   } catch { return null; }
 }

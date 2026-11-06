@@ -69,18 +69,18 @@ async function startRound(clients) {
 test('Node serves its own assets/config and a nonmutating versioned WebSocket probe', async t => {
   const f = await fixture(t);
   assert.match(await (await fetch(f.base)).text(), /same-origin application/);
-  assert.deepEqual(await (await fetch(`${f.base}/api/health`)).json(), { transport: 'node-websocket', version: 2, revision: 'a'.repeat(40) });
+  assert.deepEqual(await (await fetch(`${f.base}/api/health`)).json(), { transport: 'node-websocket', version: 2, revision: 'a'.repeat(40), siteEdition:'global' });
   const runtime = await (await fetch(`${f.base}/runtime-config.json`)).json();
-  assert.equal(runtime.backendId, 'aliyun'); assert.equal(runtime.relayOrigin, '');
-  assert.equal(runtime.backends.find(backend => backend.id === 'aliyun').enabled, false);
-  assert.equal(runtime.backends.find(backend => backend.id === 'aliyun').origin, origin);
+  assert.equal(runtime.backendId, 'cloudflare'); assert.equal(runtime.relayOrigin, '');
+  assert.equal(runtime.backends.find(backend => backend.id === 'cloudflare').enabled, true);
+  assert.equal(runtime.backends.find(backend => backend.id === 'cloudflare').origin, origin);
   const probe = await connect(f, { path: '/api/connectivity/ws', hello: false });
   await until(() => probe.messages.length && probe.closed === 1000);
   assert.equal(probe.messages[0].revision, 'a'.repeat(40));
   assert.equal(f.app.store.all().length, 0, 'probe never creates a room');
   await assert.rejects(createServer({ ...f.config, env: { RELEASE_SHA: 'b'.repeat(40) } }), /does not match/);
-  await assert.rejects(createServer({ ...f.config, env: { BACKENDS_CONFIG_JSON: JSON.stringify([{ id: 'aliyun', origin, enabled: 'yes' }]) } }), /配置无效/);
-  await assert.rejects(createServer({ ...f.config, staticDir: join(f.directory, 'missing'), env: { NODE_ENV: 'production', RELEASE_SHA: 'a'.repeat(40) } }), /frontend full verified/);
+  const configured=await createServer({...f.config,databasePath:':memory:',env:{BACKENDS_CONFIG_JSON:JSON.stringify([{id:'aliyun',origin:'https://other.test',enabled:true}])}}); await configured.close(); // Obsolete public preferences cannot expand server policy.
+  await assert.rejects(createServer({ ...f.config, staticDir: join(f.directory, 'missing'), env: { NODE_ENV: 'production', SITE_EDITION:'global', RELEASE_SHA: 'a'.repeat(40) } }), /frontend full verified/);
   const rejected = new WebSocket(f.base.replace('http:', 'ws:') + '/api/presence', { origin: 'http://evil.example' });
   assert.match((await new Promise(resolve => rejected.once('error', resolve))).message, /403/);
 });
@@ -90,7 +90,7 @@ test('HTTPS canonical config keeps only explicitly allowed old-origin WebSockets
   const f = await fixture(t, { publicOrigin: secure, env: { ALLOWED_ORIGINS: origin } });
   const runtime = await (await fetch(`${f.base}/runtime-config.json`)).json();
   assert.equal(runtime.relayOrigin, '');
-  assert.equal(runtime.backends.find(backend => backend.id === 'aliyun').origin, secure);
+  assert.equal(runtime.backends.find(backend => backend.id === 'cloudflare').origin, secure);
   for (const allowed of [secure, origin]) {
     const socket = new WebSocket(`${f.base.replace('http:', 'ws:')}/api/connectivity/ws`, { origin: allowed });
     const data = await new Promise((resolve, reject) => { socket.once('message', value => resolve(JSON.parse(value))); socket.once('error', reject); });

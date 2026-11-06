@@ -1,3 +1,4 @@
+import { nicknameFromId, randomNicknameId, migrateCNGame, enforceRequest, FOREIGN_INVITATION } from './site-policy.js';
 import { safetyNoticeHTML, showSafetyNotice } from './safety-notice.js';
 import { createGame, addPlayer, viewFor, botAction, normalizeGame, TRICK_REVIEW_MS, SUITS, SUIT_NAMES, winner } from './game.js';
 import './style.css';
@@ -41,7 +42,7 @@ import { readRoomRecoveries, saveRoomRecovery, removeRoomRecovery } from './room
 import { PRACTICE_SAVE_KEY, PRACTICE_KEEP_MS, readPractice, savePractice, restorePracticeClock } from './practice-save.js';
 import { turnStatus } from './turn-status.js';
 import { uuidV4 } from './uuid.js';
-import { backendId, backendStorage, entryURL, gameLobbyURL, invitationURL, parseRoomCode, publicRoomCode, readInvitation, runtimeConfig } from './backend-entry.js';
+import { backendId, backendStorage, isDomestic, gameLobbyURL, invitationURL, parseRoomCode, publicRoomCode, readInvitation, runtimeConfig } from './backend-entry.js';
 import './game-navigation.css';
 import { copyInvitation } from './share-link.js';
 import { readNickname, saveNickname } from './nickname-preference.js';
@@ -182,7 +183,11 @@ let practiceSaved = readPractice(localStore);
 const tokenKey = 'wizard-player-token';
 let token = sessionStore.getItem(tokenKey);
 if (!token) { token = uuidV4(); sessionStore.setItem(tokenKey, token); }
-let nickname = readNickname(localStore, sessionStore);
+const domestic = isDomestic();
+document.body.dataset.siteEdition = domestic ? 'cn' : 'global';
+let selectedNicknameId = domestic ? localStore.getItem('wizard-cn-nickname-id') : null;
+if (domestic && !nicknameFromId(selectedNicknameId)) selectedNicknameId = randomNicknameId();
+let nickname = domestic ? nicknameFromId(selectedNicknameId) : readNickname(localStore, sessionStore);
 let automaticName = false;
 persistName();
 const initialCode = readInvitation(location.search);
@@ -215,7 +220,10 @@ function showHoveredCard(id) {
 function pendingContext(value=state) {return value ? `${value.round}:${value.completedTricks}:${value.phase}:${value.turn}:${!!value.lifecycle?.paused}:${networkReady}` : '';}
 
 function persistName() {
-  saveNickname(localStore, sessionStore, nickname, automaticName);
+  if (domestic) {
+    localStore.setItem('wizard-cn-nickname-id', selectedNicknameId);
+    for (const storage of [localStore, sessionStore]) {storage.removeItem('wizard-name'); storage.removeItem('wizard-name-automatic');}
+  } else saveNickname(localStore, sessionStore, nickname, automaticName);
 }
 function cardLabel(c) {
   return c.kind === 'wizard' ? '巫师 W' : c.kind === 'jester' ? '小丑 J' : `${SUIT_NAMES[c.suit].split(' · ')[0]} ${c.rank}`;
@@ -230,7 +238,7 @@ function cardHTML(c, inspectable = false, legal = false, selected = false) {
 const avatarColors = ['#94d6cb', '#eeb9a4', '#a9caff', '#f1d37b', '#c9b4ec', '#b9d59a'];
 function avatarHTML(player, index, lead = null) {
   const detail = `${player.name}${player.id === me ? ' · 你' : ''}${lead ? ` · ${lead.label}` : ''}`;
-  return `<button class="avatar" data-player-details="${escape(player.id)}" style="--avatar-color:${avatarColors[index % avatarColors.length]}" aria-controls="table-score-panel" aria-expanded="false" aria-label="查看 ${escape(detail)} 的信息" title="${escape(detail)}">${escape(player.name.slice(0, 1))}${lead ? `<span class="lead-badge" aria-hidden="true">先</span>` : ''}</button>`;
+  return `<button class="avatar" data-player-details="${escape(player.id)}" style="--avatar-color:${avatarColors[index % avatarColors.length]}" aria-controls="table-score-panel" aria-expanded="false" aria-label="查看 ${escape(detail)} 的信息" title="${escape(detail)}">${escape(player.name.slice(0, 1))}<small class="avatar-seat">${index+1}</small>${lead ? `<span class="lead-badge" aria-hidden="true">先</span>` : ''}</button>`;
 }
 function ownStatusHTML(p) {
   if (!p) return '';
@@ -286,7 +294,7 @@ function render() {
   const scorePanel = $('#table-score-panel'), ledger = $('.score-ledger .history-scroll');
   const scoreScroll = { top: scorePanel?.scrollTop || 0, left: ledger?.scrollLeft || 0, row: ledger?.scrollTop || 0 };
   if (!state) {
-    if (automaticName) { nickname = ''; automaticName = false; persistName(); }
+    if (!domestic && automaticName) { nickname = ''; automaticName = false; persistName(); }
     const invitedRoom = parseRoomCode(roomFromURL)?.backendId === backendId() ? parseRoomCode(roomFromURL).room : roomFromURL;
     const returnSession = readRoomSession(sessionStore,invitedRoom);
     const recoveryHandles=readRoomRecoveries(localStore,invitedRoom);
@@ -296,7 +304,7 @@ function render() {
       <section class="home-menu" aria-label="主菜单">
         <nav class="entry-context" aria-label="当前线路与游戏大厅"><a href="${gameLobbyURL()}" data-lobby-navigation ${busy ? 'aria-disabled="true"' : ''}>${icon('back')}返回大厅</a><span class="current-route">${backendId() === 'aliyun' ? '阿里云国内' : 'Cloudflare'}</span></nav>
         <div class="home-title"><h1>巫师牌</h1><p class="home-tagline">预估得准，才是赢家。</p></div>
-        <div class="menu-identity"><label for="nickname">昵称</label><input id="nickname" maxlength="16" placeholder="请输入昵称" required autocomplete="nickname" value="${escape(nickname)}"></div>
+        <div class="menu-identity"><label for="nickname">昵称</label>${domestic ? `<output id="nickname">${escape(nickname)}</output><button type="button" id="random-nickname" ${busy ? 'disabled' : ''}>换一个</button>` : `<input id="nickname" maxlength="16" placeholder="请输入昵称" required autocomplete="nickname" value="${escape(nickname)}">`}</div>
         <p class="home-setup-hint">创建后选择玩法、邀请朋友，3–6 人即可开局。</p>
         <nav class="menu-options" aria-label="开始游戏">
           ${returnRooms.map((r,i)=>`<button ${i===0 ? 'id="resume-room"' : ''} data-return-room="${i}" class="menu-choice">返回 ${escape(r.room)} · ${r.role==='host' ? '房主' : r.role==='spectator' ? '观战' : '玩家'}</button>`).join('')}<button id="create" class="menu-choice menu-primary" ${busy ? 'disabled' : ''}>${busy ? '正在连接…' : '创建房间'}<span class="menu-choice-icon">${icon('cards')}</span></button>
@@ -325,7 +333,8 @@ function render() {
     $('#practice').onclick = startPractice;
     $('#resume-practice')?.addEventListener('click', () => restoreRoom(readPractice(localStore)));
     $('#cancel-connect')?.addEventListener('click', () => leaveRoom());
-    $('#nickname').oninput = e => { nickname = e.target.value; automaticName = false; persistName(); };
+    if (domestic) $('#random-nickname').onclick = () => { selectedNicknameId = randomNicknameId(); nickname = nicknameFromId(selectedNicknameId); persistName(); render(); };
+    else $('#nickname').oninput = e => { nickname = e.target.value; automaticName = false; persistName(); };
     return;
   }
   const p = state.players.find(p => p.id === me);
@@ -353,7 +362,7 @@ function render() {
   if (state.phase === 'lobby') {
     const startHint = state.players.length < 3 ? `还差 ${3 - state.players.length} 人` : state.players.some(p => !p.online) ? '等待玩家重连' : state.options.deckMode === 'mono' && state.players.length > 4 ? '单色限 3–4 人，请选择标准牌库' : '';
     body = `<main class="lobby-table has-rule-setup" data-active-panel="${lobbyPanel}"><div class="hero lobby-scene" aria-hidden="true"><div class="lobby-felt"></div></div><div class="lobby-content">
-      <section id="room-players-panel" class="lobby-panel" role="tabpanel" tabindex="0" aria-labelledby="room-players-tab" ${lobbyPanel === 'players' ? '' : 'hidden'}><div class="seats" aria-label="房间座位">${state.players.map((p, i) => `<div class="seat ${p.id === me ? 'my-seat' : ''} ${p.bot ? 'bot-seat' : 'human-seat'} ${!p.online ? 'offline' : ''}"><div class="avatar" aria-hidden="true">${p.bot ? '✧' : escape(p.name.slice(0, 1))}</div><div class="seat-name"><b title="${escape(p.name)}">${escape(p.name)}</b><small>${i === 0 ? '房主' : p.bot ? `机器人 · ${p.botDifficulty === 'simple' ? '简单' : '策略'}` : p.online ? '真人' : '真人 · 离线'}${p.id === me ? ' · 你' : ''}</small></div>${isHost && i > 0 ? `<button data-remove="${escape(p.id)}" class="text-button" aria-label="移除${p.bot ? '机器人' : '玩家'} ${escape(p.name)}" title="移除${p.bot ? '机器人' : '玩家'}">×</button>` : ''}</div>`).join('')}${Array.from({ length: 6 - state.players.length }, () => '<div class="seat empty"><div class="avatar" aria-hidden="true">＋</div><div class="seat-name"><b>空位</b><small>等待好友入座</small></div></div>').join('')}</div>
+      <section id="room-players-panel" class="lobby-panel" role="tabpanel" tabindex="0" aria-labelledby="room-players-tab" ${lobbyPanel === 'players' ? '' : 'hidden'}><div class="seats" aria-label="房间座位">${state.players.map((p, i) => `<div class="seat ${p.id === me ? 'my-seat' : ''} ${p.bot ? 'bot-seat' : 'human-seat'} ${!p.online ? 'offline' : ''}"><div class="avatar" aria-hidden="true">${p.bot ? '✧' : escape(p.name.slice(0, 1))}</div><div class="seat-name"><b title="${escape(p.name)}">${escape(p.name)}</b><small>${i === 0 ? '房主' : p.bot ? `${domestic ? '电脑' : '机器人'} · ${p.botDifficulty === 'simple' ? '简单' : '策略'}` : p.online ? '真人' : '真人 · 离线'}${p.id === me ? ' · 你' : ''}</small></div>${isHost && i > 0 ? `<button data-remove="${escape(p.id)}" class="text-button" aria-label="移除${p.bot ? '机器人' : '玩家'} ${escape(p.name)}" title="移除${p.bot ? '机器人' : '玩家'}">×</button>` : ''}</div>`).join('')}${Array.from({ length: 6 - state.players.length }, () => '<div class="seat empty"><div class="avatar" aria-hidden="true">＋</div><div class="seat-name"><b>空位</b><small>等待好友入座</small></div></div>').join('')}</div>
       ${isHost && state.players.length < 6 ? `<div class="lobby-options bot-controls" role="group" aria-label="添加机器人"><label class="sr-only" for="bot-difficulty">机器人难度</label><select id="bot-difficulty"><option value="smart" ${preferredBotDifficulty === 'smart' ? 'selected' : ''}>策略陪练</option><option value="simple" ${preferredBotDifficulty === 'simple' ? 'selected' : ''}>简单陪练</option></select><button id="addbot" type="button">＋ 添加机器人</button></div>` : ''}
       </section><section id="room-rules-panel" class="lobby-panel" role="tabpanel" tabindex="0" aria-labelledby="room-rules-tab" ${lobbyPanel === 'rules' ? '' : 'hidden'}>${ruleSetupHTML(state, isHost, ruleExtrasOpen)}</section>
     </div></main><div class="lobby-controls"><div class="lobby-start">${isHost ? `${startHint ? `<span class="start-hint">${startHint}</span>` : ''}<button id="start" class="primary" ${startHint ? 'disabled' : ''}>开始游戏 →</button>` : `<span class="start-hint">等待 ${escape(hostName)} 开始游戏</span>`}</div></div>`;
@@ -374,7 +383,7 @@ function render() {
     body = `<div class="game-layout"><main><div class="roundbar" aria-label="第 ${state.round} 轮，共 ${state.maxRounds} 轮；已完成 ${state.completedTricks} 墩，共 ${state.cardsPerRound} 墩；顺时针出牌"><span>轮 <b>${state.round}</b> / ${state.maxRounds}</span><span class="trick-progress">墩 <b>${state.completedTricks}</b> / ${state.cardsPerRound}</span></div><section class="table">${tableDecorHTML()}<div class="table-ring"></div><div class="opponents" data-count="${state.players.length}" aria-label="围桌席位">${state.players.filter(x => x.id !== me).map(x => {
       const i = state.players.findIndex(y => y.id === x.id), pos = seatPosition(i, selfIndex, state.players.length);
       const identity = `${x.name} · 实赢 ${x.won} · 预测 ${x.bid ?? (x.bidSubmitted ? '已锁定' : '未预测')}${i === state.dealer ? ' · 庄家' : ''}${!x.online ? ' · 离线' : ''}`;
-      return `<div class="player ${leadOrder?.seat === i ? 'lead-seat' : ''} ${!x.online ? 'offline' : ''} ${!done && !(state.phase === 'bid' && state.options.predictionMode !== 'public') && state.turn === i ? 'active' : ''}" role="group" aria-label="${escape(identity)}" data-seat="${pos.seat}" data-player="${escape(x.id)}" style="--seat-x:${pos.x}%;--seat-y:${pos.y}%" title="${escape(identity)}">${avatarHTML(x, i, leadOrder?.seat === i ? leadOrder : null)}<span class="seat-name">${escape(shortSeatName(x.name, pos.seat))}</span><span class="prediction"><span aria-label="实赢 ${x.won} 墩"><small>赢</small><b>${x.won}</b></span><span aria-label="${Number.isInteger(x.bid) ? `预测 ${x.bid} 墩` : x.bidSubmitted ? '预测已锁定，未公开' : '尚未预测'}" class="${Number.isInteger(x.bid) ? '' : 'target-secret'}"><small>估</small><b>${x.bid ?? (x.bidSubmitted ? icon('lock') : '—')}</b></span></span></div>`;
+      return `<div class="player ${leadOrder?.seat === i ? 'lead-seat' : ''} ${!x.online ? 'offline' : ''} ${!done && !(state.phase === 'bid' && state.options.predictionMode !== 'public') && state.turn === i ? 'active' : ''}" role="group" aria-label="${escape(identity)}" data-seat="${pos.seat}" data-player="${escape(x.id)}" style="--seat-x:${pos.x}%;--seat-y:${pos.y}%" title="${escape(identity)}">${avatarHTML(x, i, leadOrder?.seat === i ? leadOrder : null)}<span class="seat-name">${escape(domestic ? x.name : shortSeatName(x.name, pos.seat))}${domestic && x.nicknameBadge > 1 ? `<small>#${x.nicknameBadge}</small>` : ''}${domestic && x.bot ? '<small>电脑</small>' : ''}</span><span class="prediction"><span aria-label="实赢 ${x.won} 墩"><small>赢</small><b>${x.won}</b></span><span aria-label="${Number.isInteger(x.bid) ? `预测 ${x.bid} 墩` : x.bidSubmitted ? '预测已锁定，未公开' : '尚未预测'}" class="${Number.isInteger(x.bid) ? '' : 'target-secret'}"><small>估</small><b>${x.bid ?? (x.bidSubmitted ? icon('lock') : '—')}</b></span></span></div>`;
     }).join('')}</div>${foresight}<div class="played-cards ${state.players.length>=5 ? 'compact-trick' : ''}" style="inset:0">${state.trick.map((x, i) => {
       const seat = relativeSeat(x.player, selfIndex, state.players.length);
       const motion = tableMotion.timing(x.card.id);
@@ -492,11 +501,11 @@ function bindCommon() {
     (pregame ? $('.room-heading') : $('#table-menu-panel')).append(ops);
     if (pregame && $('.lifecycle-banner')) $('.room-heading').append($('.lifecycle-banner'));
   }
-  $('#chat-form').hidden = spectating;
-  if (spectating) { $('#rename-toggle')?.remove(); $('#rename-panel').hidden = true; }
+  if (!domestic) $('#chat-form').hidden = spectating;
+  if (!domestic && spectating) { $('#rename-toggle')?.remove(); $('#rename-panel').hidden = true; }
   if (state && !pregame) {
-    $('#table-menu-panel')?.append($('#rename-toggle'));
-    $('.game-toolbar')?.prepend(social.chatButton);
+    if ($('#rename-toggle')) $('#table-menu-panel')?.append($('#rename-toggle'));
+    if (social.chatButton) $('.game-toolbar')?.prepend(social.chatButton);
   }
   setupClearUI();
   if (pregame) {
@@ -505,7 +514,7 @@ function bindCommon() {
   }
   if (state) {
     const ownPlayer = state.players.find(p => p.id === me);
-    if (ownPlayer) { nickname = ownPlayer.name; automaticName = !!ownPlayer.automaticName; persistName(); }
+    if (ownPlayer) { if (domestic) selectedNicknameId = ownPlayer.nicknameId; nickname = ownPlayer.name; automaticName = !!ownPlayer.automaticName; persistName(); }
     const table = $('.table');
     if (table) renderTrumpDisplay(table, state);
     if ((!practice && !networkReady) || state.lifecycle?.paused || state.lifecycle?.continuationVote) {
@@ -747,6 +756,7 @@ function closeScores(restoreFocus = false) {
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && rulesOpen) setRulesOpen(false); });
 function saveName() {
+  if (domestic) { nickname = nicknameFromId(selectedNicknameId); persistName(); return !!nickname; }
   try {
     if (!nickname.trim()) throw new Error('请先填写昵称。');
     nickname = validateName(nickname); automaticName = false; persistName(); return true;
@@ -823,27 +833,21 @@ function requestLeave() {
   if (confirm(`${roomDepartureText()}确定离开？`)) leaveRoom('已离开，可从原浏览器返回恢复。');
 }
 function lobbyNavigationHTML() {
-  return `<div class="lobby-navigation"><small>当前线路 · ${backendId() === 'aliyun' ? '阿里云国内' : 'Cloudflare'}</small><button type="button" data-lobby-navigation ${busy && !state ? 'disabled' : ''}>返回游戏大厅</button><div class="server-entry-choices" role="group" aria-label="切换服务器"><span>切换服务器</span>${(runtimeConfig()?.backends || []).map(entry => `<button type="button" data-server-entry="${entry.id}" ${busy && !state || entry.id === backendId() || !entry.enabled ? 'disabled' : ''}>${entry.id === 'aliyun' ? '阿里云国内' : 'Cloudflare'}${entry.id === backendId() ? ' · 当前' : !entry.enabled ? ' · 尚未开放' : ' ↗'}</button>`).join('')}</div></div>`;
+  return `<div class="lobby-navigation"><button type="button" data-lobby-navigation ${busy && !state ? 'disabled' : ''}>返回游戏大厅</button></div>`;
 }
+
 document.addEventListener('click', event => {
-  const control = event.target.closest?.('[data-lobby-navigation],[data-server-entry]');
+  const control = event.target.closest?.('[data-lobby-navigation]');
   if (!control) return;
   event.preventDefault();
   if (control.disabled || busy && !state) return;
-  const targetBackend = control.dataset.serverEntry;
-  if (targetBackend === backendId()) return;
-  const target = targetBackend ? entryURL(targetBackend) : gameLobbyURL();
-  if (!target) return;
   if (state) {
-    const action = targetBackend ? `切换到${targetBackend === 'aliyun' ? '阿里云国内' : 'Cloudflare'}服务器` : '返回游戏大厅';
-    if (!confirm(`${action}？${roomDepartureText()}切换线路不会迁移房间或身份。`)) return;
-    persistRoom();
-    // Record an explicit departure before navigating, including the practice
-    // deadline; pagehide is a fallback rather than the only persistence path.
-    leaveRoom();
+    if (!confirm(`返回游戏大厅？${roomDepartureText()}`)) return;
+    persistRoom(); leaveRoom();
   }
-  location.assign(target);
+  location.assign(gameLobbyURL());
 });
+
 function roomControl(type, extra = {}) {
   if (!practice) { if (!networkReady) return notify('连接恢复中，请稍候。'); return transport?.send({type,...extra}); }
   if (type === 'pause') {
@@ -1024,6 +1028,7 @@ function broadcast(socialOnly = false) {
   }, 750);
 }
 function send(action, requestId = null) {
+  try { enforceRequest(domestic ? 'cn' : 'global', action); } catch(error) { notify(error.message); return false; }
   if (spectating) { notify('观战中，只能查看公开信息。'); return false; }
   if (!practice && !networkReady) { notify('正在恢复连接，请稍候再操作。'); return false; }
   if (practice && practicePaused && !['chat','rename'].includes(action.type)) { notify('牌局已暂停。'); return false; }
@@ -1038,7 +1043,7 @@ function startPractice() {
   stopRoomTransport(); clearRoomSession(sessionStore); identities = {};
   spectating = false;
   practice = true; isHost = true; me = uuidV4(); room = '离线练习';
-  game = createGame(); addPlayer(game, me, nickname, false, automaticName);
+  game = createGame(domestic ? 'cn' : 'global'); addPlayer(game, me, nickname, false, automaticName, domestic ? selectedNicknameId : undefined);
   addPlayer(game, uuidV4(), '', true, true); addPlayer(game, uuidV4(), '', true, true);
   networkReady = true; busy = false; game.options.short = true; practicePaused = false; practiceRemaining = null; practiceCollection = null; pendingSettlement = null; seenEventSeq = null;
   notify(''); broadcast();
@@ -1050,12 +1055,7 @@ function launch(host, restored = null) {
   const input = restored?.room || $('#room-input')?.value.trim().toUpperCase();
   const code = parseRoomCode(input);
   if (!host && !code) return notify('请输入有效的 8 位房间码，也可带 C- 或 A- 前缀。');
-  if (!host && code.backendId !== backendId()) {
-    if (state) return;
-    const target = entryURL(code.backendId, { room: code.room, watch: watching });
-    if (!target) return notify('该房间所属入口尚未开放，请稍后再试。');
-    location.assign(target); return;
-  }
+  if (!host && code.backendId !== backendId()) return notify(FOREIGN_INVITATION);
   const entered = host ? restored?.room : code.room;
   stopRoomTransport(); const epoch = roomEpoch, current = () => roomEpoch === epoch;
   busy = true; networkReady = false; isHost = host; practice = false; spectating = watching;
@@ -1064,7 +1064,7 @@ function launch(host, restored = null) {
   seenEventSeq = null; selectedCard = null;pendingPlay=null;pendingSettlement=null;
   notify(restored ? '正在恢复原来的牌局…' : host ? '正在创建房间…' : '正在连接房间…'); render();
   let migrationPending=!!restored?.game;
-  transport = createRoomTransport({host,room,token,name:nickname,automaticName,spectator:watching,snapshot:restored?.game,identities:restored?.identities,
+  transport = createRoomTransport({host,room,token,name:domestic ? '' : nickname,nicknameId:domestic ? selectedNicknameId : undefined,automaticName,spectator:watching,snapshot:restored?.game,identities:restored?.identities,
     onFatal(message) { if (current()) leaveRoom(message,false,migrationPending); },
     onStatus(value) {
       if (!current()) return;
@@ -1077,7 +1077,7 @@ function launch(host, restored = null) {
       if (msg?.type === 'state' && msg.state?.players) {
         const initial = seenEventSeq == null;
         migrationPending=false;
-        me = msg.me || me; isHost = msg.isHost === true; state = msg.state;
+        me = msg.me || me; isHost = msg.isHost === true; state = msg.state; if (domestic) migrateCNGame(state);
         networkReady = true; busy = false;
         serverClockOffset = Number.isFinite(msg.serverNow) ? msg.serverNow - Date.now() : 0;
         updateEventEffects(initial); persistRoom(); transport.ready(); render();
@@ -1120,12 +1120,12 @@ const floatingLayers = new FloatingLayers([
     close:({restoreFocus}) => closeScores(restoreFocus),
   },
   {
-    id:'chat', isOpen:() => !social.root.hidden && !social.chat.hidden,
+    id:'chat', isOpen:() => !domestic && !social.root.hidden && !social.chat.hidden,
     contains:event => containsEvent(event, [social.chat, social.chatButton, social.noticeRegion]),
     close:({restoreFocus}) => { social.closeChat(); if (restoreFocus) social.chatButton?.focus({preventScroll:true}); },
   },
   {
-    id:'rename', isOpen:() => !social.root.hidden && !social.rename.hidden,
+    id:'rename', isOpen:() => !domestic && !social.root.hidden && !social.rename.hidden,
     contains:event => containsEvent(event, [social.rename, social.renameButton]),
     close:({restoreFocus}) => social.closeRename(restoreFocus),
   },
@@ -1177,6 +1177,7 @@ function restoreRoom(saved) {
     ({ game, identities, room, me } = saved);
     practiceCollection = saved.collection ?? null;
     practicePaused = saved.paused === true;
+    if (domestic) migrateCNGame(game);
     normalizeGame(game);
     practiceRemaining = restorePracticeClock(saved);
     isHost = practice = networkReady = true; spectating = false;

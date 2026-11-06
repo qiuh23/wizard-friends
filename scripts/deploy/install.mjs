@@ -48,6 +48,7 @@ async function settings() {
   const env = await readFile('/etc/wizard-friends/server.env', 'utf8');
   const get = key => env.split('\n').find(line => line.startsWith(`${key}=`))?.slice(key.length + 1);
   const port = get('PORT'), origin = get('PUBLIC_ORIGIN');
+  if (get('SITE_EDITION') !== 'cn') throw Error('Trusted SITE_EDITION must be cn before release.');
   if (!/^\d+$/.test(port) || get('HOST') !== '127.0.0.1' || !origin) throw Error('Invalid root-managed Wizard environment.');
   siteConfig({ port, origin });
   return { port, origin };
@@ -64,10 +65,10 @@ async function site(enabled) {
 async function restore(previous) {
   if (previous) {
     checkedRelease(previous);
-    if (!existsSync(`${previous}/.security-aware`)) {
-      try { run('/usr/bin/python3', [`${library}/security-ops.py`, 'rollback-check', '--database', '/var/lib/wizard-friends/security.sqlite']); }
-      catch (error) { run('/usr/bin/systemctl', ['stop', 'wizard-friends']); throw error; }
-    }
+    try {
+      const build = JSON.parse(await readFile(`${previous}/dist/build-info.json`, 'utf8'));
+      if (build.siteEdition !== 'cn' || !existsSync(`${previous}/.cn-policy`)) throw Error('Cannot roll back domestic Wizard to an open or unverified policy.');
+    } catch(error) { run('/usr/bin/systemctl', ['stop','wizard-friends']); await site(false); throw error; }
     await link('current', previous); run('/usr/bin/systemctl', ['restart', 'wizard-friends']);
   }
   else { run('/usr/bin/systemctl', ['stop', 'wizard-friends']); await rm(`${base}/current`, { force: true }); await site(false); }
@@ -87,8 +88,7 @@ export async function install(encoded, user) {
     return;
   }
   if (state && (state.runId > request.runId || (state.runId === request.runId && state.commit !== request.commit))) throw Error('A newer Wizard release already exists.');
-  // Root-owned storage check runs before artifact download or app switching.
-  run('/bin/bash', [`${library}/security-preflight.sh`]);
+  // Domestic release does not depend on an access/communication audit ledger.
   await validateCurrent(request);
   const work = await mkdtemp(join(tmpdir(), 'wizard-deploy-'));
   try {
@@ -118,10 +118,7 @@ export async function install(encoded, user) {
     try {
       await link('current', destination); run('/usr/bin/systemctl', ['restart', 'wizard-friends']);
       await waitProbe(`http://127.0.0.1:${config.port}`, request.commit, config.origin);
-      const security = await fetch(`http://127.0.0.1:${config.port}/api/security/health`, { signal: AbortSignal.timeout(5000) });
-      if (!security.ok || (await security.json()).ok !== true) throw Error('Required Wizard security storage is not ready.');
-      run('/bin/bash', [`${library}/security-maintenance.sh`]);
-      await writeFile(`${destination}/.security-aware`, 'validated audit readiness\n', { mode: 0o640 });
+      await writeFile(`${destination}/.cn-policy`, 'fixed names; no communication or access audit\n', { mode: 0o640 });
       await site(true);
       await waitProbe(config.origin, request.commit);
       run('/usr/bin/systemctl', ['enable', 'wizard-friends']);

@@ -36,7 +36,7 @@ jobs:
         run: npm test
       - run: npm run build
         env:
-          VITE_RELAY_URL: ${{ vars.RELAY_URL }}
+          SITE_EDITION: global
       - run: npm run worker:check
       - name: Cache browser
         if: github.event_name == 'workflow_dispatch' && inputs.validation == 'full'
@@ -75,7 +75,9 @@ jobs:
           retention-days: 7
       - name: Package the same checked frontend and Node backend for Aliyun
         if: github.ref == 'refs/heads/main'
-        run: bash scripts/deploy/package.sh "$GITHUB_SHA" "$GITHUB_RUN_ID" "$RUNNER_TEMP/wizard-aliyun"
+        run: |
+          SITE_EDITION=cn npm run build
+          bash scripts/deploy/package.sh "$GITHUB_SHA" "$GITHUB_RUN_ID" "$RUNNER_TEMP/wizard-aliyun"
       - name: Save the exact main Linux release
         if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
