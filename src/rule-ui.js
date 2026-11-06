@@ -1,4 +1,5 @@
 import { RULE_CHOICES } from './rules-options.js';
+import { icon } from './ui-icons.js';
 
 export const RULE_LABELS = {
   deckMode: { title: '牌库', values: { standard: '标准牌库', mono: '单色牌库' }, hint: '单色限 3–4 人，每人独立牌库，首轮 4 张，此后递增。' },
@@ -11,16 +12,12 @@ export function ruleSummary(options) {
   return [RULE_LABELS.deckMode.values[options.deckMode], RULE_LABELS.predictionMode.values[options.predictionMode],
     ...(options.strict ? ['加减预估'] : []), ...(options.foresight ? ['先见之明'] : []), RULE_LABELS.short.values[options.short]].join(' · ');
 }
-export function ruleSetupHTML(state, isHost, extrasOpen = false) {
-  const field = ([key, values]) => `<fieldset><legend>${RULE_LABELS[key].title}</legend><div class="rule-choices">${values.map(value => {
+export function ruleSetupHTML(state, isHost) {
+  const marks = { deckMode: 'cards', predictionMode: 'target', strict: 'sort', foresight: 'eye', short: 'clock' };
+  const field = ([key, values]) => `<fieldset><legend>${icon(marks[key])}${RULE_LABELS[key].title}</legend><div class="rule-choices">${values.map(value => {
       const unavailable = (key === 'deckMode' && value === 'mono' && state.players.length > 4) || (key === 'strict' && state.options.predictionMode !== 'public');
-      return `<label><input type="radio" name="${key}" value="${value}" ${state.options[key] === value ? 'checked' : ''} ${!isHost || unavailable ? 'disabled' : ''}><span>${RULE_LABELS[key].values[value]}</span></label>`;
-    }).join('')}</div><p>${RULE_LABELS[key].hint}</p></fieldset>`;
-  const optional = ['strict','foresight'];
-  const enabled = optional.filter(key => state.options[key]).map(key => RULE_LABELS[key].title);
-  return `<section class="rules-setup" aria-labelledby="setup-title"><div class="setup-heading"><h2 id="setup-title">整局玩法</h2><span>${isHost ? '房主选择' : '由房主选择'}</span></div>
-    <p>开局前可调整，之后整局沿用。</p>
-    <form id="rules-form"><div class="rule-groups">${Object.entries(RULE_CHOICES).filter(([key]) => !optional.includes(key)).map(field).join('')}</div>
-      <details id="rule-extras" ${extrasOpen ? 'open' : ''}><summary>可选玩法 <span>${enabled.length ? enabled.join(' · ') : '未开启'}</span></summary><div class="rule-groups">${Object.entries(RULE_CHOICES).filter(([key]) => optional.includes(key)).map(field).join('')}</div></details>
-    </form></section>`;
+      const restriction = key === 'deckMode' && value === 'mono' ? ' · 3–4 人' : key === 'strict' && unavailable ? ' · 需公开预估' : '';
+      return `<label title="${RULE_LABELS[key].hint}"><input type="radio" name="${key}" value="${value}" ${state.options[key] === value ? 'checked' : ''} ${!isHost || unavailable ? 'disabled' : ''}><span>${RULE_LABELS[key].values[value]}${restriction}</span></label>`;
+    }).join('')}</div></fieldset>`;
+  return `<section class="rules-setup" aria-label="整局玩法${isHost ? '，房主选择' : '，由房主选择'}"><form id="rules-form"><div class="rule-groups">${Object.entries(RULE_CHOICES).map(field).join('')}</div></form></section>`;
 }

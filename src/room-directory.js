@@ -1,3 +1,5 @@
+import { icon } from './ui-icons.js';
+
 const phaseNames = {
   lobby: '等待开局', rules: '规则投票', trump: '选择主牌', bid: '预估阶段',
   play: '出牌阶段', trickEnd: '本墩结算', roundEnd: '本轮结算', finished: '本局结束',
@@ -23,7 +25,7 @@ export class RoomDirectory {
       <header class="room-directory-heading">
         <h2 id="room-directory-title">在线房间</h2>
         <div class="room-directory-tools">
-          <button type="button" id="refresh-rooms">刷新</button>
+          <button type="button" id="refresh-rooms" aria-label="刷新房间" title="刷新房间">${icon('reconnect')}</button>
         </div>
       </header>
       <p id="room-directory-status" class="room-directory-status" role="status" aria-live="polite" aria-atomic="true"></p>
@@ -69,13 +71,13 @@ export class RoomDirectory {
       <div class="room-directory-details">
         <h3 class="room-directory-host"></h3>
         <p class="room-directory-code"></p>
-        <p class="room-directory-progress"><span class="directory-phase"></span><span class="directory-round"></span></p>
-        <p class="room-directory-counts"><span class="directory-players"></span><span class="directory-spectators"></span></p>
+        <p class="room-directory-progress"><span class="directory-phase"></span><span class="directory-full" hidden>满员</span><span class="directory-round"></span></p>
+        <p class="room-directory-counts"><span class="directory-metric">${icon('people')}<span class="directory-players"></span></span><span class="directory-metric">${icon('eye')}<span class="directory-spectators"></span></span></p>
       </div>
       <button type="button" class="room-directory-watch">进入观战</button>`;
     const row = {
       node, host: node.querySelector('.room-directory-host'), code: node.querySelector('.room-directory-code'),
-      phase: node.querySelector('.directory-phase'), round: node.querySelector('.directory-round'),
+      phase: node.querySelector('.directory-phase'), full: node.querySelector('.directory-full'), round: node.querySelector('.directory-round'),
       players: node.querySelector('.directory-players'), spectators: node.querySelector('.directory-spectators'),
       button: node.querySelector('.room-directory-watch'),
     };
@@ -100,14 +102,19 @@ export class RoomDirectory {
         const row = this.rows.get(room) || this.makeRow(room);
         const host = typeof item.hostName === 'string' && item.hostName.trim() ? item.hostName.trim() : '未命名房主';
         const round = count(item.round), maxRounds = count(item.maxRounds);
-        text(row.host, `${host} 的房间`);
-        text(row.code, `房间 ${room}`);
+        text(row.host, host);
+        row.host.title = host;
+        text(row.code, room);
         text(row.phase, phaseNames[item.phase] || '对局进行中');
-        text(row.round, round ? `第 ${round}${maxRounds ? ` / ${maxRounds}` : ''} 轮` : '尚未发牌');
-        text(row.players, `${Array.isArray(item.players) ? item.players.length : count(item.players)} 人牌局`);
-        text(row.spectators, `${count(item.spectators)} 人观战`);
-        const join = item.phase === 'lobby' && count(item.players) < 6;
-        text(row.button, join ? '加入房间' : item.phase === 'lobby' ? '满员 · 进入观战' : '进入观战');
+        text(row.round, round ? `${round}${maxRounds ? ` / ${maxRounds}` : ''} 轮` : '');
+        const players = Array.isArray(item.players) ? item.players.length : count(item.players);
+        text(row.players, `${players} / 6`);
+        row.players.parentElement.setAttribute('aria-label', `${players} 位玩家，最多 6 人`);
+        text(row.spectators, `${count(item.spectators)}`);
+        row.spectators.parentElement.setAttribute('aria-label', `${count(item.spectators)} 人观战`);
+        row.full.hidden = item.phase !== 'lobby' || players < 6;
+        const join = item.phase === 'lobby' && players < 6;
+        text(row.button, join ? '加入' : '观战');
         row.button.onclick = () => join ? this.onJoin(room) : this.onWatch(room);
         row.button.setAttribute('aria-label', join ? `加入 ${host} 的房间 ${room}` : `进入 ${host} 的房间 ${room} 观战`);
       }
@@ -128,7 +135,7 @@ export class RoomDirectory {
     this.root.dataset.status = this.status;
     this.list.setAttribute('aria-busy', String(this.status === 'loading'));
     this.empty.hidden = this.status !== 'ready' || size > 0;
-    this.message.hidden = !this.empty.hidden;
+    this.message.hidden = this.status === 'ready';
     this.list.hidden = size === 0;
     text(this.message, this.status === 'loading'
       ? (size ? '正在刷新房间列表…' : '正在查找在线房间…')

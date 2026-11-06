@@ -220,6 +220,10 @@ async function interactions(page) {
   await menuTrigger.click();await page.locator('#rename-toggle').click();await expect(page.locator('#rename-panel')).toBeVisible();await expect(menu).toBeHidden();
   await page.locator('#rename-input').fill('临时昵称');await expect(page.locator('#rename-panel')).toBeVisible();
   await outside(page);await expect(page.locator('#rename-panel')).toBeHidden();
+  await menuTrigger.click();await page.locator('#rename-toggle').click();await expect(page.locator('#rename-input')).toHaveValue('临时昵称');
+  await page.locator('#close-rename').click();
+  await menuTrigger.click();await page.locator('#rename-toggle').click();await expect(page.locator('#rename-input')).toHaveValue('临时昵称');
+  await page.keyboard.press('Escape');
   await menuTrigger.click();await scoreTrigger.click();await expect(menu).toBeHidden();await expect(scores).toBeVisible();
   await outside(page);await expect(scores).toBeHidden();
   let confirmations=0;
@@ -283,7 +287,7 @@ async function settingsInteractions() {
   await summary.click();await expect(content).toBeVisible();
   await page.locator('#trump-motion').click();await expect(content).toBeVisible();
   await summary.click();await expect(content).toBeHidden();
-  await summary.click();await page.locator('#setup-title').click();await expect(content).toBeHidden();
+  await summary.click();await page.locator('.rules-setup legend').first().click();await expect(content).toBeHidden();
   await summary.click();await page.keyboard.press('Escape');await expect(content).toBeHidden();
   await summary.click();await page.locator('#rename-toggle').click();await expect(content).toBeHidden();
   await expect(page.locator('#rename-panel')).toBeVisible();await page.keyboard.press('Escape');

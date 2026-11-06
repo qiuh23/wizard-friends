@@ -1,0 +1,295 @@
+{
+  "checks": [
+    {
+      "width": 320,
+      "height": 568,
+      "count": 6,
+      "phase": "bid",
+      "mode": "portrait-grid",
+      "geometry": true,
+      "floating": null,
+      "settlement": null,
+      "expanded": null,
+      "ranking": null
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "count": 6,
+      "phase": "play",
+      "mode": "portrait-grid",
+      "geometry": true,
+      "floating": {
+        "outside": true,
+        "inside": true,
+        "repeat": true,
+        "escape": true,
+        "switching": true,
+        "chatDraft": true,
+        "chatSend": true,
+        "confirmationDismissed": true,
+        "pauseResume": true,
+        "selectedCardRetained": true,
+        "handSort": true,
+        "singlePlay": true,
+        "waitingLongName": true
+      },
+      "settlement": null,
+      "expanded": {
+        "visible": true,
+        "controlsClear": true,
+        "publicCardsClear": true,
+        "collapseRestores": true
+      },
+      "ranking": null
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "count": 6,
+      "phase": "roundEnd",
+      "mode": "portrait-grid",
+      "geometry": true,
+      "floating": null,
+      "settlement": {
+        "noResultPanel": true,
+        "noNextButton": true,
+        "ledgerInMenu": true
+      },
+      "expanded": null,
+      "ranking": null
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "count": 6,
+      "phase": "finished",
+      "mode": "portrait-grid",
+      "geometry": true,
+      "floating": null,
+      "settlement": null,
+      "expanded": null,
+      "ranking": {
+        "aligned": true,
+        "rows": 6,
+        "scrollHeight": 238,
+        "clientHeight": 90,
+        "lastRowVisible": true,
+        "lastTotalVisible": true
+      }
+    },
+    {
+      "width": 360,
+      "height": 640,
+      "count": 5,
+      "phase": "play",
+      "mode": "portrait-grid",
+      "geometry": true,
+      "floating": null,
+      "settlement": null,
+      "expanded": {
+        "visible": true,
+        "controlsClear": true,
+        "publicCardsClear": true,
+        "collapseRestores": true
+      },
+      "ranking": null
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "count": 4,
+      "phase": "bid",
+      "mode": "ring",
+      "geometry": true,
+      "floating": null,
+      "settlement": null,
+      "expanded": null,
+      "ranking": null
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "count": 3,
+      "phase": "play",
+      "mode": "ring",
+      "geometry": true,
+      "floating": null,
+      "settlement": null,
+      "expanded": {
+        "visible": true,
+        "controlsClear": true,
+        "publicCardsClear": true,
+        "collapseRestores": true
+      },
+      "ranking": null
+    },
+    {
+      "width": 568,
+      "height": 320,
+      "count": 6,
+      "phase": "play",
+      "mode": "strip",
+      "geometry": true,
+      "floating": null,
+      "settlement": null,
+      "expanded": {
+        "visible": true,
+        "controlsClear": true,
+        "publicCardsClear": true,
+        "collapseRestores": true
+      },
+      "ranking": null
+    },
+    {
+      "width": 844,
+      "height": 300,
+      "count": 6,
+      "phase": "play",
+      "mode": "strip",
+      "geometry": true,
+      "floating": null,
+      "settlement": null,
+      "expanded": {
+        "visible": true,
+        "controlsClear": true,
+        "publicCardsClear": true,
+        "collapseRestores": true
+      },
+      "ranking": null
+    },
+    {
+      "width": 844,
+      "height": 300,
+      "count": 6,
+      "phase": "finished",
+      "mode": "strip",
+      "geometry": true,
+      "floating": null,
+      "settlement": null,
+      "expanded": null,
+      "ranking": {
+        "aligned": true,
+        "rows": 6,
+        "scrollHeight": 197,
+        "clientHeight": 70,
+        "lastRowVisible": true,
+        "lastTotalVisible": true
+      }
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "count": 6,
+      "phase": "bid",
+      "mode": "ring",
+      "geometry": true,
+      "floating": null,
+      "settlement": null,
+      "expanded": null,
+      "ranking": null
+    },
+    {
+      "width": 768,
+      "height": 1024,
+      "count": 6,
+      "phase": "play",
+      "mode": "ring",
+      "geometry": true,
+      "floating": null,
+      "settlement": null,
+      "expanded": {
+        "visible": true,
+        "controlsClear": true,
+        "publicCardsClear": true,
+        "collapseRestores": true
+      },
+      "ranking": null
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "count": 6,
+      "phase": "play",
+      "mode": "ring",
+      "geometry": true,
+      "floating": {
+        "outside": true,
+        "inside": true,
+        "repeat": true,
+        "escape": true,
+        "switching": true,
+        "chatDraft": true,
+        "chatSend": true,
+        "confirmationDismissed": true,
+        "pauseResume": true,
+        "selectedCardRetained": true,
+        "handSort": true,
+        "singlePlay": true,
+        "waitingLongName": true
+      },
+      "settlement": null,
+      "expanded": {
+        "visible": true,
+        "controlsClear": true,
+        "publicCardsClear": true,
+        "collapseRestores": true
+      },
+      "ranking": null
+    },
+    {
+      "rotation": [
+        {
+          "width": 390,
+          "height": 844,
+          "mode": "ring",
+          "actual": 88.1875,
+          "reserved": 88.1875
+        },
+        {
+          "width": 844,
+          "height": 300,
+          "mode": "strip",
+          "actual": 88.1875,
+          "reserved": 88.1875
+        },
+        {
+          "width": 390,
+          "height": 844,
+          "mode": "ring",
+          "actual": 88.1875,
+          "reserved": 88.1875
+        }
+      ]
+    },
+    {
+      "opponentLeader": {
+        "width": 320,
+        "height": 568,
+        "players": 6,
+        "activeLeader": true,
+        "separateTurnLabel": true,
+        "waitingPrompt": true
+      }
+    },
+    {
+      "opponentLeader": {
+        "width": 844,
+        "height": 390,
+        "players": 6,
+        "activeLeader": true,
+        "separateTurnLabel": true,
+        "waitingPrompt": true
+      }
+    },
+    {
+      "practiceAutomaticRound": {
+        "pausedAnimationDoesNotAdvance": true,
+        "resumeAutomaticallyDeals": true,
+        "oneScore": true
+      }
+    }
+  ],
+  "errors": [],
+  "failures": []
+}

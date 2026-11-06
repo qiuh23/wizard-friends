@@ -1,0 +1,69 @@
+/* Use the established card-table artwork and stroke icons throughout entry. */
+.visual-icon-button, body[data-screen="home"] #refresh-rooms,
+#quick-settings > summary {
+  display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
+  width:44px; min-width:44px; min-height:44px; padding:10px; border-radius:10px;
+}
+.visual-icon-button .ui-icon, #refresh-rooms .ui-icon, #quick-settings > summary .ui-icon { width:22px; height:22px; }
+#quick-settings > summary { list-style:none; }
+#quick-settings > summary::-webkit-details-marker { display:none; }
+#quick-settings > summary:after { display:none; }
+.settings-content .settings-close, body[data-screen="lobby"] .settings-content .settings-close { align-self:flex-end; width:44px; padding:10px; margin-left:auto; }
+.visual-icon-button:focus-visible, #quick-settings > summary:focus-visible { outline:3px solid #ffe0a1; outline-offset:3px; }
+body[data-screen="home"] .home-menu { width:min(390px,calc(100% - 48px)); }
+body[data-screen="home"] .home-title { margin-bottom:24px; }
+body[data-screen="home"] .home-title h1 { margin-bottom:0; }
+body[data-screen="home"] .menu-identity { margin-bottom:16px; }
+body[data-screen="home"] .menu-identity:has(output) { display:grid; grid-template-columns:minmax(0,1fr) 44px; align-items:center; gap:8px; }
+body[data-screen="home"] .menu-identity:has(output) > label { grid-column:1 / -1; }
+body[data-screen="home"] .menu-identity output { display:flex; align-items:center; min-height:44px; font-size:18px; }
+.home-presence #online-count { display:flex; align-items:center; gap:8px; }
+.home-presence #online-count:before { display:none; }
+.home-presence #online-count .ui-icon { width:18px; height:18px; }
+body[data-screen="home"] .room-directory { padding:12px; }
+body[data-screen="home"] .room-directory-heading { min-height:44px; }
+body[data-screen="home"] .room-directory-item { grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:10px; padding:12px 0; background:transparent; border:0; border-top:1px solid #8d947447; border-radius:0; }
+body[data-screen="home"] .room-directory-details { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:6px 10px; }
+body[data-screen="home"] .room-directory-host { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:15px; margin:0; }
+body[data-screen="home"] .room-directory-code { margin:0; font-size:13px; letter-spacing:.04em; }
+body[data-screen="home"] .room-directory-progress { display:flex; flex-wrap:wrap; gap:5px; margin:0; grid-column:1; font-size:13px; }
+.directory-phase, .directory-full { padding:3px 6px; border-radius:5px; background:#344a37; color:#f4e6c9; }
+.directory-full { background:#69482d; }
+.directory-round { align-self:center; }
+body[data-screen="home"] .room-directory-counts { display:flex; align-items:center; gap:10px; grid-column:2; grid-row:2; margin:0; font-size:14px; color:#eee5cf; }
+.directory-metric { display:inline-flex; align-items:center; gap:6px; }
+.directory-metric .ui-icon { width:18px; height:18px; }
+body[data-screen="home"] .room-directory-watch { width:auto; min-width:58px; align-self:center; padding:8px 12px; font-size:15px; }
+.room-directory-status[hidden] { display:none; }
+body[data-screen="lobby"] .room-lobby-link { padding:10px; font-size:0; }
+body[data-screen="lobby"] .room-buttons .visual-icon-button,
+body[data-screen="lobby"] .room-operations .visual-icon-button,
+body[data-screen="lobby"] .topbar #chat-toggle.visual-icon-button { width:44px; min-width:44px; height:44px; padding:10px; }
+body[data-screen="lobby"] .lobby-current { display:flex; align-items:center; gap:10px; border:0; padding:0; background:transparent; font-size:14px; }
+.lobby-current .ui-icon { flex-shrink:0; width:20px; height:20px; }
+.rules-setup .rule-groups { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.rules-setup .rule-groups fieldset { min-width:0; margin:0; padding:10px; }
+.rules-setup .rule-groups fieldset:nth-child(2) { grid-column:1 / -1; }
+.rules-setup legend { display:flex; align-items:center; gap:8px; font-size:15px; }
+.rules-setup legend .ui-icon { width:19px; height:19px; }
+.rules-setup .rule-choices { display:flex; flex-wrap:wrap; gap:6px; }
+.rules-setup .rule-choices label { flex:1 1 auto; min-width:0; min-height:44px; padding:10px; }
+.rules-setup .rule-choices label span { font-size:14px; }
+.rules-setup .rule-choices input:focus-visible + span { outline:3px solid #ffe0a1; outline-offset:2px; }
+.modal .close { min-width:44px; min-height:44px; }
+/* Status text has no controls and must never consume a start/play touch. */
+.notice { pointer-events:none; }
+@media(max-width:700px) and (orientation:portrait) {
+  body[data-screen="home"] .home-menu { width:calc(100% - 40px); }
+  body[data-screen="home"] .home-title { min-height:150px; margin-bottom:12px; }
+  .home-screen .home-scene { height:270px; }
+  .home-screen .home-scene:after { background:linear-gradient(90deg,#101516 0%,#101516cc 27%,transparent 80%),linear-gradient(0deg,#101516,transparent 40%); }
+  .rules-setup .rule-groups { gap:10px; }
+  .rules-setup .rule-groups fieldset { grid-column:1 / -1; }
+}
+@media(orientation:landscape) and (max-height:540px) {
+  body[data-screen="home"] .home-menu { width:min(390px,calc(100% - 48px)); }
+  body[data-screen="home"] .home-title { margin-bottom:16px; }
+  .rules-setup .rule-groups { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .rules-setup .rule-groups fieldset:nth-child(2) { grid-column:span 2; }
+}

@@ -1,0 +1,37 @@
+{
+  "checks": [
+    {
+      "width": 320,
+      "height": 568,
+      "count": 6,
+      "phase": "play",
+      "mode": "portrait-grid",
+      "geometry": true,
+      "floating": {
+        "outside": true,
+        "inside": true,
+        "repeat": true,
+        "escape": true,
+        "switching": true,
+        "chatDraft": true,
+        "chatSend": true,
+        "confirmationDismissed": true,
+        "pauseResume": true,
+        "selectedCardRetained": true,
+        "handSort": true,
+        "singlePlay": true,
+        "waitingLongName": true
+      },
+      "settlement": null,
+      "expanded": {
+        "visible": true,
+        "controlsClear": true,
+        "publicCardsClear": true,
+        "collapseRestores": true
+      },
+      "ranking": null
+    }
+  ],
+  "errors": [],
+  "failures": []
+}
