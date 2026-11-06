@@ -57,6 +57,10 @@ import './immersive-table.css';
 // Homepage owns its full visual cascade after the shared table styles.
 import './home-menu.css';
 import './visual-first.css';
+import './table-polish.css';
+import { avatarCharacter } from './graphemes.js';
+import { bidStatus, bidPrompt } from './bid-status.js';
+import { bindBidControls } from './bid-controls.js';
 import { FloatingLayers, containsEvent } from './floating-layers.js';
 
 new ScreenDirection();
@@ -78,6 +82,7 @@ let tableScene, scenePending = false, sceneFailed = false;
 let refreshHandOnLayout = false;
 const layoutSchedule = createLayoutScheduler(({force}) => {
   if (updateLayoutMetrics(force)) tableScene?.resize();
+  social?.positionNotices();
   if (refreshHandOnLayout) {
     refreshHandOnLayout = false;
     handMotion.attach($('.hand'), null, selectedCard);
@@ -237,8 +242,9 @@ function cardHTML(c, inspectable = false, legal = false, selected = false) {
 }
 const avatarColors = ['#94d6cb', '#eeb9a4', '#a9caff', '#f1d37b', '#c9b4ec', '#b9d59a'];
 function avatarHTML(player, index, lead = null) {
-  const detail = `${player.name}${player.id === me ? ' · 你' : ''}${lead ? ` · ${lead.label}` : ''}`;
-  return `<button class="avatar" data-player-details="${escape(player.id)}" style="--avatar-color:${avatarColors[index % avatarColors.length]}" aria-controls="table-score-panel" aria-expanded="false" aria-label="查看 ${escape(detail)} 的信息" title="${escape(detail)}">${escape(player.name.slice(0, 1))}<small class="avatar-seat">${index+1}</small>${lead ? `<span class="lead-badge" aria-hidden="true">先</span>` : ''}</button>`;
+  const prediction = bidStatus(state, player.id, {connected:practice || networkReady});
+  const detail = `${player.name}${player.id === me ? ' · 你' : ''}${lead ? ` · ${lead.label}` : ''}${prediction === 'submitted' ? ' · 已预测' : prediction ? ' · 等待预测' : ''}`;
+  return `<button class="avatar" data-bid-state="${prediction}" data-player-details="${escape(player.id)}" style="--avatar-color:${avatarColors[index % avatarColors.length]}" aria-controls="table-score-panel" aria-expanded="false" aria-label="查看 ${escape(detail)} 的信息" title="${escape(detail)}"><span class="avatar-glyph">${escape(avatarCharacter(player.name))}</span><small class="avatar-seat">${index+1}</small>${lead ? `<span class="lead-badge" aria-hidden="true">先</span>` : ''}${prediction ? `<span class="bid-state-mark" aria-hidden="true">${prediction === 'submitted' ? '✓' : '…'}</span>` : ''}</button>`;
 }
 function ownStatusHTML(p) {
   if (!p) return '';
@@ -298,6 +304,7 @@ function render() {
     const returnSession = readRoomSession(sessionStore,invitedRoom);
     const recoveryHandles=readRoomRecoveries(localStore,invitedRoom);
     const returnRooms=returnSession && returnSession.role !== 'practice' ? [{...returnSession,token},...recoveryHandles.filter(r=>r.room!==returnSession.room || r.token!==token)] : recoveryHandles;
+    $('.bid-options')?._disposeBidControls?.();
     app.innerHTML = shell(`<main class="home-screen">
       <section class="hero home-scene" aria-label="烛光牌桌"><div class="hero-cards">${cardHTML({ kind: 'number', suit: 'blue', rank: 13 })}${cardHTML({ kind: 'wizard' })}${cardHTML({ kind: 'number', suit: 'red', rank: 7 })}</div></section>
       <section class="home-menu" aria-label="主菜单">
@@ -359,7 +366,7 @@ function render() {
   if (state.phase === 'lobby') {
     const startHint = state.players.length < 3 ? `还差 ${3 - state.players.length} 人` : state.players.some(p => !p.online) ? '等待玩家重连' : state.options.deckMode === 'mono' && state.players.length > 4 ? '单色限 3–4 人，请选择标准牌库' : '';
     body = `<main class="lobby-table has-rule-setup" data-active-panel="${lobbyPanel}"><div class="hero lobby-scene" aria-hidden="true"><div class="lobby-felt"></div></div><div class="lobby-content">
-      <section id="room-players-panel" class="lobby-panel" role="tabpanel" tabindex="0" aria-labelledby="room-players-tab" ${lobbyPanel === 'players' ? '' : 'hidden'}><div class="seats" aria-label="房间座位">${state.players.map((p, i) => `<div class="seat ${p.id === me ? 'my-seat' : ''} ${p.bot ? 'bot-seat' : 'human-seat'} ${!p.online ? 'offline' : ''}"><div class="avatar" aria-hidden="true">${p.bot ? '✧' : escape(p.name.slice(0, 1))}</div><div class="seat-name"><b title="${escape(p.name)}">${escape(p.name)}</b><small>${i === 0 ? '房主' : p.bot ? `${domestic ? '电脑' : '机器人'} · ${p.botDifficulty === 'simple' ? '简单' : '策略'}` : p.online ? '真人' : '真人 · 离线'}${p.id === me ? ' · 你' : ''}</small></div>${isHost && i > 0 ? `<button data-remove="${escape(p.id)}" class="text-button" aria-label="移除${p.bot ? '机器人' : '玩家'} ${escape(p.name)}" title="移除${p.bot ? '机器人' : '玩家'}">×</button>` : ''}</div>`).join('')}${Array.from({ length: 6 - state.players.length }, () => '<div class="seat empty"><div class="avatar" aria-hidden="true">＋</div><div class="seat-name"><b>空位</b></div></div>').join('')}</div>
+      <section id="room-players-panel" class="lobby-panel" role="tabpanel" tabindex="0" aria-labelledby="room-players-tab" ${lobbyPanel === 'players' ? '' : 'hidden'}><div class="seats" aria-label="房间座位">${state.players.map((p, i) => `<div class="seat ${p.id === me ? 'my-seat' : ''} ${p.bot ? 'bot-seat' : 'human-seat'} ${!p.online ? 'offline' : ''}"><div class="avatar" aria-hidden="true">${p.bot ? '✧' : escape(avatarCharacter(p.name))}</div><div class="seat-name"><b title="${escape(p.name)}">${escape(p.name)}</b><small>${i === 0 ? '房主' : p.bot ? `${domestic ? '电脑' : '机器人'} · ${p.botDifficulty === 'simple' ? '简单' : '策略'}` : p.online ? '真人' : '真人 · 离线'}${p.id === me ? ' · 你' : ''}</small></div>${isHost && i > 0 ? `<button data-remove="${escape(p.id)}" class="text-button" aria-label="移除${p.bot ? '机器人' : '玩家'} ${escape(p.name)}" title="移除${p.bot ? '机器人' : '玩家'}">×</button>` : ''}</div>`).join('')}${Array.from({ length: 6 - state.players.length }, () => '<div class="seat empty"><div class="avatar" aria-hidden="true">＋</div><div class="seat-name"><b>空位</b></div></div>').join('')}</div>
       ${isHost && state.players.length < 6 ? `<div class="lobby-options bot-controls" role="group" aria-label="添加机器人"><label class="sr-only" for="bot-difficulty">机器人难度</label><select id="bot-difficulty"><option value="smart" ${preferredBotDifficulty === 'smart' ? 'selected' : ''}>策略陪练</option><option value="simple" ${preferredBotDifficulty === 'simple' ? 'selected' : ''}>简单陪练</option></select><button id="addbot" type="button">＋ 添加机器人</button></div>` : ''}
       </section><section id="room-rules-panel" class="lobby-panel" role="tabpanel" tabindex="0" aria-labelledby="room-rules-tab" ${lobbyPanel === 'rules' ? '' : 'hidden'}>${ruleSetupHTML(state, isHost)}</section>
     </div></main><div class="lobby-controls"><div class="lobby-start">${isHost ? `${startHint ? `<span class="start-hint">${startHint}</span>` : ''}<button id="start" class="primary" ${startHint ? 'disabled' : ''}>开始游戏 →</button>` : `<span class="start-hint">等待 ${escape(hostName)} 开始游戏</span>`}</div></div>`;
@@ -371,8 +378,8 @@ function render() {
     const matchResult = '';
     const highScore = Math.max(...state.players.map(p => p.score));
     const turnName = escape(state.players[state.turn]?.name);
-    const prompt = state.phase === 'finished' ? `${state.players.filter(p => p.score === highScore).map(p => escape(p.name)).join('、')} 赢得本局` : done ? `${escape(state.players[state.lastWinner]?.name)} 赢下这一墩` : state.phase === 'bid' ? (state.canBid ? '预测赢墩' : p?.bidSubmitted ? '等待其他玩家预测' : `等待 ${turnName} 预测`) : myTurn ? ({ trump: '选择本轮主牌', play: '轮到你出牌' }[state.phase]) : `等待 ${turnName} ${state.phase === 'trump' ? '选色' : '出牌'}`;
-    const actionUI = state.canBid ? `<div class="bid-options">${state.bids.map(n => `<button class="bid" data-bid="${n}" aria-label="预测赢 ${n} 墩">${n}</button>`).join('')}</div>` : myTurn && state.phase === 'trump' ? `<div class="trump-options">${SUITS.map(s => `<button data-trump="${s}" class="suit-chip ${s}" aria-label="选择${SUIT_NAMES[s]}为主牌">${icon(s)}${SUIT_NAMES[s].split(' · ')[0]}色</button>`).join('')}</div>` : '';
+    const prompt = state.phase === 'finished' ? `${state.players.filter(p => p.score === highScore).map(p => escape(p.name)).join('、')} 赢得本局` : done ? `${escape(state.players[state.lastWinner]?.name)} 赢下这一墩` : state.phase === 'bid' ? escape(bidPrompt(state, me)) : myTurn ? ({ trump: '选择本轮主牌', play: '轮到你出牌' }[state.phase]) : `等待 ${turnName} ${state.phase === 'trump' ? '选色' : '出牌'}`;
+    const actionUI = state.canBid ? `<div class="bid-options" role="group" aria-label="选择预测赢墩数">${state.bids.map(n => `<button class="bid" data-bid="${n}" aria-label="预测赢 ${n} 墩">${n}</button>`).join('')}</div>` : myTurn && state.phase === 'trump' ? `<div class="trump-options">${SUITS.map(s => `<button data-trump="${s}" class="suit-chip ${s}" aria-label="选择${SUIT_NAMES[s]}为主牌">${icon(s)}${SUIT_NAMES[s].split(' · ')[0]}色</button>`).join('')}</div>` : '';
     const foresight = state.foresightActive && !spectating ? `<section id="foresight-hands" class="foresight-hands" tabindex="0" aria-label="先见之明：其他玩家手牌，可上下滚动"><header class="foresight-heading"><b>其他玩家手牌</b><button id="foresight-sort" type="button"></button></header>${state.players.filter(x => x.id !== me).map(x => `<section class="foresight-player" data-foresight-player="${escape(x.id)}" aria-label="${escape(x.name)}的手牌"><h3>${escape(x.name)}<small>${x.count} 张</small></h3><div class="foresight-cards">${sortCards(x.hand || [], foresightSort || handSort).map(c => cardHTML(c)).join('')}</div></section>`).join('')}</section>` : '';
     const currentWinner = state.trick.length ? winner(state.trick, state.trump, state.options.deckMode) : null;
     const followHint = followSuitHint(state, me);
@@ -384,9 +391,10 @@ function render() {
     }).join('')}</div>${foresight}<div class="played-cards ${state.players.length>=5 ? 'compact-trick' : ''}" style="inset:0">${state.trick.map((x, i) => {
       const seat = relativeSeat(x.player, selfIndex, state.players.length);
       const motion = tableMotion.timing(x.card.id);
-      return `<div class="played ${currentWinner === x.player ? 'winner' : ''} ${motion.enterMs < CARD_ENTER_MS ? 'card-enter' : ''} ${motion.collectMs !== null ? 'collect-winner' : ''}" role="img" aria-label="${escape(state.players[x.player].name)}：${escape(cardLabel(x.card))}${currentWinner === x.player ? done ? '，赢墩' : '，当前最大' : ''}" data-card-id="${escape(x.card.id)}" data-play-seat="${seat}" data-player="${escape(state.players[x.player].id)}" style="--play-x:50%;--play-y:50%">${cardHTML(x.card)}<small title="${escape(state.players[x.player].name)}"><span class="played-name">${escape(state.players[x.player].name)}</span><span class="played-state" data-compact="${currentWinner===x.player ? done ? '赢墩' : '当前最大' : i===0 ? '首攻' : ''}">${currentWinner === x.player ? done ? '赢墩' : '当前最大' : i===0 ? '首攻' : '&nbsp;'}</span></small></div>`;
-    }).join('')}</div>${matchResult}<div class="table-caption">已完成 ${state.completedTricks} / ${state.cardsPerRound} 墩</div></section>${ownStatusHTML(p)}${done ? settlement : `<section class="action-panel"><div class="action-title"><h3>${state.lifecycle?.paused ? '牌局已暂停' : prompt.replace('点击金边手牌出牌', '选牌并确认出牌')}</h3><small class="win-reason">${state.phase === 'bid' ? '' : followHint}</small></div>${actionUI}</section>`}${!spectating ? handHTML(p, myTurn) : ''}</main><aside>${scoreHistoryHTML(state, me)}<section class="panel scoreboard"><div class="section-label">预言排行榜 <span>总分</span></div>${state.players.map((x, i) => ({ ...x, seat: i })).sort((a,b) => b.score - a.score).map((x, i) => { const totals = playerTotals(state, x.id); return `<div class="score-row"><span class="rank">${String(i + 1).padStart(2, '0')}</span><span>${escape(x.name)}${x.id === me ? '<small>你</small>' : ''}<small>胜局 ${totals.matchWins} · 本局赢 ${totals.tricks} 墩 · 猜中 ${totals.exactRounds} 轮</small></span><b>${x.score}</b></div>`; }).join('')}${roundEnd ? `<div class="round-results"><h4>第 ${state.round} 轮得分</h4>${state.history.at(-1).result.map(r => `<div><span>${escape(state.players.find(x => x.id === r.id).name)} <small>${r.won}/${r.bid} 墩</small></span><b class="${r.delta > 0 ? 'positive' : 'negative'}">${r.delta > 0 ? '+' : ''}${r.delta}</b></div>`).join('')}</div>` : ''}</section><section class="panel journal"><div class="section-label">牌桌记事 <span>↙</span></div>${state.log.slice(-7).map(l => `<p>${escape(l)}</p>`).join('')}</section></aside></div>`;
+      return `<div class="played ${currentWinner === x.player ? 'winner' : ''} ${motion.enterMs < CARD_ENTER_MS ? 'card-enter' : ''} ${motion.collectMs !== null ? 'collect-winner' : ''}" role="img" aria-label="${escape(state.players[x.player].name)}：${escape(cardLabel(x.card))}${currentWinner === x.player ? done ? '，赢墩' : '，当前最大' : ''}" data-card-id="${escape(x.card.id)}" data-play-seat="${seat}" data-player="${escape(state.players[x.player].id)}" style="--play-x:50%;--play-y:50%">${cardHTML(x.card)}<span class="card-contact-shadow" aria-hidden="true"></span><small title="${escape(state.players[x.player].name)}"><span class="played-name">${escape(state.players[x.player].name)}</span><span class="played-state" data-compact="${currentWinner===x.player ? done ? '赢墩' : '当前最大' : i===0 ? '首攻' : ''}">${currentWinner === x.player ? done ? '赢墩' : '当前最大' : i===0 ? '首攻' : '&nbsp;'}</span></small></div>`;
+    }).join('')}</div>${matchResult}<div class="table-caption">已完成 ${state.completedTricks} / ${state.cardsPerRound} 墩</div></section>${ownStatusHTML(p)}${done ? settlement : `<section class="action-panel bid-phase-${state.phase} ${state.canBid && !spectating && (practice || networkReady) && !state.lifecycle?.paused && !state.lifecycle?.reconnecting && !state.lifecycle?.continuationVote ? 'bid-attention' : ''}"><div class="action-title"><h3>${state.lifecycle?.paused ? '牌局已暂停' : prompt.replace('点击金边手牌出牌', '选牌并确认出牌')}</h3><small class="win-reason">${state.phase === 'bid' ? '' : followHint}</small></div>${actionUI}</section>`}${!spectating ? handHTML(p, myTurn) : ''}</main><aside>${scoreHistoryHTML(state, me)}<section class="panel scoreboard"><div class="section-label">预言排行榜 <span>总分</span></div>${state.players.map((x, i) => ({ ...x, seat: i })).sort((a,b) => b.score - a.score).map((x, i) => { const totals = playerTotals(state, x.id); return `<div class="score-row"><span class="rank">${String(i + 1).padStart(2, '0')}</span><span>${escape(x.name)}${x.id === me ? '<small>你</small>' : ''}<small>胜局 ${totals.matchWins} · 本局赢 ${totals.tricks} 墩 · 猜中 ${totals.exactRounds} 轮</small></span><b>${x.score}</b></div>`; }).join('')}${roundEnd ? `<div class="round-results"><h4>第 ${state.round} 轮得分</h4>${state.history.at(-1).result.map(r => `<div><span>${escape(state.players.find(x => x.id === r.id).name)} <small>${r.won}/${r.bid} 墩</small></span><b class="${r.delta > 0 ? 'positive' : 'negative'}">${r.delta > 0 ? '+' : ''}${r.delta}</b></div>`).join('')}</div>` : ''}</section><section class="panel journal"><div class="section-label">牌桌记事 <span>↙</span></div>${state.log.slice(-7).map(l => `<p>${escape(l)}</p>`).join('')}</section></aside></div>`;
   }
+  $('.bid-options')?._disposeBidControls?.();
   app.innerHTML = shell(`${head}${body}${lifecycleHTML()}`);
   if (spectating) {
     const banner = document.createElement('div'); banner.className = 'spectator-banner';
@@ -441,6 +449,7 @@ function render() {
     if (!practice) return roomControl('remove', {id:b.dataset.remove});
     game.players = game.players.filter(p => p.id !== b.dataset.remove); broadcast();
   });
+  bindBidControls($('.bid-options'));
   document.querySelectorAll('[data-bid]').forEach(b => b.onclick = () => send({ type: 'bid', value: Number(b.dataset.bid) }));
   document.querySelectorAll('button[data-trump]').forEach(b => b.onclick = () => send({ type: 'trump', suit: b.dataset.trump }));
 
@@ -527,6 +536,7 @@ function bindCommon() {
   document.body.style.setProperty('--fan-height', `${handCount <= 5 ? 216 : handCount <= 15 ? 204 : 194}px`);
   document.body.classList.toggle('hand-expanded', handExpanded && !handCollapsed);
   document.body.classList.toggle('hand-collapsed', handCollapsed);
+  social.positionNotices?.();
   layoutSchedule.request({force:true});
   tableLayoutObserver.disconnect();
   const observed = '.table,.own-status,.action-panel,.hand-section,.concealed-hand' + (state?.foresightActive ? ',.opponents .player,.foresight-heading,.trump-display' : '');
@@ -608,7 +618,7 @@ const htmlFrame = frameScheduler.add(frameTime => {
 function cacheHTMLCards() {
   htmlLinks = $('.played-links');
   htmlCards = [...document.querySelectorAll('.played[data-card-id]')].map(node => ({
-    node, card:node.querySelector('.card'), label:node.querySelector(':scope > small'), id:node.dataset.cardId,
+    node, card:node.querySelector('.card'), shadow:node.querySelector('.card-contact-shadow'), label:node.querySelector(':scope > small'), id:node.dataset.cardId,
   }));
   htmlFrame.request();
 }
@@ -617,14 +627,14 @@ function drawHTMLCards(sample = tableMotion.snapshot()) {
   const labelOpacity = String(sample.labelOpacity);
   if (htmlLinks && htmlLinks.style.opacity !== labelOpacity) htmlLinks.style.opacity = labelOpacity;
   const webgl = document.body.classList.contains('has-webgl');
-  for (const {node,card,label,id} of htmlCards) {
+  for (const {node,card,shadow,label,id} of htmlCards) {
     if (node.style.getPropertyValue('--played-label-opacity') !== labelOpacity) node.style.setProperty('--played-label-opacity', labelOpacity);
     if (label) {
       if (label.style.opacity !== labelOpacity) label.style.opacity = labelOpacity;
       const visibility = sample.labelOpacity === 0 ? 'hidden' : '';
       if (label.style.visibility !== visibility) label.style.visibility = visibility;
     }
-    if (webgl || !card) continue;
+    if (!card) continue;
     const pose = sample.poses.get(id);
     if (!pose) continue;
     const offset = name => parseFloat(node.style.getPropertyValue(name)) || 0;
@@ -632,6 +642,11 @@ function drawHTMLCards(sample = tableMotion.snapshot()) {
     const y = offset('--from-y') * (1 - pose.enter) + offset('--winner-dy') * pose.collect - pose.lift;
     const transform = `translate(${x}px, ${y}px) scale(${pose.scale})`;
     const opacity = String(pose.enter * pose.opacity);
+    if(shadow) {
+      shadow.style.transform=`translate(${x}px, ${y}px) scale(${pose.scale})`;
+      shadow.style.opacity=opacity;
+    }
+    if(webgl)continue;
     if (card.style.transform !== transform) card.style.transform = transform;
     if (card.style.opacity !== opacity) card.style.opacity = opacity;
   }

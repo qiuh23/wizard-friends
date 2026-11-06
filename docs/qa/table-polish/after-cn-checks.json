@@ -1,0 +1,13 @@
+{
+  "checks": [
+    "1440: public own cue, reduced motion, hidden scrollbar, Home/End and wheel",
+    "390: public own cue, reduced motion, hidden scrollbar, Home/End and wheel",
+    "844: public own cue, reduced motion, hidden scrollbar, Home/End and wheel",
+    "public: submit clears own cue; other pending players, spectator privacy and reconnect use latest state",
+    "hidden: submit clears own cue; other pending players, spectator privacy and reconnect use latest state",
+    "secret: submit clears own cue; other pending players, spectator privacy and reconnect use latest state",
+    "six seats and five played cards: desktop, portrait, landscape; glyphs and shadows fit viewport",
+    "readable 2D fallback; no document horizontal overflow"
+  ],
+  "errors": []
+}

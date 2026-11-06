@@ -17,7 +17,7 @@ export class TableScene {
     this.camera = new THREE.PerspectiveCamera(43, 1, .1, 80);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = !this.low;
+    this.renderer.shadowMap.enabled = false;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -49,14 +49,12 @@ export class TableScene {
       this.observedSize = key;
       this.requestResize();
     });
-    this.scene.add(new THREE.HemisphereLight('#b6d6df', '#2f1c12', 2.0));
-    const light = new THREE.DirectionalLight('#ffd4a1', 3.5);
-    light.position.set(-4, 9, 4); light.castShadow = true;
-    light.shadow.mapSize.set(1024, 1024);
-    Object.assign(light.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9, near: .5, far: 30 });
-    light.shadow.normalBias = .025;
+    this.scene.add(new THREE.HemisphereLight('#d8ded9', '#334139', 1.65));
+    const light = new THREE.DirectionalLight('#ffe6c2', 1.6);
+    // Broad non-shadowing fill. Candle point lights supply the warm local pools.
+    light.position.set(-4, 9, 4); light.castShadow = false;
     this.scene.add(light);
-    const rim = new THREE.DirectionalLight('#729dc4', 2); rim.position.set(5, 4, -6); this.scene.add(rim);
+    const rim = new THREE.DirectionalLight('#c5d7df', .65); rim.position.set(5, 4, -6); this.scene.add(rim);
     this.buildTable();
     this.buildTrump();
     this.onContextLost = e => {
@@ -124,7 +122,7 @@ export class TableScene {
     this.orbStand = new THREE.Group(); this.orbStand.position.set(4.8,0,1.5); this.scene.add(this.orbStand);
     this.mesh(new THREE.CylinderGeometry(.48,.6,.15,32),brass,0,.48,0,this.orbStand);
     this.orb = this.mesh(new THREE.SphereGeometry(.43,28,20),this.material('#65aaac',{metalness:.4,roughness:.13,emissive:'#183b44',emissiveIntensity:1}),0,.96,0,this.orbStand);
-    const orbLight = new THREE.PointLight('#61d2cf',9,5); orbLight.position.set(0,1.3,0); this.orbStand.add(orbLight);
+    const orbLight = new THREE.PointLight('#9bc9c4',2,4); orbLight.position.set(0,1.3,0); this.orbStand.add(orbLight);
     this.coins = new THREE.Group(); this.coins.position.set(3.85,0,2.6); this.scene.add(this.coins);
     for(let i=0;i<7;i++){
       const coin=this.mesh(new THREE.CylinderGeometry(.16,.16,.045,20),brass,(i%3)*.28,.4+Math.floor(i/3)*.05,(i%2)*.2,this.coins);
@@ -250,6 +248,11 @@ export class TableScene {
         group=new THREE.Group();
         const edge=this.mesh(new THREE.BoxGeometry(1.12,.035,1.68),this.material('#d4bd87'),0,0,0,group);
         const face=this.mesh(new THREE.PlaneGeometry(1.1,1.66),this.material('#ffffff',{map:this.face(card),roughness:.65,metalness:.08}),0,.02,0,group);
+        // Screen-aligned cards are raised for projection only. They must not
+        // cast long detached shadows onto the felt. A DOM contact shadow follows
+        // the exact same anchor and animation in both graphics modes.
+        edge.castShadow=face.castShadow=false;
+        edge.receiveShadow=face.receiveShadow=false;
         face.rotation.x=-Math.PI/2;
         group.position.set((i-entries.length/2)*1.1, motionMedia.matches? .43 : 2.8, 3.5);
         group.userData.face=face;group.userData.edge=edge;this.scene.add(group);this.cards.set(card.id,group);
@@ -458,7 +461,7 @@ export class TableScene {
   }
   setLow(value) {
     this.low=value;localStorage.setItem('wizard-low-graphics',String(value));
-    this.renderer.shadowMap.enabled=!value;
+    this.renderer.shadowMap.enabled=false;
     // Refresh cached shaders too, or the previous shadow map remains visible.
     this.scene.traverse(object => {
       if (object.material) object.material.needsUpdate = true;
@@ -474,7 +477,7 @@ export class TableScene {
     if (!this.paused) this.animationTime = (this.animationTime || 0) + elapsed;
     const sceneTime = this.animationTime || 0;
     const t=motionMedia.matches?0:sceneTime*.001;
-    for(const {flame,point,offset} of this.flames){flame.scale.y=1.7+Math.sin(t*7+offset)*.18;point.intensity=(this.mode==='game' ? 5 : 14)+Math.sin(t*5+offset)*.6;}
+    for(const {flame,point,offset} of this.flames){flame.scale.y=1.7+Math.sin(t*1.7+offset)*.06;point.intensity=(this.mode==='game' ? 6 : 12)+Math.sin(t*1.4+offset)*.12;}
     this.dust.visible=!this.low && this.mode !== 'game';
     this.dust.rotation.y=t*.014;
     this.orb.rotation.y=t*.2;
