@@ -3,6 +3,7 @@ import { build } from 'esbuild';
 import { chromium, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
+import { parseRoomCode } from '../src/backend-entry.js';
 
 // LOCAL/MANUAL ONLY. This in-memory wrapper exposes a harness RPC to the Node
 // test process. It delegates every browser request/socket to the production DO;
@@ -77,7 +78,7 @@ try {
   const guest = await prepare(await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' }), '续赛甲'); clients.push(guest);
   const other = await prepare(await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' }), '续赛乙'); clients.push(other);
   await host.locator('#create').click(); await connected(host);
-  const room = await host.locator('.room-code').innerText();
+  const room = parseRoomCode(await host.locator('.room-code').innerText()).room;
   for (const page of [guest, other]) {
     await page.locator('#join-menu').click(); await page.locator('#room-input').fill(room);
     await page.locator('#join').click(); await connected(page);

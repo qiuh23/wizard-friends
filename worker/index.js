@@ -59,16 +59,19 @@ export class RoomRelay {
     if (typeof WebSocketRequestResponsePair !== 'undefined') ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
     this.initialized = ctx.blockConcurrencyWhile(async () => {
       const record = await ctx.storage.get('authority');
-      this.authority = record ? new RoomAuthority(record) : null;
+      const now = Date.now();
+      // A missing socket on cold recovery was last observed at the persisted
+      // checkpoint, not at service startup. Count downtime toward retention and
+      // reconnect grace instead of granting a fresh budget after every restart.
+      const observedAt = Number.isFinite(record?.savedAt) ? Math.max(0, Math.min(now, record.savedAt)) : now;
+      this.authority = record ? new RoomAuthority(record, observedAt) : null;
       const room=await ctx.storage.get('room');
       if(room && this.authority) applyModeration(this.authority,await securityCall(this.env,'moderation',{room}));
       if (this.authority && !this.authority.closed) {
-        // Recover a delayed service clock before disconnecting absent sockets;
-        // disconnect freezes the current budget and must not freeze an already
-        // expired deadline merely because the process was unavailable.
-        this.recoverClock(Date.now());
         const connected = new Set(this.sockets().map(ws => attachment(ws).playerId));
-        for (const p of this.authority.game.players) if (!p.bot && p.online && !connected.has(p.id)) this.authority.disconnect(p.id);
+        for (const p of this.authority.game.players) if (!p.bot && p.online && !connected.has(p.id)) this.authority.disconnect(p.id, observedAt);
+        this.recoverClock(now);
+        this.authority.tick(now);
       }
     });
   }
