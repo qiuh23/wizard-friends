@@ -1,5 +1,6 @@
 // This panel lives outside #app so game-state updates never interrupt typing.
 import { ChatNotices, CHAT_NOTICE_EXIT_MS } from './chat-notices.js';
+import { setIconButton } from './ui-icons.js';
 export class RoomSocial {
   constructor(send, onLayout = () => {}, onOpen = () => {}) {
     this.send = send;
@@ -28,6 +29,8 @@ export class RoomSocial {
     this.list = this.root.querySelector('#chat-messages');
     this.input = this.root.querySelector('#chat-input');
     this.nameInput = this.root.querySelector('#rename-input');
+    setIconButton(this.root.querySelector('#close-chat'), 'close', '关闭', '收起聊天');
+    setIconButton(this.root.querySelector('#close-rename'), 'close', '取消', '取消改名');
     this.root.querySelector('#close-chat').onclick = () => { this.closeChat(); this.chatButton?.focus({preventScroll:true}); };
     this.root.querySelector('#close-rename').onclick = () => this.closeRename(true);
     this.root.querySelector('#chat-form').onsubmit = event => {
@@ -63,7 +66,12 @@ export class RoomSocial {
     if (document.body.dataset.chatOpen !== open) { document.body.dataset.chatOpen = open; requestAnimationFrame(() => this.onLayout()); }
     if (!this.chatButton) return;
     const unread = (this.messages || []).filter(m => m.seq > this.seen && m.player !== this.me).length;
-    this.chatButton.textContent = `聊天${this.chat.hidden && unread ? ` · ${unread}` : ''}`;
+    const count = this.chat.hidden ? unread : 0;
+    setIconButton(this.chatButton, 'chat', '聊天', `聊天${count ? `，${count} 条未读消息` : ''}`);
+    if (count) {
+      const badge = document.createElement('span'); badge.className = 'chat-unread';
+      badge.textContent = count > 99 ? '99+' : count; badge.setAttribute('aria-hidden', 'true'); this.chatButton.append(badge);
+    }
     this.chatButton.setAttribute('aria-expanded', String(!this.chat.hidden));
     this.renameButton?.setAttribute('aria-expanded', String(!this.rename.hidden));
   }
@@ -144,6 +152,7 @@ export class RoomSocial {
     const previousButton = this.dock.querySelector('#chat-toggle');
     if (previousButton && previousButton !== this.chatButton) previousButton.replaceWith(this.chatButton);
     else if (!previousButton) this.dock.append(this.chatButton);
+    if (document.body.dataset.screen === 'game') controls.prepend(this.chatButton);
     if (!this.chat.hidden) this.seen = state.chatSeq || 0;
     const key = JSON.stringify(this.messages);
     if (key !== this.key) {

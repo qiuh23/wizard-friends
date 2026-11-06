@@ -37,11 +37,12 @@ export function targetStatus(player, settled = false) {
 export function playBlockedReason(state, me, card) {
   if (state.lifecycle?.paused) return '房主已暂停，恢复后可操作';
   if (state.lifecycle?.continuationVote) return '正在进行到期续赛投票';
+  if (state.lifecycle?.reconnecting) return '等待玩家重连，计时已冻结';
   if (state.phase !== 'play') return state.phase === 'bid' ? '请先完成本轮预估' : '当前不是出牌阶段';
   if (state.players[state.turn]?.id !== me) return '尚未轮到你，可先查看手牌';
   if (!state.legal?.includes(card.id)) {
     const suit = leadSuit(state.trick ?? [], state.options?.deckMode);
-    return suit ? `手中有${SUIT_NAMES[suit].split(' · ')[0]}色牌，必须跟色；W / J 随时可出` : '这张牌已不可出，请重新选择';
+    return suit ? `有${SUIT_NAMES[suit].split(' · ')[0]}色牌，必须跟色；W/J 可出` : '这张牌已不可出，请重新选择';
   }
   return '';
 }

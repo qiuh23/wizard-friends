@@ -173,7 +173,7 @@ export class RoomAuthority {
     if (!system && ['timeout'].includes(action?.type)) throw new Error('自动出牌仅由房间服务执行。');
     if (this.life.closeAfterRound && ['configure', 'start', 'rematch'].includes(action?.type)) throw new Error('续赛仅完成当前轮，结果确认后关闭。');
     if (this.life.closeAfterRound && action?.type === 'next' && this.game.phase !== 'trickEnd') throw new Error('当前轮结束后关闭房间。');
-    if (!system && action?.type === 'next' && this.game.phase === 'trickEnd' && now < (this.record.task?.at ?? now)) throw new Error('请先看完本墩结算，稍后会自动继续。');
+    if (!system && action?.type === 'next' && ['trickEnd', 'roundEnd'].includes(this.game.phase) && now < (this.record.collection?.at ?? this.record.task?.at ?? now)) throw new Error('请先看完本墩结算，稍后会自动继续。');
     const before = spectatorView(this.game);
     const frozenDeadline = this.game.turnDeadline;
     const phase = this.game.phase, turn = this.game.turn;
@@ -297,6 +297,7 @@ export class RoomAuthority {
   }
   automaticAction(now) {
     if (this.game.phase === 'trickEnd') return { actor: this.record.hostId, action: { type: 'next' } };
+    if (this.game.phase === 'roundEnd' && !this.life.closeAfterRound && this.game.players.every(p => p.online)) return { actor: this.record.hostId, action: { type: 'next' } };
     if (['roundEnd', 'finished'].includes(this.game.phase)) return null;
     for (const p of this.game.players) {
       if (!p.bot && !(this.life.closeAfterRound && !p.online)) continue;
@@ -314,7 +315,10 @@ export class RoomAuthority {
     const next = this.automaticAction(now);
     if (!next) { this.record.task = null; return; }
     const signature = `${this.game.phase}:${this.game.round}:${this.game.turn}:${this.game.trick.length}:${next.actor}`;
-    if (this.record.task?.signature !== signature) this.record.task = { signature, at: now + (this.game.phase === 'trickEnd' ? TRICK_REVIEW_MS : 750) };
+    if (this.record.task?.signature !== signature) {
+      const result = ['trickEnd', 'roundEnd'].includes(this.game.phase);
+      this.record.task = { signature, at: result ? this.record.collection?.at ?? now + TRICK_REVIEW_MS : now + 750 };
+    }
   }
   tick(now = Date.now()) {
     this.expire(now);

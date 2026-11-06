@@ -2,6 +2,7 @@ import { cardImage } from './card-art.js';
 import { cardMark, cardMarksHTML } from './card-face.js';
 import { SUIT_NAMES } from './game.js';
 import { trumpStyle } from './trump-style.js';
+import { icon } from './ui-icons.js';
 
 export function trumpPresentation(state) {
   const appearance = trumpStyle(state);
@@ -20,6 +21,7 @@ export function trumpPresentation(state) {
 function symbol(display) {
   return display.suit === 'none' ? display.status === 'pending' ? '✦' : '∅' : cardMark({kind:'number',suit:display.suit}).symbol;
 }
+
 function faceElement(card) {
   const face = document.createElement('div');
   face.className = 'card trump-card-face';
@@ -45,7 +47,7 @@ export function renderTrumpDisplay(table, state) {
   const label = document.createElement(display.card ? 'button' : 'div');
   label.className = 'table-trump';
   label.title = display.label;
-  label.innerHTML = `<span class="trump-suit-icon" aria-hidden="true">${symbol(display)}</span><span>${display.compactLabel}</span>`;
+  label.innerHTML = `<span class="trump-suit-icon" aria-hidden="true">${icon(display.suit === 'none' ? display.status === 'pending' ? 'target' : 'none' : display.suit)}</span><span>${display.compactLabel.replace('等待庄家选择主牌', '主牌待选').replace('本轮无主牌', '无主牌')}</span>`;
   if (display.card) {
     label.type = 'button';
     label.setAttribute('aria-label', `${display.label}，查看翻牌 ${display.cardLabel}`);

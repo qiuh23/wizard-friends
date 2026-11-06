@@ -355,7 +355,7 @@ test('trick results hold for three seconds and pausing preserves the remaining r
   assert.equal(s.room.game.turnDeadline, s.now() + 45450);
 });
 
-test('final-trick collection survives paused authority reconstruction without advancing round or match results', () => {
+test('round results advance once after paused collection recovery; final match results remain settled', () => {
   for (const target of ['roundEnd','finished']) {
     const s = setup(); s.start();
     const identities = [s.host,s.a,s.b];
@@ -367,12 +367,13 @@ test('final-trick collection survives paused authority reconstruction without ad
       else if (game.phase === 'bid') s.send(actor,{type:'action',action:{type:'bid',value:view.bids[0]}});
       else if (game.phase === 'play') s.send(actor,{type:'action',action:{type:'play',card:view.legal[0]}});
       else if (game.phase === 'trickEnd') s.advance(3000);
-      else if (game.phase === 'roundEnd') s.send(s.host,{type:'action',action:{type:'next'}});
+      else if (game.phase === 'roundEnd') s.advance(3000);
       else assert.fail(`Unexpected phase ${game.phase}`);
     }
     assert.equal(s.room.game.phase,target);
     const won = structuredClone({history:s.room.game.history,players:s.room.game.players,randomState:s.room.game.randomState});
-    assert.equal(s.room.record.task,null,'manual results never get an automatic advancement task');
+    if (target === 'finished') assert.equal(s.room.record.task,null);
+    else assert.equal(s.room.record.task.at,s.now()+3000);
     assert.equal(s.room.view(s.a,0,s.now()).lifecycle.collectionAt,s.now()+3000);
     s.advance(2450); s.send(s.host,{type:'pause'});
     assert.equal(s.room.view(s.a,0,s.now()).lifecycle.collectionRemainingMs,550);
@@ -384,11 +385,21 @@ test('final-trick collection survives paused authority reconstruction without ad
     assert.equal(restored.view(s.a,0,recoveredAt).lifecycle.collectionRemainingMs,550);
     restored.handle(s.host,{type:'resume'},recoveredAt);
     assert.equal(restored.view(s.a,0,recoveredAt).lifecycle.collectionAt,recoveredAt+550);
-    restored.tick(recoveredAt+550);
+    restored.tick(recoveredAt+549);
     assert.equal(restored.game.phase,target);
-    assert.equal(restored.view(s.a,0,recoveredAt+550).lifecycle.collectionRemainingMs,0);
     assert.deepEqual({history:restored.game.history,players:restored.game.players,randomState:restored.game.randomState},won);
-    restored.handle(s.host,{type:'action',action:{type:target==='finished'?'rematch':'next'}},recoveredAt+550);
+    restored.tick(recoveredAt+550);
+    if (target === 'finished') {
+      assert.equal(restored.game.phase,'finished');
+      assert.deepEqual({history:restored.game.history,players:restored.game.players,randomState:restored.game.randomState},won);
+      restored.handle(s.host,{type:'action',action:{type:'rematch'}},recoveredAt+550);
+    } else {
+      assert.equal(restored.game.round,2);
+      assert.ok(['trump','bid'].includes(restored.game.phase));
+      assert.deepEqual(restored.game.history,won.history);
+      assert.deepEqual(restored.game.players.map(p=>p.score),won.players.map(p=>p.score));
+      const dealt=JSON.stringify(restored.game);restored.tick(recoveredAt+551);assert.equal(JSON.stringify(restored.game),dealt);
+    }
     assert.equal(restored.record.collection,null,'the next round cannot inherit the old collection clock');
   }
 });
@@ -410,4 +421,39 @@ test('legacy paused result records use their old event age without replaying col
   assert.equal(older.view(s.a,0,s.now()+10000).lifecycle.collectionAt,null);
   assert.equal(older.view(s.a,0,s.now()+10000).lifecycle.collectionRemainingMs,null);
   assert.equal(older.game.phase,'roundEnd');
+});
+
+test('round animation cannot be skipped, and automatic dealing preserves scores, options and privacy exactly once', () => {
+  const s = setup(); s.start();
+  while (s.room.game.phase === 'play') {
+    const actor = [s.host,s.a,s.b].find(p => p.id === s.room.game.players[s.room.game.turn].id);
+    s.send(actor,{type:'action',action:{type:'play',card:s.room.view(actor,0,s.now()).legal[0]}});
+  }
+  assert.equal(s.room.game.phase,'roundEnd');
+  const history = structuredClone(s.room.game.history), scores = s.room.game.players.map(p => p.score);
+  const options = structuredClone(s.room.game.options), dealer = s.room.game.dealer;
+  assert.throws(() => s.send(s.host,{type:'action',action:{type:'next'}}),/看完/);
+  assert.throws(() => s.send({...s.a,spectator:true},{type:'action',action:{type:'next'}}),/观众/);
+  s.advance(2999); assert.equal(s.room.game.phase,'roundEnd');
+  s.advance(1); assert.equal(s.room.game.round,2);
+  assert.equal(s.room.game.dealer,(dealer+1)%3);
+  assert.deepEqual(s.room.game.history,history); assert.deepEqual(s.room.game.players.map(p => p.score),scores);
+  assert.deepEqual(s.room.game.options,options);
+  const next = JSON.stringify(s.room.game); s.advance(1); assert.equal(JSON.stringify(s.room.game),next);
+  const guest = s.room.view(s.a,0,s.now()), spectator = s.room.view({spectator:true},0,s.now());
+  assert.ok(guest.players.filter(p=>p.id!==s.a.id).every(p=>!Object.hasOwn(p,'hand')));
+  assert.ok(spectator.players.every(p=>!Object.hasOwn(p,'hand')));
+});
+
+test('round completion waits for offline seats and resumes automatically without replaying the animation', () => {
+  const s = setup(); s.start();
+  while (s.room.game.phase === 'play') {
+    const actor = [s.host,s.a,s.b].find(p => p.id === s.room.game.players[s.room.game.turn].id);
+    s.send(actor,{type:'action',action:{type:'play',card:s.room.view(actor,0,s.now()).legal[0]}});
+  }
+  s.advance(1000); s.room.disconnect(s.a.id,s.now()); s.advance(10000);
+  assert.equal(s.room.game.phase,'roundEnd'); assert.equal(s.room.record.task,null);
+  assert.equal(s.room.view(s.host,0,s.now()).lifecycle.collectionRemainingMs,0);
+  s.room.join('a-hash',{},s.now()); s.advance(1);
+  assert.equal(s.room.game.round,2); assert.ok(['trump','bid'].includes(s.room.game.phase));
 });

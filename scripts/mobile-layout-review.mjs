@@ -41,11 +41,12 @@ async function open(record,width,height) {
     localStorage.setItem('wizard-low-graphics','true');
     localStorage.setItem('wizard-trump-motion','false');localStorage.setItem('wizard-turn-sound','false');
   },record);
-  const page=await context.newPage();page.on('pageerror',error=>errors.push(error.message));
+  const page=await context.newPage();page.setDefaultTimeout(8000);page.on('pageerror',error=>errors.push(error.message));
   await page.route(/\/src\/main\.js(?:\?|$)/,async route=>{
     const response=await route.fetch();await route.fulfill({response,body:await response.text()+`
       window.__mobileReview={get state(){return state;},get game(){return game;},get scene(){return tableScene;},
         clear(){clearTimeout(turnTimer);clearTimeout(botTimer);notify('');},
+        run(){broadcast();},
         async apply(next){clearTimeout(turnTimer);clearTimeout(botTimer);game=next;me='p0';
           game.turnDeadline=Date.now()+600000;practice=true;isHost=true;spectating=false;networkReady=true;
           state=viewFor(game,me);state.lifecycle={};updateEventEffects(true);render();this.clear();}};`});
@@ -86,7 +87,7 @@ async function geometry(page) {
     const metrics=own?[...own.querySelectorAll('.own-metrics > span')].filter(shown).map(node=>part(node,node.textContent)):[];
     const ownAction=own?.querySelector('.own-action');
     const ownActionParts=ownAction?[...ownAction.children].filter(shown).map(node=>part(node,node.id||'action-copy')):[];
-    const controls=[...document.querySelectorAll('.game-toolbar > button,#chat-toggle,#confirm-play,.bid-options,.settlement-actions')].filter(shown).map(node=>{
+    const controls=[...document.querySelectorAll('.game-toolbar > button,.hand-tools > button,#confirm-play,.bid-options,.settlement-actions')].filter(shown).map(node=>{
       const r=rect(node);return {label:node.id||node.className,...r,hit:node.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2))};
     });
     const status=[...document.querySelectorAll('.roundbar,.action-title h3,.lead-callout,.own-action > span,#turn-countdown')].filter(shown).map(node=>part(node,node.className||node.id));
@@ -119,6 +120,7 @@ function verify(data) {
   };
   for(const player of data.players) {
     inside(player.rect,player.id);
+    if(data.own)expect(overlap(player.rect,data.own),`${label}: ${player.id} overlaps own identity`).toBe(false);
     for(const part of player.parts)inside(part,`${player.id} ${part.label}`);
     expect(player.fullName).toContain('预测');
     for(const a of player.parts)for(const b of player.parts) {
@@ -201,9 +203,10 @@ async function interactions(page) {
   await avatars.first().click();await expect(scores).toBeVisible();
   await avatars.first().click();await expect(scores).toBeHidden();
   await avatars.first().click();
-  const secondId=await avatars.evaluateAll(nodes=>nodes.slice(1).find(node=>{
+  const firstId=await avatars.first().getAttribute('data-player-details');
+  const secondId=await page.locator('[data-player-details]').evaluateAll((nodes,firstId)=>nodes.filter(node=>node.dataset.playerDetails!==firstId).find(node=>{
     const r=node.getBoundingClientRect();return node.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2));
-  })?.dataset.playerDetails);
+  })?.dataset.playerDetails,firstId);
   expect(secondId,'a second visible avatar can switch the open score sheet').toBeTruthy();
   await page.locator(`[data-player-details="${secondId}"]`).click();await expect(scores).toBeVisible();
   await menuTrigger.click();await expect(menu).toBeVisible();await expect(scores).toBeHidden();
@@ -225,6 +228,30 @@ async function interactions(page) {
   await page.keyboard.press('Escape');
   await page.locator('#room-pause').click();await expect(page.locator('#room-pause')).toHaveAttribute('aria-label','恢复牌局');
   await page.locator('#room-pause').click();await expect(page.locator('#room-pause')).toHaveAttribute('aria-label','暂停牌局');
+  await page.locator('#hand-collapse').click();await expect(page.locator('.hand')).toBeHidden();
+  await page.locator('#hand-collapse').click();await expect(page.locator('.hand')).toBeVisible();
+  const invalid=await page.locator('.hand .card:not(.playable)').evaluateAll(nodes=>{
+    for(const node of nodes) {
+      const r=node.getBoundingClientRect();
+      for(const fx of [.2,.5,.8])for(const fy of [.5,.75]) {
+        const x=r.left+r.width*fx,y=r.top+r.height*fy;
+        if(node.contains(document.elementFromPoint(x,y)))return {x,y,id:node.dataset.card};
+      }
+    }
+    return null;
+  });
+  if(invalid) {
+    await page.mouse.click(invalid.x,invalid.y);
+    await expect(page.locator('#confirm-play')).toBeDisabled();
+    await expect(page.locator('.play-block-reason')).toBeVisible();
+    await expect(page.locator('.play-block-reason')).toContainText('必须跟色');
+    expect(await page.locator('.play-block-reason').evaluate(node=>node.scrollWidth<=node.clientWidth+1),'blocked reason wraps without clipping').toBe(true);
+    await page.locator('#hand-expand').click();
+    await expect(page.locator('.play-block-reason')).toBeVisible();
+    verify(await geometry(page));
+    await page.screenshot({path:`${out}/${stamp}-blocked-expanded-${page.viewportSize().width}.png`});
+    await page.locator('#hand-expand').click();
+  }
   const card=await page.locator('.hand .playable').evaluateAll(nodes=>{
     for(const node of nodes) {
       const r=node.getBoundingClientRect();
@@ -237,12 +264,13 @@ async function interactions(page) {
   });
   await page.mouse.click(card.x,card.y);await expect(page.locator('.hand .selected')).toHaveAttribute('data-card',card.id);
   await menuTrigger.click();await menu.locator('.current-rules').click();
-  await page.locator('#hand-sort').click();await expect(menu).toBeVisible();
+  await menuTrigger.click();
+  await page.locator('#hand-sort').click();await expect(menu).toBeHidden();
   await expect(page.locator('.hand .selected')).toHaveAttribute('data-card',card.id);
   await page.keyboard.press('Escape');await page.locator('#confirm-play').click();
   await expect(page.locator(`.hand [data-card="${card.id}"]`)).toHaveCount(0);
   expect(await page.evaluate(id=>window.__mobileReview.game.events.filter(event=>event.type==='play'&&event.card?.id===id).length,card.id)).toBe(1);
-  await expect(page.locator('.own-action b')).toContainText('等待');
+  await expect(page.locator('.own-action b')).toContainText('等');
   verifyOwnAction(await geometry(page));
   return {outside:true,inside:true,repeat:true,escape:true,switching:true,chatDraft:true,chatSend:true,confirmationDismissed:true,pauseResume:true,selectedCardRetained:true,handSort:true,singlePlay:true,waitingLongName:true};
 }
@@ -268,43 +296,49 @@ async function settingsInteractions() {
 }
 
 async function settlementInteractions(page) {
-  const details=page.locator('.settlement-details'),summary=details.locator('summary'),body=details.locator('.settlement-details-body');
-  await summary.click();await expect(body).toBeVisible();
-  await body.locator('.settlement-formula').click();await expect(body).toBeVisible();
-  await summary.click();await expect(body).toBeHidden();
-  await summary.click();await outside(page);await expect(body).toBeHidden();
-  await summary.click();await page.keyboard.press('Escape');await expect(body).toBeHidden();
-  await summary.click();await page.locator('#table-menu').click();await expect(body).toBeHidden();await expect(page.locator('#table-menu-panel')).toBeVisible();
+  await expect(page.locator('.round-settlement,#next,.settlement-details')).toHaveCount(0);
+  await expect(page.locator('.table-result')).toContainText('下轮自动发牌');
+  await page.locator('#table-scores').click();
+  await expect(page.locator('.score-ledger')).toBeVisible();
+  await expect(page.locator('.ledger-cell').first()).toContainText('得分');
+  await page.keyboard.press('Escape');await expect(page.locator('#table-score-panel')).toBeHidden();
+  await page.locator('#table-menu').click();await expect(page.locator('.menu-result-info')).toContainText('20 + 10');
   await page.keyboard.press('Escape');
-  return {outside:true,inside:true,repeat:true,escape:true,switching:true};
+  return {noResultPanel:true,noNextButton:true,ledgerInMenu:true};
 }
 
 async function expandedHand(page) {
   const initial=await geometry(page);
-  await page.locator('#table-menu').click();await page.locator('#hand-expand').click();
-  await expect(page.locator('#table-menu-panel')).toBeVisible();await page.locator('#table-menu').click();
+  await page.locator('#hand-expand').click();
   await expect(page.locator('.hand-section.expanded .hand-grid')).toBeVisible();await page.waitForTimeout(160);
   const expanded=await geometry(page);
   fs.writeFileSync(`${out}/${stamp}-expanded-${expanded.width}x${expanded.height}.json`,JSON.stringify(expanded,null,2));
   await page.screenshot({path:`${out}/${stamp}-expanded-${expanded.width}x${expanded.height}.png`});verify(expanded);
   expect(Math.max(...expanded.hand.map(card=>card.height)),'expanded hand retains a usable card viewing area').toBeGreaterThanOrEqual(44);
-  await page.locator('#table-menu').click();await page.locator('#hand-expand').click();await page.locator('#table-menu').click();
+  await page.locator('#hand-expand').click();
   await page.waitForTimeout(100);const collapsed=await geometry(page);verify(collapsed);
   for(const card of initial.publicCards) {
     const restored=collapsed.publicCards.find(other=>other.id===card.id);expect(restored).toBeTruthy();
     for(const edge of ['left','right','top','bottom'])expect(Math.abs(restored[edge]-card[edge]),'collapsing the grid restores the public destinations').toBeLessThanOrEqual(1);
   }
+  await page.locator('#hand-collapse').click();await expect(page.locator('.hand')).toBeHidden();
+  await page.locator('#hand-collapse').click();await expect(page.locator('.hand')).toBeVisible();
   return {visible:true,controlsClear:true,publicCardsClear:true,collapseRestores:true};
 }
 
 async function finalRanking(page) {
   const result=await page.locator('.final-results').evaluate(node=>{
+    const headers=[...node.querySelectorAll('thead th')];
+    const aligned=[...node.querySelectorAll('tbody tr')].every(row=>[...row.children].every((cell,i)=>{
+      const a=cell.getBoundingClientRect(),b=headers[i].getBoundingClientRect();return Math.abs(a.left-b.left)<1&&Math.abs(a.right-b.right)<1&&getComputedStyle(cell).textAlign===getComputedStyle(headers[i]).textAlign;
+    }));
     node.scrollTop=node.scrollHeight;node.scrollLeft=node.scrollWidth;
     const r=node.getBoundingClientRect(),last=node.querySelector('tbody tr:last-child'),total=last.querySelector('.final-total'),row=last.getBoundingClientRect(),cell=total.getBoundingClientRect();
-    return {rows:node.querySelectorAll('tbody tr').length,scrollHeight:node.scrollHeight,clientHeight:node.clientHeight,
+    return {aligned,rows:node.querySelectorAll('tbody tr').length,scrollHeight:node.scrollHeight,clientHeight:node.clientHeight,
       lastRowVisible:row.top>=r.top-1&&row.bottom<=r.bottom+1,lastTotalVisible:cell.left>=r.left-1&&cell.right<=r.right+1};
   });
-  expect(result.rows).toBe(6);expect(result.lastRowVisible,'last ranked player is reachable by scrolling').toBe(true);
+  expect(result.aligned,'each final score column aligns with its heading').toBe(true);
+  expect(result.rows).toBe(await page.evaluate(()=>window.__mobileReview.state.players.length));expect(result.lastRowVisible,'last ranked player is reachable by scrolling').toBe(true);
   expect(result.lastTotalVisible,'rightmost final total is reachable by scrolling').toBe(true);return result;
 }
 
@@ -334,12 +368,26 @@ async function opponentLeader(width,height) {
   const parts=data.players.find(player=>player.id===active).parts;
   expect(parts.some(part=>part.label==='.lead-badge')).toBe(true);
   expect(parts.some(part=>part.label==='.turn-label'),'active leader has a separate turn prompt').toBe(true);
-  await expect(page.locator('.own-action b')).toContainText('等待');
+  await expect(page.locator('.own-action b')).toContainText('等');
   await context.close();return {width,height,players:6,activeLeader:true,separateTurnLabel:true,waitingPrompt:true};
 }
 
+async function practiceAutomaticRound() {
+  const {context,page}=await open(fixture(3,'roundEnd',1),390,844);
+  await page.evaluate(()=>window.__mobileReview.run());
+  await page.locator('#room-pause').click();
+  await page.waitForTimeout(3100);
+  expect(await page.evaluate(()=>window.__mobileReview.state.phase)).toBe('roundEnd');
+  await expect(page.locator('#next,.round-settlement')).toHaveCount(0);
+  await expect(page.locator('.table-result')).toContainText('已暂停');
+  await page.locator('#room-pause').click();
+  await page.waitForFunction(()=>window.__mobileReview.state.round===2);
+  expect(await page.evaluate(()=>window.__mobileReview.state.history.length)).toBe(1);
+  await context.close();return {pausedAnimationDoesNotAdvance:true,resumeAutomaticallyDeals:true,oneScore:true};
+}
+
 try {
-  const cases=[[320,568,6,'bid'],[320,568,6,'play'],[320,568,6,'roundEnd'],[320,568,6,'finished'],
+  const cases=process.env.REVIEW_MATRIX ? [3,4,5,6].flatMap(count=>[[1440,900],[390,844],[844,390]].flatMap(([w,h])=>['bid','play','trickEnd','roundEnd','finished'].map(phase=>[w,h,count,phase]))) : [[320,568,6,'bid'],[320,568,6,'play'],[320,568,6,'roundEnd'],[320,568,6,'finished'],
     [360,640,5,'play'],[390,844,4,'bid'],[390,844,3,'play'],[568,320,6,'play'],[844,300,6,'play'],
     [844,300,6,'finished'],[768,1024,6,'bid',8],[768,1024,6,'play',8],[1440,900,6,'play']];
   for(const [width,height,count,phase,round] of cases) {
@@ -353,20 +401,23 @@ try {
     try {
       if(!baseline)verify(data);
       verified=!baseline;
-      if(!baseline&&phase==='play'&&[320,568,844].includes(width))expanded=await expandedHand(page);
+      if(!baseline&&phase==='play')expanded=await expandedHand(page);
       if(!baseline&&phase==='play'&&[320,1440].includes(width))floating=await interactions(page);
       if(!baseline&&phase==='roundEnd')settlement=await settlementInteractions(page);
       if(!baseline&&phase==='finished')ranking=await finalRanking(page);
     } catch(error) {
       if(process.env.REVIEW_COLLECT!=='true')throw error;
       failures.push({width,height,count,phase,error:error.message});
+      console.error(JSON.stringify(failures.at(-1)));
     }
     checks.push({width,height,count,phase,mode:data.mode,geometry:verified,floating,settlement,expanded,ranking});
     await context.close();
   }
   if(!baseline&&!process.env.REVIEW_VIEWPORT&&!process.env.REVIEW_PHASE) {
-    checks.push({lobbySettings:await settingsInteractions()});checks.push({rotation:await rotationReview()});
+    if(!process.env.REVIEW_GAME_ONLY)checks.push({lobbySettings:await settingsInteractions()});
+    checks.push({rotation:await rotationReview()});
     for(const [width,height] of [[320,568],[844,390]])checks.push({opponentLeader:await opponentLeader(width,height)});
+    checks.push({practiceAutomaticRound:await practiceAutomaticRound()});
   }
   if(!baseline&&process.env.REVIEW_PHASE==='rotation')checks.push({rotation:await rotationReview()});
   console.log(JSON.stringify({checks,errors,failures},null,2));expect(errors).toEqual([]);expect(failures).toEqual([]);

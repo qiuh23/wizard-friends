@@ -8,46 +8,39 @@ const game = phase => ({ phase, round:2, lastWinner:1, dealer:0, options:{deckMo
   players:[{id:'a',name:'青山<长名>',score:20,online:true},{id:'b',name:'青川',score:30,online:true},{id:'c',name:'云舒',score:-10,online:true}],
   trick:[{player:0,card:{kind:'number',suit:'blue',rank:13}},{player:1,card:{kind:'number',suit:'red',rank:2}}],trump:'red',
   history:[{round:2,result:[{id:'a',bid:0,won:0,delta:20,total:20},{id:'b',bid:1,won:1,delta:30,total:30},{id:'c',bid:1,won:0,delta:-10,total:-10}]}] });
-test('trick settlement separates concise winner and next action from folded winning explanation', () => {
-  const g=game('trickEnd'), html=settlementHTML(g,{me:'a',practice:true,isHost:true});
-  assert.match(html,/青川 赢得本墩/);
-  assert.match(html,/下一墩 青川 首攻/);
-  assert.match(html,/id="next"/);
-  assert.match(html,/<details class="settlement-details"><summary>查看详情/);
-  assert.doesNotMatch(html,/<details[^>]*open/);
-  assert.match(html,/settlement-details-body[\s\S]*红色主牌 2/);
-  assert.doesNotMatch(html,/须跟|自由出牌|personal-result/);
-  assert.doesNotMatch(settlementHTML(g,{me:'a',isHost:true}),/id="next"/);
-  assert.match(settlementHTML(g,{me:'a',isHost:true}),/id="trick-review-timer"/);
+test('trick results stay on the felt for the shared review with no manual next button', () => {
+  const g=game('trickEnd');
+  for (const context of [{me:'a',practice:true,isHost:true},{me:'a',isHost:true},{spectating:true}]) {
+    const html=settlementHTML(g,context);
+    assert.match(html,/青川 赢得本墩/);
+    assert.match(html,/id="trick-review-timer"/);
+    assert.doesNotMatch(html,/id="next"|settlement-panel|settlement-details|须跟|自由出牌/);
+  }
 });
-test('round settlement groups score, prediction and next action with formula/history folded', () => {
+
+test('round results use a labelled outcome and signed score; the ledger owns details', () => {
   const html=settlementHTML(game('roundEnd'),{me:'a',isHost:true});
-  assert.match(html,/预测命中<\/b><strong>\+20 分/);
-  assert.match(html,/预测 0 · 实赢 0 · 累计 20/);
-  assert.match(html,/开始下一轮/);
-  assert.doesNotMatch(html,/赢得本墩|下一墩|win-reason/);
-  const body=html.indexOf('settlement-details-body');
-  assert.ok(html.indexOf('预测命中：20')>body);
-  assert.ok(html.indexOf('青山&lt;长名&gt; · 你')>body);
-  assert.ok(html.indexOf('settlement-actions')>body);
-  assert.match(settlementHTML(game('roundEnd'),{me:'c'}),/预测未中<\/b><strong>-10 分/);
+  assert.match(html,/命中<\/span><strong>\+20/);
+  assert.match(html,/预测 0，实赢 0，得分 \+20，累计 20/);
+  assert.match(html,/下轮自动发牌/);
+  assert.doesNotMatch(html,/id="next"|settlement-panel|settlement-details|settlement-actions|20 \+ 10/);
+  assert.match(settlementHTML(game('roundEnd'),{me:'c'}),/未中<\/span><strong>-10/);
 });
-test('finished, host, guest, spectator, offline and continuation keep distinct actions', () => {
+
+test('finished, spectator, offline and continuation preserve their authority boundaries', () => {
   const g=game('finished');
   let html=settlementHTML(g,{me:'a',isHost:true});
   assert.match(html,/青川 赢得本局/);assert.match(html,/id="rematch"/);assert.doesNotMatch(html,/id="next"/);
-  assert.match(html,/<div class="settlement-actions">[\s\S]*id="finished-dissolve" class="danger">解散房间/);
+  assert.doesNotMatch(html,/id="finished-dissolve"/);
   html=settlementHTML(g,{me:'a'});assert.doesNotMatch(html,/id="rematch"|id="next"|id="finished-dissolve"/);
   assert.doesNotMatch(settlementHTML(g,{me:'',isHost:true,spectating:true}),/id="finished-dissolve"/);
   g.phase='roundEnd';g.players[1].online=false;
-  html=settlementHTML(g,{me:'a',isHost:true});assert.match(html,/id="next" class="primary" disabled>等待玩家重连/);assert.doesNotMatch(html,/id="finished-dissolve"/);
-  assert.doesNotMatch(settlementHTML(g,{me:'',spectating:true}),/id="next"|personal-result/);
+  html=settlementHTML(g,{me:'a',isHost:true});assert.match(html,/等待重连/);assert.doesNotMatch(html,/<button/);
+  assert.doesNotMatch(settlementHTML(g,{me:'',spectating:true}),/id="next"|personal-result|得分/);
   g.lifecycle={closeAfterRound:true,resultsConfirmed:[]};
   html=settlementHTML(g,{me:'a',isHost:true});assert.match(html,/id="confirm-results"/);assert.doesNotMatch(html,/id="next"/);
   assert.doesNotMatch(settlementHTML(g,{me:'',spectating:true}),/id="confirm-results"/);
   g.lifecycle.resultsConfirmed=['a'];assert.match(settlementHTML(g,{me:'a'}),/disabled>已确认/);
-  g.lifecycle=null;g.players[1].online=true;
-  assert.match(settlementHTML(g,{me:'a',isHost:true,pending:true}),/disabled aria-busy="true">正在提交/);
   assert.equal(settlementHTML({...g,phase:'play'},{me:'a',isHost:true}),'');
 });
 
