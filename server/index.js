@@ -1,3 +1,4 @@
+import { serverEdition } from '../src/site-policy.js';
 import http from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
@@ -6,7 +7,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { RoomRelay, RoomDirectory } from '../worker/index.js';
 import { RoomAuthority } from '../worker/room-authority.js';
 import { SecurityStore } from './security-store.js';
-import { adminAuthorized, recordSecurity, securityCall, DEFAULT_CONTACT } from '../worker/security.js';
+import { adminAuthorized, recordSecurity, securityCall, DEFAULT_CONTACT, ConnectionGuard } from '../worker/security.js';
 import { RoomStore } from './storage.js';
 import { exactAllowedOrigins, normalizeRuntimeConfig } from '../src/backend-entry.js';
 
@@ -61,7 +62,7 @@ class Context {
         this.staged = this.effects = this.followups = null;
         for (const [ws, data] of attachments) ws.data = data;
         if (this.controller instanceof RoomRelay) {
-          this.controller.authority = this.record.authority ? new RoomAuthority(clone(this.record.authority)) : null;
+          this.controller.authority = this.record.authority ? new RoomAuthority(clone(this.record.authority), Date.now(), this.controller.edition) : null;
           this.controller.pendingOwner = null;
           for (const player of this.controller.authority?.game.players || []) {
             if (player.online && !player.bot) this.controller.authority.disconnect(player.id);
@@ -90,6 +91,8 @@ class Context {
 export async function createServer(options = {}) {
   if (Number(process.versions.node.split('.')[0]) < 24) throw new Error('Wizard Friends Node backend requires Node.js 24 or later.');
   const env = options.env || process.env;
+  const edition = serverEdition(env);
+  const backendId = edition === 'cn' ? 'aliyun' : 'cloudflare';
   const host = options.host ?? env.HOST ?? '127.0.0.1';
   const port = options.port ?? Number(env.PORT || 3002);
   const publicOrigin = options.publicOrigin || env.PUBLIC_ORIGIN || `http://${host}:${port}`;
@@ -105,20 +108,19 @@ export async function createServer(options = {}) {
   const revision = build.revision || env.RELEASE_SHA || 'development';
   if (env.NODE_ENV === 'production') {
     if (!/^[a-f0-9]{40}$/.test(build.revision || '')) throw new Error('Production requires the frontend full verified build revision.');
+    if (build.siteEdition !== edition) throw Error('Frontend SITE_EDITION does not match server policy.');
     if (!(await stat(resolve(staticDir, 'index.html'))).isFile()) throw new Error('Production frontend is missing.');
   }
-  const health = { transport: 'node-websocket', version: 2, revision };
-  let backends = [{ id: 'cloudflare', origin: 'https://wizard-friends.qiuh23.workers.dev', enabled: true }, { id: 'aliyun', origin: publicOrigin, enabled: false }];
-  if (env.BACKENDS_CONFIG_JSON) { const config = JSON.parse(env.BACKENDS_CONFIG_JSON); backends = Array.isArray(config) ? config : config.backends; }
-  const runtimeConfig = normalizeRuntimeConfig({ backendId: 'aliyun', relayOrigin: '', backends }, publicOrigin);
-  if (runtimeConfig.backends.find(backend => backend.id === 'aliyun').origin !== publicOrigin) throw new Error('The Aliyun entry must match PUBLIC_ORIGIN.');
+  const health = { transport: 'node-websocket', version: 2, revision, siteEdition: edition };
+  const runtimeConfig = normalizeRuntimeConfig({ siteEdition: edition, backendId, relayOrigin: '', backends: [{ id: backendId, origin: publicOrigin, enabled: true }] }, publicOrigin, edition);
   const databasePath=options.databasePath || env.DATABASE_PATH || 'var/rooms.sqlite';
   const store = options.store || new RoomStore(databasePath);
-  const securityStore=options.securityStore || new SecurityStore(options.securityDatabasePath || env.SECURITY_DATABASE_PATH || (databasePath===':memory:'?':memory:':resolve(databasePath,'..','security.sqlite')),env);
+  const securityStore=edition === 'cn' ? null : options.securityStore || new SecurityStore(options.securityDatabasePath || env.SECURITY_DATABASE_PATH || (databasePath===':memory:'?':memory:':resolve(databasePath,'..','security.sqlite')),env);
+  const connectionGuard = new ConnectionGuard();
   const contexts = new Map();
   const directoryContext = new Context('directory', null, {}, options.onError);
-  const directory = new RoomDirectory(directoryContext); directoryContext.controller = directory;
-  const relayEnv = { SECURITY_ADMIN_TOKEN:env.SECURITY_ADMIN_TOKEN, SECURITY: {getByName:()=>securityStore}, DIRECTORY: { getByName: () => ({ fetch: async (url, init) => {
+  const directory = new RoomDirectory(directoryContext, { SITE_EDITION: edition }); directoryContext.controller = directory;
+  const relayEnv = { SITE_EDITION:edition, SECURITY_ADMIN_TOKEN:env.SECURITY_ADMIN_TOKEN, SECURITY: {getByName:()=>securityStore}, DIRECTORY: { getByName: () => ({ fetch: async (url, init) => {
     const value = JSON.parse(init.body);
     const context = contexts.get(value.room);
     context.afterCommit(() => directoryContext.execute(() => directory.fetch(new Request(url, init))));
@@ -142,6 +144,8 @@ export async function createServer(options = {}) {
   const server = http.createServer(async (request, response) => {
     try {
       const url = new URL(request.url, publicOrigin);
+      if(edition === 'cn' && url.pathname === '/api/security/health') return json(response,{ok:true,auditEnabled:false});
+      if(edition === 'cn' && (url.pathname.startsWith('/api/stationmaster/') || url.pathname === '/api/security/contact')) return json(response,{error:'Not found'},404);
       if(url.pathname.startsWith('/api/stationmaster/')) {
         const headers=new Headers();if(request.headers.authorization)headers.set('Authorization',request.headers.authorization);
         if(!(await adminAuthorized(new Request('https://local/',{headers}),env))) {await recordSecurity(relayEnv,{kind:'security.admin-denied',route:'stationmaster',ip:request.socket.remoteAddress || '',outcome:'deny'}).catch(()=>{});return json(response,{error:'Forbidden'},403);}
@@ -176,8 +180,8 @@ export async function createServer(options = {}) {
     await directory.publish();
   }).catch(() => {}), 30000);
   presenceTimer.unref();
-  const securityTimer=setInterval(()=>{try{securityStore.purge();}catch{console.error('SECURITY_CLEANUP_FAILURE');}},60000); securityTimer.unref();
-  securityStore.purge();
+  const securityTimer=setInterval(()=>{try{securityStore?.purge();}catch{console.error('SECURITY_CLEANUP_FAILURE');}},60000); securityTimer.unref();
+  securityStore?.purge();
   server.on('upgrade', async (request, socket, head) => {
     const reject = (status, message) => { socket.end(`HTTP/1.1 ${status} ${message}\r\nConnection: close\r\n\r\n`); };
     let url;
@@ -191,6 +195,7 @@ export async function createServer(options = {}) {
     }
     const match = /^\/api\/rooms\/([A-Z2-9]{8})\/ws$/.exec(url.pathname);
     if(url.pathname!=='/api/presence' && !match)return reject(404,'Not Found');
+    if(edition === 'cn' && !connectionGuard.allow(ip)) return reject(429,'Too Many Requests');
     const connection=crypto.randomUUID();
     try{await recordSecurity(relayEnv,{kind:'network.connect',room:match?.[1] || '',connection,route:match?'room-ws':'presence-ws',ip,outcome:'accept'});}catch(error){return reject(error.status || 503,'Service Unavailable');}
     for(const [id,pending] of contexts) if(!pending.record.authority && !pending.sockets.size)contexts.delete(id);
@@ -223,7 +228,7 @@ export async function createServer(options = {}) {
       for (const raw of websocket.clients) raw.terminate();
       await new Promise(resolveClose => server.close(resolveClose));
       for (const context of [...contexts.values(), directoryContext]) await context.queue;
-      websocket.close(); store.close();securityStore.close();
+      websocket.close(); store.close();securityStore?.close();
     },
   };
 }

@@ -31,6 +31,7 @@ export async function verifyDeployment({
         if (!response.ok) throw new Error(`${path} returned HTTP ${response.status}.`);
         return response.json();
       }));
+      if (info.siteEdition !== 'global' || health.siteEdition !== 'global') throw Error('Cloudflare frontend and backend must use global.');
       if (info.revision !== revision) throw new Error('The live frontend is still on a different revision.');
       if (health.transport !== 'cloudflare-websocket' || health.version !== 2) {
         throw new Error('The live Worker does not expose the expected version 2 protocol.');

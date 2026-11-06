@@ -6,14 +6,14 @@ SHA = 'a' * 40
 REQUEST = base64.b64encode(json.dumps({'commit': SHA, 'runId': 10}).encode()).decode()
 
 class Extraction(unittest.TestCase):
-    def unpack(self, name='server/index.js', kind=None, revision=SHA, extra_zip=None):
+    def unpack(self, name='server/index.js', kind=None, revision=SHA, extra_zip=None, edition="cn"):
         with tempfile.TemporaryDirectory() as folder:
             root = pathlib.Path(folder)
             payload = io.BytesIO()
             with tarfile.open(fileobj=payload, mode='w:gz') as archive:
                 files = {
-                    'release.json': json.dumps({'schema': 1, 'repository': 'qiuh23/wizard-friends', 'commit': SHA, 'runId': 10, 'platform': 'linux', 'arch': 'x64', 'nodeMajor': 24, 'stateSchema': 1}).encode(),
-                    'dist/build-info.json': json.dumps({'revision': revision}).encode(),
+                    'release.json': json.dumps({'schema': 1, 'repository': 'qiuh23/wizard-friends', 'commit': SHA, 'runId': 10, 'platform': 'linux', 'arch': 'x64', 'nodeMajor': 24, 'stateSchema': 1, 'siteEdition':edition}).encode(),
+                    'dist/build-info.json': json.dumps({'revision': revision, 'siteEdition':edition}).encode(),
                     name: b'// application code',
                 }
                 for path, body in files.items():
@@ -43,6 +43,10 @@ class Extraction(unittest.TestCase):
     def test_links_and_special_files(self):
         for kind in (tarfile.SYMTYPE, tarfile.LNKTYPE, tarfile.FIFOTYPE):
             with self.subTest(kind=kind): self.assertNotEqual(self.unpack(kind=kind), 0)
+
+    def test_edition_target(self):
+        self.assertNotEqual(self.unpack(edition="global"), 0)
+        self.assertNotEqual(self.unpack(edition=None), 0)
 
     def test_frontend_identity_and_zip_members(self):
         self.assertNotEqual(self.unpack(revision='b' * 40), 0)

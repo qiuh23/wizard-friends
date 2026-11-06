@@ -1,8 +1,18 @@
-import { adminAuthorized, recordSecurity, securityCall, applyModeration, DEFAULT_CONTACT } from './security.js';
+import { assignNickname, enforceRequest, migrateCNGame, normalizeEdition, serverEdition, CN_NICKNAMES } from '../src/site-policy.js';
+import { adminAuthorized, recordSecurity, securityCall, applyModeration, DEFAULT_CONTACT, ConnectionGuard } from './security.js';
 export { SecurityLedger } from './security.js';
 import { publicRoom, publicRooms } from '../src/public-room.js';
 import { RoomAuthority, RECONNECT_GRACE_MS } from './room-authority.js';
 
+const cnConnections = new ConnectionGuard();
+const artifactChecks = new WeakMap();
+async function checkedArtifact(env, edition, url) {
+  if (!artifactChecks.has(env)) artifactChecks.set(env, (async () => {
+    const response = await env.ASSETS.fetch(new Request(new URL('/build-info.json', url)));
+    if (!response.ok || (await response.json()).siteEdition !== edition) throw Error('Frontend and Worker SITE_EDITION mismatch');
+  })());
+  return artifactChecks.get(env);
+}
 const uuid = value => typeof value === 'string' && /^[a-f0-9-]{36}$/.test(value);
 const MAX_FRAME = 256 * 1024;
 const DIRECTORY_TTL = 90000;
@@ -28,7 +38,12 @@ function parse(raw) {
 }
 export default {
   async fetch(request, env) {
+    let edition; try { edition = normalizeEdition(env.SITE_EDITION); } catch { return json({ error: 'SITE_EDITION deployment configuration missing or invalid' }, 503); }
     const url = new URL(request.url);
+    try { await checkedArtifact(env, edition, url); } catch { return json({error:'Frontend and Worker SITE_EDITION missing or mismatched'},503); }
+    if(edition === 'cn' && url.pathname === '/api/security/health') return json({ok:true,auditEnabled:false});
+    if(edition === 'cn' && (url.pathname.startsWith('/api/stationmaster/') || url.pathname === '/api/security/contact')) return json({error:'Not found'},404);
+    if (url.pathname === '/runtime-config.json') return json({ siteEdition: edition, backendId: edition === 'cn' ? 'aliyun' : 'cloudflare', relayOrigin: '', backends: [{ id: edition === 'cn' ? 'aliyun' : 'cloudflare', origin: url.origin, enabled: true }] });
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     if(url.pathname === '/api/security/contact') return json({contact:env.REPORT_CONTACT ?? DEFAULT_CONTACT});
     if(url.pathname === '/api/security/health') { try { await securityCall(env,'health'); return json({ok:!!env.SECURITY}); } catch { return json({ok:false},503); } }
@@ -39,7 +54,7 @@ export default {
       if(admin) return env.ROOMS.getByName(admin[1]).fetch(new Request(`https://room/internal/stationmaster/${admin[1]}`,request));
       try { const input=await request.json(); if(!['list','hold'].includes(input.action)) return json({error:'Invalid action'},400); if(input.action==='hold' && (typeof input.reason!=='string' || !input.reason.trim() || input.reason.length>300)) return json({error:'Reason required'},400); if(input.action==='list') await recordSecurity(env,{kind:'admin.audit-access',action:'list',reason:'stationmaster'}); return json(await securityCall(env,input.action,input)); }catch{return json({error:'Security unavailable'},503);}
     }
-    if (url.pathname === '/api/health') return json({ transport: 'cloudflare-websocket', version: 2 });
+    if (url.pathname === '/api/health') return json({ transport: 'cloudflare-websocket', version: 2, siteEdition: edition });
     const origin = request.headers.get('Origin');
     const allowed = new Set([url.origin, ...(env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim())]);
     if (['localhost', '127.0.0.1'].includes(url.hostname) && origin) {
@@ -48,14 +63,14 @@ export default {
     if (origin && !allowed.has(origin)) { try{await recordSecurity(env,{kind:'security.origin-rejected',route:'api',outcome:'deny',ip:request.headers.get('CF-Connecting-IP') || ''});}catch{} return json({ error: 'Origin not allowed' }, 403); }
     if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') return json({ error: 'WebSocket required' }, 426);
     const match = /^\/api\/rooms\/([A-Z2-9]{8})\/ws$/.exec(url.pathname);
-    if (match || url.pathname==='/api/presence') { const connection=crypto.randomUUID();try{await recordSecurity(env,{kind:'network.connect',room:match?.[1] || '',connection,route:match?'room-ws':'presence-ws',ip:request.headers.get('CF-Connecting-IP') || '',outcome:'accept'});}catch(error){return json({error:'Security unavailable'},error.status || 503);}const forwarded=new Request(request);forwarded.headers.set('X-Security-Connection',connection);return match?env.ROOMS.getByName(match[1]).fetch(forwarded):env.DIRECTORY.getByName('public').fetch(forwarded); }
+    if (match || url.pathname==='/api/presence') { if(edition === 'cn' && !cnConnections.allow(request.headers.get('CF-Connecting-IP') || '')) return json({error:'Too Many Requests'},429); const connection=crypto.randomUUID();try{await recordSecurity(env,{kind:'network.connect',room:match?.[1] || '',connection,route:match?'room-ws':'presence-ws',ip:request.headers.get('CF-Connecting-IP') || '',outcome:'accept'});}catch(error){return json({error:'Security unavailable'},error.status || 503);}const forwarded=new Request(request);forwarded.headers.set('X-Security-Connection',connection);return match?env.ROOMS.getByName(match[1]).fetch(forwarded):env.DIRECTORY.getByName('public').fetch(forwarded); }
     return json({ error: 'Not found' }, 404);
   },
 };
 
 export class RoomRelay {
   constructor(ctx, env) {
-    this.ctx = ctx; this.env = env; this.queue = Promise.resolve();
+    this.ctx = ctx; this.env = env; this.edition = serverEdition(env); this.queue = Promise.resolve();
     if (typeof WebSocketRequestResponsePair !== 'undefined') ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
     this.initialized = ctx.blockConcurrencyWhile(async () => {
       const record = await ctx.storage.get('authority');
@@ -64,7 +79,7 @@ export class RoomRelay {
       // checkpoint, not at service startup. Count downtime toward retention and
       // reconnect grace instead of granting a fresh budget after every restart.
       const observedAt = Number.isFinite(record?.savedAt) ? Math.max(0, Math.min(now, record.savedAt)) : now;
-      this.authority = record ? new RoomAuthority(record, observedAt) : null;
+      this.authority = record ? new RoomAuthority(record, observedAt, this.edition) : null;
       const room=await ctx.storage.get('room');
       if(room && this.authority) applyModeration(this.authority,await securityCall(this.env,'moderation',{room}));
       if (this.authority && !this.authority.closed) {
@@ -146,7 +161,7 @@ export class RoomRelay {
         send(ws, { type: 'fatal', message: '该房间属于另一位房主，请返回首页创建新房间。' }); return this.deny(ws,'security.auth-rejected');
       }
       if (!this.authority) {
-        this.authority = new RoomAuthority();
+        this.authority = new RoomAuthority(undefined, Date.now(), this.edition);
         if (message.snapshot) {
           if (!owner) {
             send(ws, { type: 'fatal', message: '新房间必须由服务端创建牌局，不能导入未经登记的客户端牌局。' }); this.authority = null; return close(ws, 1008);
@@ -161,8 +176,9 @@ export class RoomRelay {
           // Legacy browsers were authoritative and may supply a predictable
           // stream. Preserve already-dealt cards, but seed future deals here.
           delete migrated.randomState;
+          if (this.edition === 'cn') delete migrated.cnPolicyVersion; // Browser migration cannot certify its own public text.
           this.authority.record.game = migrated;
-          this.authority = new RoomAuthority(this.authority.record);
+          this.authority = new RoomAuthority(this.authority.record, Date.now(), this.edition);
           this.authority.record.hostId = source.players[0].id;
           for (const [secret, id] of Object.entries(message.identities || {})) {
             if (uuid(secret) && source.players.some(p => p.id === id)) this.authority.record.identities[await fingerprint(secret)] = id;
@@ -185,7 +201,7 @@ export class RoomRelay {
       const spectators = new Set(this.sockets().filter(other => attachment(other).spectator).map(other => attachment(other).playerId));
       if (message.spectator && spectators.size >= 50 && !spectators.has(`spectator:${hash}`)) throw new Error('观战人数已满。');
       const identity = this.authority.join(hash, {
-        host: message.host, name: message.name || '', automaticName: message.automaticName === true || !message.name,
+        host: message.host, name: message.name || '', nicknameId: message.nicknameId, automaticName: message.automaticName === true || !message.name,
         spectator: !message.host && message.spectator === true,
       });
       if((moderation?.restricted || []).includes(identity.id)) {this.authority.disconnect(identity.id);throw Error('该成员已被站长限制。');}
@@ -194,11 +210,12 @@ export class RoomRelay {
       if (message.host) this.pendingOwner = hash;
       ws.serializeAttachment({ ...info, authenticated: true, playerId: identity.id, host: identity.host, spectator: identity.spectator, lastSeen: Date.now() });
       await this.persistAndPublish(info.room, () => {committed=true;send(ws, { type: 'ready', authority: true });});
-    } catch (error) { if(!committed){this.authority=previous?new RoomAuthority(previous):null;this.pendingOwner=null;}send(ws, { type: 'fatal', message: error.message }); await this.deny(ws,'security.auth-rejected'); }
+    } catch (error) { if(!committed){this.authority=previous?new RoomAuthority(previous, Date.now(), this.edition):null;this.pendingOwner=null;}send(ws, { type: 'fatal', message: error.message }); await this.deny(ws,'security.auth-rejected'); }
   }
   async persistAndPublish(room, committed = () => {}) {
     if (!this.authority) return;
     applyModeration(this.authority,await securityCall(this.env,'moderation',{room}));
+    this.authority.enforcePolicy();
     const now = Date.now();
     this.authority.game.chat=(this.authority.game.chat || []).filter(message=>message.time>now-7*86400000);
     this.authority.game.publicEvents=(this.authority.game.publicEvents || []).filter(event=>event.time>now-7*86400000);
@@ -270,7 +287,7 @@ export class RoomRelay {
           if(!member) return json({error:'Member not found'},404);
           event.memberId=member.id;
           if(action==='restrict-member') state.restricted=[...new Set([...(state.restricted || []),member.id])];
-          else { event.content=member.name;state.nameRedactionAt=Date.now();state.names={...(state.names || {}),[member.id]:`牌友${this.authority.game.players.indexOf(member)+1}`}; }
+          else { event.content=member.name;state.nameRedactionAt=Date.now();state.names={...(state.names || {}),[member.id]:this.edition === 'cn' ? assignNickname(member,[...this.authority.game.players,...Object.values(this.authority.game.spectatorNames || {})]).name : `牌友${this.authority.game.players.indexOf(member)+1}`}; }
         }
         if(action==='close-room') state.closed=true;
         state.updatedAt=Date.now();
@@ -299,6 +316,7 @@ export class RoomRelay {
         const requestId = data?.type === 'action' && typeof data.requestId === 'string' && /^[A-Za-z0-9._:-]{1,80}$/.test(data.requestId) ? data.requestId : null;
         try {
           if (!data || typeof data !== 'object') throw new Error('无效房间操作。');
+          enforceRequest(this.edition, data); // Before old successful receipts or any persistence/broadcast.
           if (data.type === 'leave') {
             this.remove(ws);
             if (!this.sockets().some(other => attachment(other).playerId === info.playerId)) this.authority.disconnect(info.playerId, now);
@@ -355,7 +373,8 @@ export class RoomRelay {
 }
 
 export class RoomDirectory {
-  constructor(ctx) {
+  constructor(ctx, env = {}) {
+    this.edition = serverEdition(env);
     this.ctx = ctx;
     if (typeof WebSocketRequestResponsePair !== 'undefined') ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
   }
@@ -381,7 +400,7 @@ export class RoomDirectory {
       else await this.ctx.storage.delete(key);
     }
     const count = new Set(sockets.map(ws => attachment(ws).visitor)).size;
-    const message = { type: 'directory', count, rooms: publicRooms(rooms) };
+    const message = { type: 'directory', count, rooms: publicRooms(rooms).filter(room => this.edition !== 'cn' || CN_NICKNAMES.includes(room.hostName)) };
     for (const ws of sockets) send(ws, message);
     if (rooms.length) await this.ctx.storage.setAlarm(Date.now() + 30000);
   }

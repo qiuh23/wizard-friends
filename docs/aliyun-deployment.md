@@ -1,3 +1,5 @@
+> **2026-11-06 方案替代说明：** 本文早期关于选择服务器、跨站自动跳转、同一前端产物、国内自由昵称/聊天的描述及验收为历史记录，已被 [站点隔离与发布](site-edition.md) 取代。现行国内为固定天文昵称且关闭所有玩家交流，两站入口/房间/身份独立。历史公网结果不代表本次源码已发布。
+
 # Cloudflare 与阿里云独立部署
 
 当前主机准备、线上版本与尚未执行项目见 [实际状态记录](aliyun-readiness.md)。以下流程说明不能替代实际发布／验收证据。
@@ -36,6 +38,7 @@ sudo env PUBLIC_ORIGIN=http://115.29.188.62:8081 PUBLIC_PORT=8081 PORT=3002 \
 
 ```ini
 NODE_ENV=production
+SITE_EDITION=cn
 HOST=127.0.0.1
 PORT=3002
 DATABASE_PATH=/var/lib/wizard-friends/rooms.sqlite

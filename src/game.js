@@ -1,3 +1,4 @@
+import { assignNickname, enforceRequest, migrateCNGame } from './site-policy.js';
 import { createRandomStream, validRandomStream, shuffle } from './random.js';
 import { resolveName, validateName } from './player-names.js';
 import { DEFAULT_OPTIONS, RULE_CHOICES, normalizeOptions, validateOptions } from './rules-options.js';
@@ -49,9 +50,9 @@ export function winner(trick, trump, deckMode = 'standard') {
   return candidates.reduce((a, b) => a.card.rank >= b.card.rank ? a : b).player;
 }
 export const points = (bid, won) => bid === won ? 20 + won * 10 : -10 * Math.abs(bid - won);
-export function createGame() {
+export function createGame(siteEdition = 'global') {
   return {
-    phase: 'lobby', players: [], round: 0, cardsPerRound: 0, dealer: 0, turn: 0, rulesVersion: 3,
+    siteEdition, phase: 'lobby', players: [], round: 0, cardsPerRound: 0, dealer: 0, turn: 0, rulesVersion: 3,
     trump: null, reveal: null, trick: [], history: [], log: [], options: { ...DEFAULT_OPTIONS },
     randomState: createRandomStream(), events: [], eventSeq: 0, playedCards: [],
   };
@@ -74,14 +75,16 @@ export function normalizeGame(g) {
   delete g.vote;
   g.rulesVersion = 3;
   g.players.forEach(p => { p.matchWins = Number.isSafeInteger(p.matchWins) && p.matchWins >= 0 ? p.matchWins : 0; });
+  if (g.siteEdition === 'cn') migrateCNGame(g);
   return g;
 }
-export function addPlayer(g, id, name, bot = false, automatic = false) {
+export function addPlayer(g, id, name, bot = false, automatic = false, preferredNicknameId) {
   if (g.phase !== 'lobby' || g.players.length >= 6) throw new Error('房间已开始或已满员。');
   if (g.players.some(p => p.id === id)) throw new Error('玩家已在房间。');
   const automaticName = bot && (automatic || typeof name === 'string' && !name.trim());
-  const resolved = resolveName(name, g.players.map(p => p.name), { bot, automatic: automaticName });
+  const resolved = g.siteEdition === 'cn' ? '' : resolveName(name, g.players.map(p => p.name), { bot, automatic: automaticName });
   g.players.push({ id, name: resolved, automaticName, bot, ...(bot ? { botDifficulty: 'smart' } : {}), score: 0, matchWins: 0, bid: null, won: 0, hand: [], online: true });
+  if (g.siteEdition === 'cn') assignNickname(g.players.at(-1), [...g.players, ...Object.values(g.spectatorNames || {})], preferredNicknameId);
 }
 function deal(g, random) {
   g.round++;
@@ -127,6 +130,7 @@ export const TURN_MS = 45000;
 export const TURN_ENTRY_MS = 450;
 export const TRICK_REVIEW_MS = 3000;
 export function act(g, actor, action, random, now = Date.now()) {
+  enforceRequest(g.siteEdition, action);
   const phase = g.phase, turn = g.turn;
   if (g.paused === true && !['chat', 'rename'].includes(action?.type)) throw Error('房主已暂停牌局。');
   const before = { phase, turn, round: g.round, completedTricks: g.completedTricks ?? 0, history: g.history.length };
@@ -199,9 +203,9 @@ function applyAction(g, actor, action, randomSource, timedOut = false, now = Dat
   if (action.type === 'rematch') {
     if (g.phase !== 'finished') throw new Error('本局结束后才能再来一局。');
     const players = g.players.map(({ monoSuit, ...p }) => ({ ...p, score: 0, bid: null, won: 0, hand: [] }));
-    const { chat, chatSeq, eventSeq = 0, options } = g;
+    const { chat, chatSeq, eventSeq = 0, options, siteEdition, spectatorNames, cnPolicyVersion } = g;
     for (const key of Object.keys(g)) delete g[key];
-    Object.assign(g, createGame(), { players, eventSeq, options }, chat ? { chat, chatSeq } : {});
+    Object.assign(g, createGame(siteEdition), { players, eventSeq, options, spectatorNames, cnPolicyVersion }, chat ? { chat, chatSeq } : {});
     return;
   }
   if (action.type === 'next') {
@@ -319,7 +323,7 @@ export function viewFor(g, id) {
   const { players } = g;
   // Never spread authority state here: random keys, deck state, identity maps and lifecycle
   // implementation fields are private even if added by a future engine/controller version.
-  const fields = ['phase', 'round', 'cardsPerRound', 'dealer', 'turn', 'rulesVersion', 'trump',
+  const fields = ['siteEdition', 'cnPolicyVersion', 'phase', 'round', 'cardsPerRound', 'dealer', 'turn', 'rulesVersion', 'trump',
     'maxRounds', 'completedTricks', 'lastWinner', 'turnDeadline', 'spectatorCount'];
   const publicGame = Object.fromEntries(fields.filter(key => Object.hasOwn(g, key)).map(key => [key, g[key]]));
   const foresight = foresightActive(g);
@@ -345,7 +349,7 @@ export function viewFor(g, id) {
     foresightActive: foresight,
     cardsPerRound: g.cardsPerRound ?? g.round,
     players: players.map(p => {
-      const publicPlayer = Object.fromEntries(['id', 'name', 'automaticName', 'bot', 'botDifficulty', 'score', 'matchWins', 'won', 'online', 'monoSuit']
+      const publicPlayer = Object.fromEntries(['id', 'name', 'nicknameId', 'nicknameBadge', 'automaticName', 'bot', 'botDifficulty', 'score', 'matchWins', 'won', 'online', 'monoSuit']
         .filter(key => Object.hasOwn(p, key)).map(key => [key, p[key]]));
       const showHand = seated && (foresight ? p.id !== id : p.id === id);
       return { ...publicPlayer, bid: hiddenBids && p.id !== id ? null : p.bid,
@@ -374,14 +378,14 @@ export function spectatorView(g) {
   };
   // Select public fields explicitly: the host's complete game can contain identity tokens or future private data.
   return {
-    phase: visible.phase, round: number(visible.round), cardsPerRound: number(visible.cardsPerRound),
+    siteEdition: visible.siteEdition, cnPolicyVersion: visible.cnPolicyVersion, phase: visible.phase, round: number(visible.round), cardsPerRound: number(visible.cardsPerRound),
     dealer: number(visible.dealer), turn: number(visible.turn),
     trump: SUITS.includes(visible.trump) ? visible.trump : null, reveal: card(visible.reveal),
     options, maxRounds: number(visible.maxRounds), completedTricks: number(visible.completedTricks),
     lastWinner: Number.isInteger(visible.lastWinner) ? visible.lastWinner : null,
     turnDeadline: Number.isFinite(visible.turnDeadline) ? visible.turnDeadline : null,
     players: visible.players.map((player, index) => ({
-      id: typeof player.id === 'string' ? player.id : '', name: typeof player.name === 'string' ? player.name : '', automaticName: player.automaticName === true,
+      id: typeof player.id === 'string' ? player.id : '', name: typeof player.name === 'string' ? player.name : '', nicknameId: player.nicknameId, nicknameBadge: player.nicknameBadge, automaticName: player.automaticName === true,
       bot: player.bot === true, ...(player.bot ? { botDifficulty: player.botDifficulty === 'simple' ? 'simple' : 'smart' } : {}), online: player.online === true, score: number(player.score), won: number(player.won), matchWins: number(player.matchWins),
       bid: hiddenBids || !Number.isInteger(player.bid) ? null : player.bid,
       bidSubmitted: g.players[index].bidSubmitted === true || g.players[index].bid != null,

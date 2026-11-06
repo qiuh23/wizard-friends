@@ -47,6 +47,7 @@ install -o root -g root -m 0755 "$SOURCE/ci-install.sh" /usr/local/sbin/wizard-f
 if [[ ! -f /etc/wizard-friends/server.env ]]; then
   cat > /etc/wizard-friends/server.env <<EOF
 NODE_ENV=production
+SITE_EDITION=cn
 HOST=127.0.0.1
 TRUST_PROXY=1
 PORT=$PORT
@@ -54,11 +55,13 @@ DATABASE_PATH=/var/lib/wizard-friends/rooms.sqlite
 STATIC_DIR=/opt/wizard-friends/current/dist
 PUBLIC_ORIGIN=$PUBLIC_ORIGIN
 ALLOWED_ORIGINS=$LEGACY_PUBLIC_ORIGIN
-BACKENDS_CONFIG_JSON='{"backends":[{"id":"cloudflare","origin":"https://wizard-friends.qiuh23.workers.dev","enabled":true},{"id":"aliyun","origin":"$PUBLIC_ORIGIN","enabled":false}]}'
+
 EOF
   chown root:wizard /etc/wizard-friends/server.env
   chmod 0640 /etc/wizard-friends/server.env
 else
+  if grep -q '^SITE_EDITION=' /etc/wizard-friends/server.env; then grep -Fqx 'SITE_EDITION=cn' /etc/wizard-friends/server.env || { echo 'SITE_EDITION must be cn' >&2; exit 1; }; else printf '\nSITE_EDITION=cn\n' >> /etc/wizard-friends/server.env; fi
+  sed -i '/^BACKENDS_CONFIG_JSON=/d' /etc/wizard-friends/server.env
   for value in "HOST=127.0.0.1" "PORT=$PORT" "PUBLIC_ORIGIN=$PUBLIC_ORIGIN" 'DATABASE_PATH=/var/lib/wizard-friends/rooms.sqlite'; do grep -Fqx "$value" /etc/wizard-friends/server.env || { echo 'Existing Wizard config differs; preserve it and review requested ports/origin.' >&2; exit 1; }; done
 fi
 cat > /etc/systemd/system/wizard-friends.service <<'SERVICE'
@@ -97,7 +100,7 @@ install -d -o root -g root -m 0755 /var/www/wizard-friends-acme
 # replacement in the active include path after a failed syntax check.
 NGINX_TEST=$(mktemp)
 trap 'rm -f -- "$NGINX_TEST" /etc/nginx/sites-available/wizard-friends.next' EXIT
-printf 'pid /run/wizard-nginx-prepare-test.pid; events {} http { include /etc/nginx/mime.types; include /etc/nginx/conf.d/game-network-log.conf; include /etc/nginx/sites-available/wizard-friends.next; }\n' > "$NGINX_TEST"
+printf 'pid /run/wizard-nginx-prepare-test.pid; events {} http { include /etc/nginx/mime.types; include /etc/nginx/sites-available/wizard-friends.next; }\n' > "$NGINX_TEST"
 nginx -t -c "$NGINX_TEST"
 if [[ -f /etc/nginx/sites-available/wizard-friends ]]; then cp -p /etc/nginx/sites-available/wizard-friends /etc/nginx/sites-available/wizard-friends.before-prepare; fi
 mv /etc/nginx/sites-available/wizard-friends.next /etc/nginx/sites-available/wizard-friends

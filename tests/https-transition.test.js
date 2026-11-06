@@ -13,7 +13,7 @@ const domestic = 'https://wizard.magical-athlete-online.cn';
 const legacy = 'http://115.29.188.62:8081';
 const cloudflare = 'https://wizard-friends.qiuh23.workers.dev';
 const revision = 'a'.repeat(40);
-const runtime = { backendId: 'aliyun', relayOrigin: '', backends: [{ id: 'cloudflare', origin: cloudflare, enabled: true }, { id: 'aliyun', origin: domestic, enabled: true }] };
+const runtime = { siteEdition:'cn', backendId: 'aliyun', relayOrigin: '', backends: [{ id: 'aliyun', origin: domestic, enabled: true }] };
 
 test('Wizard site supports exact HTTPS on shared 443 and preserves its independent legacy listener', () => {
   const config = siteConfig({ origin: domestic, legacyOrigin: legacy });
@@ -42,7 +42,7 @@ test('offline HTTPS preparation writes a review bundle and never overwrites exis
   assert.equal(run().status, 0);
   assert.match(await readFile(join(target, 'server.env.patch'), 'utf8'), /PUBLIC_ORIGIN=https:\/\/wizard\.magical-athlete-online\.cn/);
   assert.match(await readFile(join(target, 'server.env.patch'), 'utf8'), /ALLOWED_ORIGINS=http:\/\/115\.29\.188\.62:8081/);
-  assert.equal(JSON.parse(await readFile(join(target, 'runtime-config.cloudflare.json'), 'utf8')).backends[1].origin, domestic);
+  assert.deepEqual(JSON.parse(await readFile(join(target, 'runtime-config.cloudflare.json'), 'utf8')).backends, [{id:'cloudflare',origin:'',enabled:true}]);
   const original = await readFile(join(target, 'wizard-friends.nginx.conf'), 'utf8');
   assert.notEqual(run().status, 0);
   assert.equal(await readFile(join(target, 'wizard-friends.nginx.conf'), 'utf8'), original);
@@ -54,8 +54,8 @@ test('HTTPS invitations retain pool, room, watch; old-origin sharing and recover
   assert.equal(invitationURL('ABCDEFGH', true, location, 'aliyun'), `${domestic}/?room=A-ABCDEFGH&watch=1`);
   assert.equal(invitationURL('ABCDEFGH', false, new URL(`${legacy}/?token=private`), 'aliyun'), `${legacy}/?room=A-ABCDEFGH`);
   const foreign = new URL(`${cloudflare}/?room=A-ABCDEFGH&watch=1&token=private#private`);
-  assert.equal(invitationRedirect(foreign, false, { ...config, backendId: 'cloudflare' }), `${domestic}/?room=A-ABCDEFGH&watch=1`);
-  assert.equal(invitationRedirect(foreign, true, { ...config, backendId: 'cloudflare' }), null);
+  assert.throws(() => invitationRedirect(foreign, false, { ...config, backendId: 'cloudflare' }), /此邀请不属于当前站点/);
+  assert.throws(() => invitationRedirect(foreign, true, { ...config, backendId: 'cloudflare' }), /此邀请不属于当前站点/);
   assert.equal(entryURL('https://evil.test', {}, config), null);
   await loadRuntimeConfig({ location, fetcher: async () => Response.json(runtime) });
   assert.equal(relayOrigin(legacy, location), domestic);
@@ -68,8 +68,8 @@ test('HTTPS invitations retain pool, room, watch; old-origin sharing and recover
 function fetchFixture({ config = runtime, badAsset = false, externalAsset = false } = {}) {
   return async (url, options) => {
     assert.equal(options.redirect, 'error');
-    if (url.pathname === '/api/health') return Response.json({ transport: 'node-websocket', version: 2, revision });
-    if (url.pathname === '/build-info.json') return Response.json({ revision });
+    if (url.pathname === '/api/health') return Response.json({ transport: 'node-websocket', version: 2, revision, siteEdition:'cn' });
+    if (url.pathname === '/build-info.json') return Response.json({ revision, siteEdition:'cn' });
     if (url.pathname === '/runtime-config.json') return Response.json(config);
     if (url.pathname === '/') return new Response(`<script type="module" src="${externalAsset ? legacy : ''}/assets/game.js"></script><link rel="stylesheet" href="/assets/game.css">`);
     return new Response(badAsset ? '<html>fallback</html>' : '', { headers: { 'content-type': badAsset ? 'text/html' : url.pathname.endsWith('.js') ? 'application/javascript' : 'text/css' } });
@@ -83,7 +83,7 @@ const socketFactory = url => {
 };
 test('release probe checks HTTPS runtime persistence, same-origin assets and secure WebSocket', async () => {
   assert.deepEqual(await probe(domestic, revision, { fetcher: fetchFixture(), socketFactory }), { revision, origin: domestic, version: 2 });
-  await assert.rejects(probe(domestic, revision, { fetcher: fetchFixture({ config: { ...runtime, backends: [runtime.backends[0], { ...runtime.backends[1], origin: legacy }] } }), socketFactory }), /overwritten/);
+  await assert.rejects(probe(domestic, revision, { fetcher: fetchFixture({ config: { ...runtime, backends: [{ ...runtime.backends[0], origin: legacy }] } }), socketFactory }), /overwritten/);
   await assert.rejects(probe(domestic, revision, { fetcher: fetchFixture({ badAsset: true }), socketFactory }), /content type/);
   await assert.rejects(probe(domestic, revision, { fetcher: fetchFixture({ externalAsset: true }), socketFactory }), /assets must be served/);
 });

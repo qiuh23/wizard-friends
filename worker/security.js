@@ -1,3 +1,4 @@
+import { migrateCNGame } from '../src/site-policy.js';
 export const SECURITY_SCHEMA = `CREATE TABLE IF NOT EXISTS security_events (id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, expires_at INTEGER NOT NULL, event TEXT NOT NULL, held INTEGER NOT NULL DEFAULT 0); CREATE INDEX IF NOT EXISTS security_expiry ON security_events(held,expires_at); CREATE TABLE IF NOT EXISTS security_moderation (room TEXT PRIMARY KEY, state TEXT NOT NULL, expires_at INTEGER NOT NULL, held INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS security_usage (id INTEGER PRIMARY KEY CHECK(id=1), bytes INTEGER NOT NULL);
 INSERT OR IGNORE INTO security_usage(id,bytes) VALUES(1,0);
@@ -52,6 +53,7 @@ export async function adminAuthorized(request, env) {
   let difference = 0; for(let i=0;i<a.length;i++) difference |= a[i]^b[i]; return difference === 0;
 }
 export async function securityCall(env, path, value) {
+  if (env.SITE_EDITION === 'cn') return path === 'health' ? {ok:true, enabled:false} : null;
   if (!env.SECURITY) { if(env.SECURITY_TEST_NO_AUDIT===true) return null; console.error('SECURITY_BINDING_MISSING'); throw Error('必要安全记录暂不可用，请稍后重试。'); }
   const response = await env.SECURITY.getByName('security-v1').fetch(`https://security/${path}`, {method:'POST', body:JSON.stringify(value || {})});
   if (!response.ok) { console.error('SECURITY_WRITE_UNAVAILABLE', response.status); const error=Error('必要安全记录暂不可用，请稍后重试。');error.status=response.status===429?429:503;throw error; }
@@ -66,7 +68,8 @@ export function applyModeration(authority, state) {
   authority.record.requests=(authority.record.requests || []).filter(entry=>{try{const action=JSON.parse(entry.payload).action;return !(action?.type==='chat' && hiddenText.has(action.text?.trim())) && !(action?.type==='rename' && Object.keys(state.names || {}).length);}catch{return false;}});
   game.chat = (game.chat || []).filter(message => !(state.hiddenChat || []).includes(message.seq));
   game.publicEvents = (game.publicEvents || []).filter(event => !(state.hiddenEvents || []).includes(event.seq) && (!event.source?.chatSeq || !(state.hiddenChat || []).includes(event.source.chatSeq)));
-  for (const [id, name] of Object.entries(state.names || {})) {
+  const names = authority.edition === 'cn' ? Object.fromEntries(Object.keys(state.names || {}).map(id => [id, game.players.find(p => p.id === id)?.name || '天狼星'])) : state.names || {};
+  for (const [id, name] of Object.entries(names)) {
     const player=game.players.find(member=>member.id===id),known=new Set([player?.name,...game.chat.filter(message=>message.player===id).map(message=>message.name)].filter(Boolean));
     // Old rooms have text-only rename events; follow the bounded legacy chain.
     const events=game.publicEvents || [];
@@ -82,6 +85,7 @@ export function applyModeration(authority, state) {
   // Once per name disposition, discard those old lines rather than leave a copy.
   if(state.nameRedactionAt && (authority.record.nameRedactionAt || 0)<state.nameRedactionAt){game.log=[];game.publicEvents=(game.publicEvents || []).filter(event=>event.source || event.time>state.nameRedactionAt);authority.record.nameRedactionAt=state.nameRedactionAt;}
   for(const id of state.restricted || []) authority.disconnect(id);
+  if (authority.edition === 'cn') migrateCNGame(game);
   if (state.closed && !authority.closed) authority.close('站长已关闭房间。');
 }
 export class SecurityLedger {

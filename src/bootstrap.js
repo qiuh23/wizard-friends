@@ -14,7 +14,7 @@ loadRuntimeConfig().then(() => {
   const retry = document.createElement('button');
   retry.textContent = '重新加载'; retry.onclick = () => location.reload();
   const home = document.createElement('button');
-  home.textContent = '返回当前服务器';
+  home.textContent = '返回当前站点';
   home.onclick = () => location.assign(new URL(location.pathname, location.origin).href);
   app.replaceChildren(text, retry, home);
 });

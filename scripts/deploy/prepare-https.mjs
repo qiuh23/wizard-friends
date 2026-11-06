@@ -13,14 +13,15 @@ await mkdir(directory);
 await writeFile(resolve(directory, 'wizard-friends.nginx.conf'), renderSite(config));
 await writeFile(resolve(directory, 'wizard-friends-acme.nginx.conf'), renderAcmeSite(config));
 await writeFile(resolve(directory, 'wizard-friends-nginx-renewal.sh'), '#!/usr/bin/env bash\nset -euo pipefail\n/usr/sbin/nginx -t\n/bin/systemctl reload nginx\n');
-const backends = [{ id: 'cloudflare', origin: 'https://wizard-friends.qiuh23.workers.dev', enabled: true }, { id: 'aliyun', origin: config.origin, enabled: true }];
+const backends = [{ id: 'aliyun', origin: config.origin, enabled: true }];
 await writeFile(resolve(directory, 'server.env.patch'), `# Merge these public settings into the existing root-managed env after TLS verification.
 # Preserve DATABASE_PATH, STATIC_DIR, HOST, PORT and any other existing settings.
+SITE_EDITION=cn
 PUBLIC_ORIGIN=${config.origin}
 ALLOWED_ORIGINS=${config.legacy?.origin || ''}
-BACKENDS_CONFIG_JSON='${JSON.stringify({ backends })}'
+# Remove obsolete BACKENDS_CONFIG_JSON; the server exposes only its own entry.
 `);
-await writeFile(resolve(directory, 'runtime-config.cloudflare.json'), JSON.stringify({ backendId: 'cloudflare', relayOrigin: null, backends: [{ ...backends[0], origin: '' }, backends[1]] }, null, 2) + '\n');
+await writeFile(resolve(directory, 'runtime-config.cloudflare.json'), JSON.stringify({ siteEdition: 'global', backendId: 'cloudflare', relayOrigin: '', backends: [{ id: 'cloudflare', origin: '', enabled: true }] }, null, 2) + '\n');
 await writeFile(resolve(directory, 'README.txt'), `REVIEW ONLY — no online operation performed.
 Public origin: ${config.origin}
 Legacy origin remains served: ${config.legacy?.origin || '(none)'}

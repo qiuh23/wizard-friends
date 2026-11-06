@@ -1,3 +1,5 @@
+> **2026-11-06 方案替代说明：** 本文早期关于选择服务器、跨站自动跳转、同一前端产物、国内自由昵称/聊天的描述及验收为历史记录，已被 [站点隔离与发布](site-edition.md) 取代。现行国内为固定天文昵称且关闭所有玩家交流，两站入口/房间/身份独立。历史公网结果不代表本次源码已发布。
+
 # 2026-11-05 入口核验与邀请修复
 
 **后续授权上线阶段：** 用户后来授权实际上线并说明当前没有旧玩家需要等待迁移。正常域名可信TLS下，`https://wizard.magical-athlete-online.cn`已通过两个真人、一个AI和观众的建入房、聊天、开始对局及合法预测、身份与观众刷新专项；119请求、12条WSS101、页面错误为空，自建房已解散。两端游戏当时均为main `4f60b3a9285085536d78b207ea1b4c5675612dbd`，[Verify 41867160080](https://github.com/qiuh23/wizard-friends/actions/runs/41867160080) 与[阿里云自然发布41868194262](https://github.com/qiuh23/wizard-friends/actions/runs/41868194262)均成功。00:43:28 GitHub production公开变量`ALIYUN_PUBLIC_ORIGIN`已单项切为新HTTPS并GET回读一致。本PR从该最新main持久更新公开runtime，合并后仍分别核对两端新SHA/runtime和自然发布。

@@ -13,11 +13,11 @@ export async function probe(origin, revision, { publicOrigin = origin, fetcher =
   }));
   const [health, frontend, runtime] = endpoints;
   if (health.transport !== 'node-websocket' || health.version !== 2 || health.revision !== revision || frontend.revision !== revision) throw Error('Frontend/backend revision or protocol mismatch.');
+  if (health.siteEdition !== 'cn' || frontend.siteEdition !== 'cn' || runtime.siteEdition !== 'cn' || runtime.backends?.length !== 1) throw Error('Frontend, backend and public registry must all use cn.');
   if (runtime.backendId !== 'aliyun' || runtime.relayOrigin !== '') throw Error('Aliyun must override any compiled Cloudflare relay with its same-origin backend.');
   const domestic = runtime.backends?.find(entry => entry.id === 'aliyun');
   if (domestic?.origin !== publicOrigin || typeof domestic.enabled !== 'boolean') throw Error('Deployed Aliyun entry was overwritten or does not match the configured public origin.');
-  const cloudflare = runtime.backends?.find(entry => entry.id === 'cloudflare');
-  if (cloudflare?.origin !== 'https://wizard-friends.qiuh23.workers.dev' || !cloudflare.enabled) throw Error('The existing Cloudflare entry must be preserved.');
+
   const html = await (await read('/')).text();
   const assets = [...html.matchAll(/<(?:script|link)\b[^>]*\b(?:src|href)=["']([^"']+)["'][^>]*>/gi)].map(match => new URL(match[1], origin));
   if (!assets.some(asset => /\.js$/.test(asset.pathname))) throw Error('Built frontend script is missing.');

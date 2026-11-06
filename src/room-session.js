@@ -1,3 +1,5 @@
+import { isDomestic } from './backend-entry.js';
+import { migrateCNGame } from './site-policy.js';
 import { viewFor, spectatorView } from './game.js';
 
 export const ROOM_SESSION_KEY = 'wizard-room-session';
@@ -70,8 +72,10 @@ export function sanitizeCollectionClock(collection) {
   return {scope:collection.scope,at:collection.at,remainingMs:collection.remainingMs};
 }
 export function sanitizeClientView(source, me, spectator = false) {
+  if (isDomestic()) { migrateCNGame(source); if (source.lifecycle?.pauseReason) source.lifecycle.pauseReason = '房主主动暂停'; }
   if (spectator) return withLifecycle(spectatorView(source),source);
   const state = source;
+  if (isDomestic()) { migrateCNGame(state); if (state.lifecycle?.pauseReason) state.lifecycle.pauseReason = '房主主动暂停'; }
   const full = state.players.every(player => Array.isArray(player.hand));
   if (full) return withLifecycle(viewFor(state, me),state);
   const visible = viewFor({ ...state,
@@ -122,6 +126,7 @@ export function readRoomSession(storage, invitedRoom = '') {
     if (raw) {
       try {
         saved = JSON.parse(raw);
+        if (isDomestic()) { if (saved?.game) migrateCNGame(saved.game); if (saved?.state) {migrateCNGame(saved.state); if(saved.state.lifecycle?.pauseReason) saved.state.lifecycle.pauseReason = '房主主动暂停';} }
         // Reapply privacy rules to cached public states, including older or tampered storage.
         if (saved?.version === 1 && saved.authoritative === true) {
           const clean = {version:1,role:saved.role,room:saved.room,me:saved.me,authoritative:true};
@@ -143,7 +148,7 @@ export function readRoomSession(storage, invitedRoom = '') {
       if (!validSession(saved)) {
         storage.removeItem(ROOM_SESSION_KEY);
         saved = null;
-      } else if (saved.authoritative === true || ['guest','spectator'].includes(saved.role)) {
+      } else if (isDomestic() || saved.authoritative === true || ['guest','spectator'].includes(saved.role)) {
         // Remove private fields from historical raw caches too, not just the
         // object returned to the caller. Preserve unaccepted legacy host saves.
         try { storage.setItem(ROOM_SESSION_KEY,JSON.stringify(saved)); } catch {}
@@ -155,7 +160,7 @@ export function readRoomSession(storage, invitedRoom = '') {
         const old = JSON.parse(storage.getItem('wizard-host') || 'null');
         if (old) {
           const candidate = { ...old, version: 1, role: 'host' };
-          if (validSession(candidate)) saved = candidate;
+          if (validSession(candidate)) { if (isDomestic()) {migrateCNGame(candidate.game);storage.setItem('wizard-host',JSON.stringify(candidate));} saved = candidate; }
           else storage.removeItem('wizard-host');
         }
       } catch { storage.removeItem('wizard-host'); }
