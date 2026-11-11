@@ -76,8 +76,10 @@ body[data-game-theme="wizard"][data-screen="game"] .own-action b { font: 600 14p
 body[data-game-theme="wizard"][data-screen="game"] .own-action .follow-requirement { font: 400 14px/20px var(--ui-font); color: #e6e9de; }
 body[data-game-theme="wizard"][data-screen="game"] .control-label { font: 500 12px/14px var(--ui-font); }
 
+/* RoomSocial owns this button outside React; its legacy ID rule must yield to
+   the same tokens as the React toolbar controls, including after reattachment. */
 body[data-game-theme="wizard"][data-screen="game"] :is(.game-toolbar, .hand-tools) > .table-icon-button,
-body[data-game-theme="wizard"][data-screen="game"] .game-toolbar [data-chat-host] > .table-icon-button {
+body[data-game-theme="wizard"][data-screen="game"] #chat-toggle.table-icon-button {
   width: var(--ui-touch-size);
   min-width: var(--ui-touch-size);
   height: var(--ui-touch-size);
@@ -91,8 +93,10 @@ body[data-game-theme="wizard"][data-screen="game"] .game-toolbar [data-chat-host
   box-shadow: none;
   line-height: 1;
 }
-body[data-game-theme="wizard"][data-screen="game"] .table-icon-button[aria-expanded="true"] { background: var(--ui-control-active); border-color: var(--ui-gold); }
-body[data-game-theme="wizard"][data-screen="game"] :is(.game-toolbar, .hand-tools) .table-icon-button:hover:not(:disabled) { background: var(--ui-control-hover); border-color: #ead09899; transform: none; }
+body[data-game-theme="wizard"][data-screen="game"] .table-icon-button[aria-expanded="true"],
+body[data-game-theme="wizard"][data-screen="game"] #chat-toggle.table-icon-button[aria-expanded="true"] { background: var(--ui-control-active); border-color: var(--ui-gold); }
+body[data-game-theme="wizard"][data-screen="game"] :is(.game-toolbar, .hand-tools) .table-icon-button:hover:not(:disabled),
+body[data-game-theme="wizard"][data-screen="game"] #chat-toggle.table-icon-button:hover:not(:disabled) { background: var(--ui-control-hover); border-color: #ead09899; transform: none; }
 body[data-game-theme="wizard"][data-screen="game"] #confirm-play { border-radius: var(--ui-radius); font-family: var(--ui-font); font-weight: 650; min-height: var(--ui-touch-size); box-shadow: 0 3px 12px #04130f55; }
 body[data-game-theme="wizard"][data-screen="game"] .hand-count { font: 600 14px/20px var(--ui-font); }
 body[data-game-theme="wizard"][data-screen="game"] :is(.table-menu-panel, .table-score-panel, #room-chat) { border: 1px solid var(--ui-border); border-radius: var(--ui-radius); box-shadow: var(--ui-shadow); }

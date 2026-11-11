@@ -57,3 +57,15 @@ GAME_URL=http://127.0.0.1:3002/ node scripts/react-migration-review.mjs
 上述结果不代表远端发布、物理设备或公网长时稳定性验收。返回大厅目的地使用浏览器路由截获确认 URL，不对实际生产大厅发起联动操作。
 
 迁移前原始单测基线为 354 项。系统 Python 3.9.6 会使唯一的 `aliyun-archive.test.js` 失败：解包使用 Python 3.11 的 `hashlib.file_digest` 及较新 `tarfile` 的 `filter='data'`。同机已有 Python 3.12，直接运行 `scripts/deploy/test_archive.py` 得到 5/5 通过；无需为该环境差异修改发布代码。
+
+## 2026-11-11 · 海外聊天工具按钮统一
+
+基于已合并 React 迁移的 main `6f3733e`，修复遗留 `#chat-toggle` 高优先级样式覆盖主题的问题。海外对局聊天按钮与暂停、记分、菜单共用 `--ui-*` 的尺寸、圆角、边框、底色及展开／悬停状态。保留 RoomSocial 持有按钮和输入草稿的生命周期，不改聊天行为或国内策略。
+
+本地正式构建、Node + SQLite 服务和 Playwright CLI／Chrome 验证：
+
+- `npm run check`、`SITE_EDITION=global npm run build` 和 `SITE_EDITION=cn npm run build` 通过。
+- 海外 1440×900、390×844、844×390 中，聊天和其他三个工具按钮均为 44×44 px、14 px 圆角、4 px 内边距，计算边框／底色／文字颜色一致；按钮在视口内、中心可点击，无横向溢出。截图为 `output/playwright/chat-style-{desktop,portrait,landscape}.png`，已目视检查桌面及竖屏。
+- 海外练习房实点开关聊天、关闭后再次打开保留草稿、发送后历史显示消息且清空输入；国内首页和练习对局均无聊天／改名 DOM，固定昵称仍为只读 `OUTPUT`。两站控制台错误与警告均为 0。
+
+本次是仅 CSS 的补修，没有重跑完整多人／Worker 回归；上述原迁移记录属于此前验收。未验证实体手机、系统键盘或公网部署。
