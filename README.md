@@ -1,5 +1,7 @@
 # 巫师牌 · 好友桌
 
+界面现使用 React 19 + TypeScript，保留既有规则权威、联机协议、Three.js 场景和扇形手牌。边界与实现见 [界面迁移](docs/react-ui-migration.md)，正式入口截图和浏览器回归见 [迁移验收](docs/qa/react-migration/README.md)。
+
 2026-11-05 安全整改审查资料：[公安备案填报参考](docs/公安备案填报参考.txt) · [运行实现](docs/security-runtime.md) · [迁移、备份与回滚](docs/security-operations.md)。新增代码与实际生产部署状态分别记录，不以本地测试代替上线验收。
 
 ## 国内站与海外站

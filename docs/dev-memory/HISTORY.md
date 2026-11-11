@@ -575,3 +575,10 @@
 - 实现字素头像/短名和安全 ZWJ emoji 例外、按钮附近单预览及无界面序号、公开/秘密预测状态、无滚动条数字组及近牌接触阴影。设计取舍、测试命令、前后截图和未覆盖设备集中见 [QA](../qa/table-polish/README.md)。
 - 本地 354 单测、语法、双版构建、global Worker dry-run、两版真实联机专项通过。原通用 layout/graphics 脚本在旧预览/结算/独立场景尺寸假设上停止，未改变产品去迎合旧断言，也不宣称旧矩阵通过。
 - 尚未真实设备或 iOS Safari 验证。交付三个独立评审 PR，不合并、不部署；提交使用 [skip ci] 避免非必要远端运行。
+
+## 2026-11-11 — 正式 React + TypeScript 界面迁移
+
+- 用户明确开始正式迁移，不再新增独立样板。fetch后 main仍为5a09a918；现有4个未跟踪review文件原样保留。分支 codex/react-typescript-ui-migration。先约定types/primitives与专有文件，再由子代理并行迁移entry、table/scores/settlement、验收脚本；主代理整合store/chrome/控制器和最终构建。
+- 主界面已迁移为React19+严格TypeScript；原规则、站点策略、传输、权威和Three场景复用。修复首屏空房间生成邀请、HandMotion替换React节点导致新快照后选牌失效、非法牌原因隐藏、计分浮窗遮主操作，以及手机终局总分首屏裁切；细节见[迁移说明](../react-ui-migration.md)。
+- 最终check、354单测、31发布契约、双版构建、global Worker dry-run通过。双站共24组3D场景、两站6组窄屏终局补验；Node两站及本地DO海外分别走真实3人+观众完整5轮（网络场景2D），覆盖预测出牌、计分、终局再来、暂停、刷新与断网重连、隐私、聊天差异、返回本站大厅和解散；浏览器错误0。音乐专项通过。范围/报告/截图和环境前提集中在[QA](../qa/react-migration/README.md)。
+- 本地验收不是生产部署。真实iOS/Android、系统键盘/安全区、后台锁屏/换网、长时稳定和公网仍未验证。原依赖审计4项未升级；保留独立发布配置与main自动部署链。

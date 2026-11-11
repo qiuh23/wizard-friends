@@ -9,12 +9,13 @@ export function captureHand(hand) {
 // Keep card nodes keyed by their actual card IDs, including identical special
 // faces. Rendering a new permission-filtered view never changes card identity.
 export class HandMotion {
-  constructor(onInspect) { this.onInspect=onInspect;this.animations=new Map();this.hovered=null; }
+  constructor(onInspect, {retainNodes = true} = {}) { this.retainNodes=retainNodes;this.onInspect=onInspect;this.animations=new Map();this.hovered=null; }
   attach(hand, previous, selected) {
     this.observer?.disconnect();for(const animation of this.animations.values())animation.cancel();this.animations.clear();
     this.hand=hand;this.selected=selected;if(!hand){this.nodes=[];this.hovered=null;return;}
     const next=[...hand.querySelectorAll('[data-card]')];
-    for(const placeholder of next) {
+    // React owns element identity; in that mode previous supplies FLIP rectangles only.
+    for(const placeholder of this.retainNodes ? next : []) {
       const old=previous?.cards.get(placeholder.dataset.card)?.node;if(!old || old===placeholder)continue;
       for(const attribute of [...old.attributes])old.removeAttribute(attribute.name);
       for(const attribute of placeholder.attributes)old.setAttribute(attribute.name,attribute.value);

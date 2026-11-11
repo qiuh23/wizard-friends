@@ -1,0 +1,132 @@
+/* Semantic foundation, following Astryx's separation of base and theme tokens.
+   The existing felt, illustration, seat geometry and hand motion remain owners
+   of the game scene. These tokens describe interface chrome only. */
+:root {
+  --ui-font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --ui-text: #f7f4ec;
+  --ui-text-muted: #d2d8d3;
+  --ui-surface: rgba(20, 28, 31, .9);
+  --ui-control: rgba(20, 43, 36, .86);
+  --ui-control-hover: #31503e;
+  --ui-control-active: #2a4a3d;
+  --ui-border: rgba(255, 255, 255, .2);
+  --ui-control-border: #dfd8bf4d;
+  --ui-accent: #c6b3e8;
+  --ui-gold: #ead098;
+  --ui-focus: #fff4b8;
+  --ui-radius: 14px;
+  --ui-space: 4px;
+  --ui-space-2: calc(var(--ui-space) * 2);
+  --ui-space-3: calc(var(--ui-space) * 3);
+  --ui-touch-size: 44px;
+  --ui-shadow: 0 8px 24px rgba(0, 0, 0, .24);
+  --ui-duration: 150ms;
+}
+
+[data-game-theme="wizard"] {
+  --ui-surface: rgba(20, 24, 40, .94);
+  --ui-control: rgba(28, 33, 51, .88);
+  --ui-control-hover: #34364f;
+  --ui-control-active: #3a3c59;
+  --ui-accent: #c9b7ed;
+  --ui-gold: #ead098;
+  --gold: var(--ui-gold);
+  font-family: var(--ui-font);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+[data-game-theme="wizard"] :is(button, input, select) {
+  font-family: var(--ui-font);
+  font-variant-numeric: tabular-nums;
+}
+[data-game-theme="wizard"] button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--ui-duration) ease, border-color var(--ui-duration) ease, box-shadow var(--ui-duration) ease;
+}
+body[data-game-theme="wizard"][data-screen] :is(button, a, input, select, summary):focus-visible {
+  outline: 3px solid var(--ui-focus);
+  outline-offset: 3px;
+}
+[data-game-theme="wizard"] button:active:not(:disabled) { filter: brightness(1.12); }
+[data-game-theme="wizard"] dialog {
+  max-width: min(440px, calc(100vw - var(--ui-space-3) * 2));
+  max-height: calc(100dvh - var(--ui-space-3) * 2);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
+  overscroll-behavior: contain;
+}
+
+/* Static SVG and extension islands must not create additional flex/grid cells. */
+.icon-fragment, .control-host { display: contents; }
+[data-game-theme="wizard"] .ui-icon { stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+body[data-game-theme="wizard"][data-screen="game"] .roundbar { font-size: 14px; line-height: 22px; gap: var(--ui-space-3); }
+body[data-game-theme="wizard"][data-screen="game"] .roundbar b { font: 700 18px/22px var(--ui-font); }
+body[data-game-theme="wizard"][data-screen="game"] .roundbar > .trick-progress:nth-child(2) { font-size: 14px; }
+body[data-game-theme="wizard"][data-screen="game"] .table .trump-display .table-trump { font-size: 14px; }
+body[data-game-theme="wizard"][data-screen="game"] :is(.seat-name, .seat-name b, .own-name) { font: 600 14px/20px var(--ui-font); }
+body[data-game-theme="wizard"][data-screen="game"] .table .player .prediction { gap: 6px; }
+body[data-game-theme="wizard"][data-screen="game"] .table .player .prediction small { font: 500 14px/18px var(--ui-font); color: #e6e9de; }
+body[data-game-theme="wizard"][data-screen="game"] .table .player .prediction b { font: 700 18px/22px var(--ui-font); color: #fff1d2; }
+body[data-game-theme="wizard"][data-screen="game"] .own-metrics small { font: 500 14px/20px var(--ui-font); }
+body[data-game-theme="wizard"][data-screen="game"] .own-metrics b { font: 700 20px/24px var(--ui-font); }
+body[data-game-theme="wizard"][data-screen="game"] .own-action b { font: 600 14px/20px var(--ui-font); }
+body[data-game-theme="wizard"][data-screen="game"] .own-action .follow-requirement { font: 400 14px/20px var(--ui-font); color: #e6e9de; }
+body[data-game-theme="wizard"][data-screen="game"] .control-label { font: 500 12px/14px var(--ui-font); }
+
+body[data-game-theme="wizard"][data-screen="game"] :is(.game-toolbar, .hand-tools) > .table-icon-button,
+body[data-game-theme="wizard"][data-screen="game"] .game-toolbar [data-chat-host] > .table-icon-button {
+  width: var(--ui-touch-size);
+  min-width: var(--ui-touch-size);
+  height: var(--ui-touch-size);
+  min-height: var(--ui-touch-size);
+  padding: var(--ui-space);
+  border: 1px solid var(--ui-control-border);
+  border-radius: var(--ui-radius);
+  color: var(--ui-text);
+  background: var(--ui-control);
+  gap: 3px;
+  box-shadow: none;
+  line-height: 1;
+}
+body[data-game-theme="wizard"][data-screen="game"] .table-icon-button[aria-expanded="true"] { background: var(--ui-control-active); border-color: var(--ui-gold); }
+body[data-game-theme="wizard"][data-screen="game"] :is(.game-toolbar, .hand-tools) .table-icon-button:hover:not(:disabled) { background: var(--ui-control-hover); border-color: #ead09899; transform: none; }
+body[data-game-theme="wizard"][data-screen="game"] #confirm-play { border-radius: var(--ui-radius); font-family: var(--ui-font); font-weight: 650; min-height: var(--ui-touch-size); box-shadow: 0 3px 12px #04130f55; }
+body[data-game-theme="wizard"][data-screen="game"] .hand-count { font: 600 14px/20px var(--ui-font); }
+body[data-game-theme="wizard"][data-screen="game"] :is(.table-menu-panel, .table-score-panel, #room-chat) { border: 1px solid var(--ui-border); border-radius: var(--ui-radius); box-shadow: var(--ui-shadow); }
+body[data-game-theme="wizard"][data-screen="game"] .table-menu-panel { font: 400 14px/1.5 var(--ui-font); }
+body[data-game-theme="wizard"][data-screen="game"] .table-menu-panel :is(button, p, label, summary),
+body[data-game-theme="wizard"][data-screen="game"] .score-ledger :is(th, td) { font-size: 14px; }
+body[data-game-theme="wizard"][data-screen="game"] .table-menu-panel button { min-height: var(--ui-touch-size); }
+
+@media (max-width: 850px) and (orientation: portrait) {
+  body[data-game-theme="wizard"][data-screen="game"] .roundbar { gap: 0; line-height: 22px; }
+  body[data-game-theme="wizard"][data-screen="game"] .roundbar .trick-progress { font-size: 14px; line-height: 20px; }
+  body[data-game-theme="wizard"][data-screen="game"] .own-action { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px var(--ui-space-2); }
+  body[data-game-theme="wizard"][data-screen="game"] .own-action > span:first-child { display: contents; }
+  body[data-game-theme="wizard"][data-screen="game"] .own-action b { grid-column: 1; grid-row: 1; }
+  body[data-game-theme="wizard"][data-screen="game"] .own-action #turn-countdown { grid-column: 2; grid-row: 1; }
+  body[data-game-theme="wizard"][data-screen="game"] .own-action :is(.follow-requirement, .play-block-reason) { grid-column: 1 / -1; grid-row: 2; }
+}
+@media (prefers-reduced-motion: reduce) { :root { --ui-duration: 0ms; } }
+
+/* Popovers scroll within the free felt, above the live hand and decision dock. */
+body[data-game-theme="wizard"][data-screen="game"] .game-layout > aside,
+body[data-game-theme="wizard"][data-screen="game"] #table-menu-panel {
+  top: max(64px, calc(env(safe-area-inset-top) + 56px));
+  bottom: var(--ui-overlay-bottom, 240px);
+  height: auto;
+  max-height: calc(100dvh - 64px - var(--ui-overlay-bottom, 240px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 480px) {
+  body[data-game-theme="wizard"][data-screen="game"] .final-results table { min-width: 0; }
+  body[data-game-theme="wizard"] .final-col-rank { width: 28px; }
+  body[data-game-theme="wizard"] .final-col-bid { width: 78px; }
+  body[data-game-theme="wizard"] .final-col-delta { width: 62px; }
+  body[data-game-theme="wizard"] .final-col-total { width: 54px; }
+}
