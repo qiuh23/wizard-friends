@@ -37,6 +37,8 @@ try {
   });
   await expect(page.locator('#music-toggle')).toHaveAttribute('data-status', 'playing');
   await page.locator('#quick-settings > summary').click();
+  // The overseas entry requires a deliberate nickname before practice.
+  if (await page.locator('input#nickname').count()) await page.locator('input#nickname').fill('音乐测试');
   await page.locator('#practice').click();
   await page.locator('#start').click();
   expect(await page.evaluate(() => window.__musicContexts.length)).toBe(1);
