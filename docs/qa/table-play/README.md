@@ -1,6 +1,6 @@
 # 巫师牌：卡牌落桌表现验收
 
-2026-11-12；基于个人仓库 `qiuh23/wizard-friends` 的 main `f6864aa7f5a100827ca66749fc64d8196ef68a5e`，独立工作树、分支 `codex/review-only/table-play`。本记录对应本地实现和验收，未推送或部署。
+2026-11-12；基于个人仓库 `qiuh23/wizard-friends` 的 main `f6864aa7f5a100827ca66749fc64d8196ef68a5e`，独立工作树、分支 `codex/review-only/table-play`。本记录对应本地实现和验收；已按用户要求推送并创建 [PR #39](https://github.com/qiuh23/wizard-friends/pull/39)，未合并或部署。远端实现提交 `6e563173a0e5f7e98b706714bede2c28445c88d7` 的完整文件树与已测试的本地提交 `440749a` 一致。
 
 ## 完成的表现
 
