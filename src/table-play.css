@@ -1,0 +1,31 @@
+/* Public cards lie on the same felt plane as the home-page sample cards.
+   These DOM boxes reserve readable faces and small owner labels in both modes. */
+body[data-screen="game"][data-table-layout] .table .played-cards .played {
+  width:calc(var(--played-width,72px) * 1.14);
+  height:calc(var(--played-width,72px) * 1.5 + 34px);
+}
+body[data-screen="game"][data-table-layout] .table .played-cards .played .card {
+  top:12px;
+  transform-origin:50% 50%;
+  transform:perspective(900px) rotateX(32deg) rotateZ(var(--table-angle,0deg));
+  border:0;
+  box-shadow:0 1px 0 1px #d1be91,1px 3px 3px #020d0960!important;
+}
+body[data-screen="game"][data-table-layout] .table .played-cards .played.winner .card {
+  outline:2px solid #f2d38a;outline-offset:1px;
+}
+body[data-screen="game"][data-table-layout] .table .played-cards .played.winner::before { display:none; }
+body[data-screen="game"][data-table-layout] .table .played-cards .played > small {
+  bottom:3px;height:20px;min-height:20px;
+  background:none;border:0;border-radius:0;box-shadow:none;padding:0;
+  color:var(--player-color);text-shadow:0 1px 3px #000;gap:4px;
+}
+body[data-screen="game"][data-table-layout] .table .played-cards .played-name,
+body[data-screen="game"][data-table-layout] .table .played-cards .played.winner .played-name {
+  color:var(--player-color);font-size:12px;font-weight:500;
+}
+body[data-screen="game"][data-table-layout] .table .played-cards .played.winner .played-state {
+  display:block;color:#f2d38a;font-size:10px;line-height:16px;
+}
+body[data-screen="game"][data-table-layout] .table .played-cards .played-state::after { display:none; }
+body[data-screen="game"][data-table-layout].has-webgl .table .played-cards .played .card-contact-shadow { display:none; }

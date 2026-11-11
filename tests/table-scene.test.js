@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { loadCardFace, preloadCardFaces } from '../src/card-face.js';
 import * as THREE from 'three';
 
-test('screen-aligned played cards never project elevated black shadows onto the table',async t=>{
+test('flat played cards use a physical edge, unlit art, and the rule engine leader without an elevated shadow caster',async t=>{
   const original=globalThis.matchMedia;
   globalThis.matchMedia=()=>({matches:false});
   t.after(()=>{if(original)globalThis.matchMedia=original;else delete globalThis.matchMedia;});
@@ -14,7 +14,39 @@ test('screen-aligned played cards never project elevated black shadows onto the 
   for(const group of scene.cards.values())for(const mesh of [group.userData.face,group.userData.edge]) {
     assert.equal(mesh.castShadow,false);assert.equal(mesh.receiveShadow,false);
   }
+  for(const [id,group] of scene.cards) {
+    assert.equal(group.rotation.x,0);
+    assert.equal(group.userData.target.y,.382);
+    assert.equal(group.userData.face.rotation.x,-Math.PI/2);
+    assert.equal(group.userData.face.material.isMeshBasicMaterial,true);
+    assert.equal(group.userData.rim.visible,id==='b');
+  }
   assert.equal(scene.cards.size,2);
+});
+
+test('gold rim follows Wizard, Jester, trump, led-suit and mono ties after every play',async t=>{
+  const original=globalThis.matchMedia;
+  globalThis.matchMedia=()=>({matches:false});
+  t.after(()=>{if(original)globalThis.matchMedia=original;else delete globalThis.matchMedia;});
+  const {TableScene}=await import('../src/table-scene.js');
+  const n=(suit,rank)=>({kind:'number',suit,rank}),w={kind:'wizard'},j={kind:'jester'};
+  for(const [cards,leaders,trump,deckMode] of [
+    [[j,n('red',2),n('green',13),n('blue',1)],[0,1,1,3],'blue','standard'],
+    [[n('red',13),w,w,n('blue',13)],[0,1,1,1],'blue','standard'],
+    [[j,j,j],[0,0,0],null,'standard'],
+    [[n('red',4),n('red',9),j,n('green',13)],[0,1,1,1],null,'standard'],
+    [[n('red',4),n('blue',13),n('green',13),w],[0,1,1,3],null,'mono'],
+  ]) {
+    const scene={cards:new Map(),scene:new THREE.Scene(),mode:'game',material:TableScene.prototype.material,mesh:TableScene.prototype.mesh,face:()=>null};
+    const entries=cards.map((card,player)=>({player,card:{...card,id:`card-${player}`}}));
+    for(let count=1;count<=entries.length;count++) {
+      const trick=entries.slice(0,count);
+      TableScene.prototype.updateCards.call(scene,trick,{phase:'play',trick,trump,options:{deckMode}});
+      const highlighted=[...scene.cards.values()].filter(group=>group.userData.rim.visible);
+      assert.equal(highlighted.length,1);assert.equal(highlighted[0].userData.player,leaders[count-1]);
+      for(const group of scene.cards.values())assert.equal(group.userData.target.y,.382);
+    }
+  }
 });
 
 test('background face retry updates every existing GPU texture without another face lookup', async t => {

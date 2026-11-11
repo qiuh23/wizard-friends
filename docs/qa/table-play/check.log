@@ -1,0 +1,8 @@
+
+> wizard-friends@1.0.0 check
+> node scripts/check-syntax.mjs && npm run typecheck
+
+JavaScript syntax checks passed.
+
+> wizard-friends@1.0.0 typecheck
+> tsc --noEmit

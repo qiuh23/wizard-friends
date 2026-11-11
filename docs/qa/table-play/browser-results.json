@@ -1,0 +1,262 @@
+{
+  "cases": 38,
+  "checks": [
+    {
+      "label": "1440x900/3/3D",
+      "width": 112,
+      "cards": 3,
+      "flat": true
+    },
+    {
+      "label": "1440x900/4/3D",
+      "width": 112,
+      "cards": 4,
+      "flat": true
+    },
+    {
+      "label": "1440x900/5/3D",
+      "width": 112,
+      "cards": 5,
+      "flat": true
+    },
+    {
+      "label": "1440x900/6/3D",
+      "width": 112,
+      "cards": 6,
+      "flat": true
+    },
+    {
+      "label": "1280x720/3/3D",
+      "width": 64,
+      "cards": 3,
+      "flat": true
+    },
+    {
+      "label": "1280x720/4/3D",
+      "width": 64,
+      "cards": 4,
+      "flat": true
+    },
+    {
+      "label": "1280x720/5/3D",
+      "width": 64,
+      "cards": 5,
+      "flat": true
+    },
+    {
+      "label": "1280x720/6/3D",
+      "width": 64,
+      "cards": 6,
+      "flat": true
+    },
+    {
+      "label": "390x844/3/3D",
+      "width": 86,
+      "cards": 3,
+      "flat": true
+    },
+    {
+      "label": "390x844/4/3D",
+      "width": 86,
+      "cards": 4,
+      "flat": true
+    },
+    {
+      "label": "390x844/5/3D",
+      "width": 86,
+      "cards": 5,
+      "flat": true
+    },
+    {
+      "label": "390x844/6/3D",
+      "width": 86,
+      "cards": 6,
+      "flat": true
+    },
+    {
+      "label": "360x640/3/3D",
+      "width": 62,
+      "cards": 3,
+      "flat": true
+    },
+    {
+      "label": "360x640/4/3D",
+      "width": 62,
+      "cards": 4,
+      "flat": true
+    },
+    {
+      "label": "360x640/5/3D",
+      "width": 62,
+      "cards": 5,
+      "flat": true
+    },
+    {
+      "label": "360x640/6/3D",
+      "width": 57,
+      "cards": 6,
+      "flat": true
+    },
+    {
+      "label": "844x390/3/3D",
+      "width": 84,
+      "cards": 3,
+      "flat": true
+    },
+    {
+      "label": "844x390/4/3D",
+      "width": 84,
+      "cards": 4,
+      "flat": true
+    },
+    {
+      "label": "844x390/5/3D",
+      "width": 84,
+      "cards": 5,
+      "flat": true
+    },
+    {
+      "label": "844x390/6/3D",
+      "width": 77,
+      "cards": 6,
+      "flat": true
+    },
+    {
+      "label": "667x375/3/3D",
+      "width": 74,
+      "cards": 3,
+      "flat": true
+    },
+    {
+      "label": "667x375/4/3D",
+      "width": 74,
+      "cards": 4,
+      "flat": true
+    },
+    {
+      "label": "667x375/5/3D",
+      "width": 70,
+      "cards": 5,
+      "flat": true
+    },
+    {
+      "label": "667x375/6/3D",
+      "width": 56,
+      "cards": 6,
+      "flat": true
+    },
+    {
+      "label": "568x320/3/3D",
+      "width": 56,
+      "cards": 3,
+      "flat": true
+    },
+    {
+      "label": "568x320/4/3D",
+      "width": 56,
+      "cards": 4,
+      "flat": true
+    },
+    {
+      "label": "568x320/5/3D",
+      "width": 46,
+      "cards": 5,
+      "flat": true
+    },
+    {
+      "label": "568x320/6/3D",
+      "width": 46,
+      "cards": 6,
+      "flat": true
+    },
+    {
+      "label": "932x430/3/3D",
+      "width": 86,
+      "cards": 3,
+      "flat": true
+    },
+    {
+      "label": "932x430/4/3D",
+      "width": 86,
+      "cards": 4,
+      "flat": true
+    },
+    {
+      "label": "932x430/5/3D",
+      "width": 86,
+      "cards": 5,
+      "flat": true
+    },
+    {
+      "label": "932x430/6/3D",
+      "width": 86,
+      "cards": 6,
+      "flat": true
+    },
+    {
+      "label": "1440x900/6/fallback",
+      "width": 112,
+      "cards": 6,
+      "flat": false
+    },
+    {
+      "label": "390x844/6/fallback",
+      "width": 86,
+      "cards": 6,
+      "flat": false
+    },
+    {
+      "label": "844x390/6/fallback",
+      "width": 77,
+      "cards": 6,
+      "flat": false
+    },
+    {
+      "label": "1440x900/actual-play",
+      "width": 112,
+      "stable": true,
+      "handOrigin": true,
+      "arrival": true,
+      "pause": true,
+      "landing": true,
+      "refresh": true,
+      "collect": true
+    },
+    {
+      "label": "390x844/actual-play",
+      "width": 74,
+      "stable": true,
+      "handOrigin": true,
+      "arrival": true,
+      "pause": true,
+      "landing": true,
+      "refresh": true,
+      "collect": true
+    },
+    {
+      "label": "844x390/actual-play",
+      "width": 77,
+      "stable": true,
+      "handOrigin": true,
+      "arrival": true,
+      "pause": true,
+      "landing": true,
+      "refresh": true,
+      "collect": true
+    }
+  ],
+  "errors": [],
+  "screenshots": [
+    "output/playwright/table-play/global-6-1440x900.png",
+    "output/playwright/table-play/global-6-390x844.png",
+    "output/playwright/table-play/global-6-360x640.png",
+    "output/playwright/table-play/global-6-844x390.png",
+    "output/playwright/table-play/global-6-568x320.png",
+    "output/playwright/table-play/fallback-6-1440x900.png",
+    "output/playwright/table-play/fallback-6-390x844.png",
+    "output/playwright/table-play/fallback-6-844x390.png",
+    "output/playwright/table-play/playing-1440x900.png",
+    "output/playwright/table-play/playing-390x844.png",
+    "output/playwright/table-play/playing-844x390.png"
+  ]
+}

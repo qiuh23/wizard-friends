@@ -1,0 +1,57 @@
+{
+  "status": "passed",
+  "entry": "http://127.0.0.1:8787/",
+  "siteEdition": "global",
+  "webgl": true,
+  "fixtureClock": "Date.now fixed in fixture browser context; 45-second play budget",
+  "networkClock": "real, unchanged",
+  "networkGraphics": "2D",
+  "finishedAt": "2026-11-11T16:30:53.287Z",
+  "checks": [
+    {
+      "case": "network",
+      "clients": 3,
+      "spectator": 1,
+      "edition": "global",
+      "httpAPIRequestCount": 0,
+      "socketOrigins": [
+        "ws://127.0.0.1:8787"
+      ],
+      "verified": [
+        "create/join waiting room",
+        "host-only rules",
+        "secret bid privacy",
+        "no host authority cache",
+        "spectator privacy",
+        "pause/resume",
+        "refresh restores identity/hands/scores",
+        "network interruption reconnect preserves identity and hand",
+        "overseas chat",
+        "five quick rounds scores synchronized",
+        "automatic next trick/round",
+        "final ranking and rematch",
+        "leave/return keeps identity",
+        "same-site lobby URL without credentials",
+        "dissolve",
+        "same-origin API/WebSocket"
+      ]
+    }
+  ],
+  "screenshots": [
+    "output/playwright/react-migration/global-home-1440x900.png",
+    "output/playwright/react-migration/global-home-390x844.png",
+    "output/playwright/react-migration/global-home-844x390.png",
+    "output/playwright/react-migration/global-waiting-1440x900.png",
+    "output/playwright/react-migration/global-waiting-390x844.png",
+    "output/playwright/react-migration/global-waiting-844x390.png",
+    "output/playwright/react-migration/global-network-scores.png",
+    "output/playwright/react-migration/global-network-finished-1440x900.png",
+    "output/playwright/react-migration/global-network-finished-390x844.png",
+    "output/playwright/react-migration/global-network-finished-844x390.png"
+  ],
+  "errors": [],
+  "limits": [
+    "Browser viewport/touch simulation, not physical devices",
+    "Local transport, not production deployment or regional carrier networks"
+  ]
+}

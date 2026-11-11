@@ -1,6 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { openCardSlot, playedCardSlots, playedCardLink, tableLayoutMode, stripCardSlots, compactCardSlots, shortSeatName } from '../src/table-layout.js';
+import { openCardSlot, playedCardSlots, playedCardLink, tableLayoutMode, stripCardSlots, compactCardSlots, shortSeatName, tablePlaySlots } from '../src/table-layout.js';
+
+test('central trick reserves readable, nonoverlapping destinations for every supported seat before any play', () => {
+  for (const [width,height,strip,preferred,minimum] of [[1440,900,false,112,100],[390,844,false,86,74],[360,640,false,80,56],[844,390,true,86,62],[568,320,true,62,44]]) {
+    const area={left:10,right:width-10,top:strip?82:width>850?158:height<700?154:194,bottom:height-(strip?104:width>850?280:height<700?210:320)};
+    for(let count=3;count<=6;count++) {
+      const seats=Array.from({length:count},(_,i)=>({id:`p${i}`}));
+      const layout=tablePlaySlots(area,seats,preferred,strip);
+      assert.ok(layout,`${width}×${height}/${count}`);assert.ok(layout.width>=minimum,`${width}×${height}/${count}: ${layout.width}`);
+      assert.equal(layout.slots.size,count);
+      const boxes=[...layout.slots.values()].map(s=>s.rect);
+      for(const [i,r] of boxes.entries()) {
+        assert.ok(r.left>=area.left&&r.right<=area.right&&r.top>=area.top&&r.bottom<=area.bottom);
+        for(const b of boxes.slice(i+1))assert.ok(r.right<=b.left||r.left>=b.right||r.bottom<=b.top||r.top>=b.bottom);
+      }
+      // Slots are derived from the complete seat list, never the current trick.
+      assert.deepEqual(tablePlaySlots(area,seats,preferred,strip),layout);
+    }
+  }
+});
 
 test('container height selects the same compact mode on either side of 850px', () => {
   for (const [width,height] of [[568,320],[667,375],[844,390],[932,430],[844,300]]) assert.equal(tableLayoutMode(width,height),'strip');

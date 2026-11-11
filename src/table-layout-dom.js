@@ -1,9 +1,11 @@
 import { relativeSeat, seatPosition } from './hand-model.js';
 import { LEADING_CARD_SCALE, COMPACT_LEADING_CARD_SCALE } from './table-motion.js';
-import { tableLayoutMode, playedCardRect, playedCardSlots, playedCardLink,
-  stripCardSlots, compactCardSlots, shortSeatName } from './table-layout.js';
+import { tableLayoutMode, playedCardRect, playedCardLink, shortSeatName, tablePlaySlots } from './table-layout.js';
 
 const layouts = new WeakMap();
+// React replaces the table mount on authoritative view changes. Keep the
+// current trick's destinations across those mounts as well as ordinary redraws.
+let trickLayout = null;
 const $ = selector => document.querySelector(selector);
 const all = selector => [...document.querySelectorAll(selector)];
 function css(node, property, value) {
@@ -45,7 +47,7 @@ function sameInputs(a, b) {
  * Update the existing table's geometry, without altering game or motion time.
  * @returns {boolean} Whether table layout was recalculated.
  */
-export function updateTableLayout({ state, me, tableMotion, reducedMotion = false, drawHTMLCards, force = false }) {
+export function updateTableLayout({ state, me, tableMotion, playOrigins, reducedMotion = false, drawHTMLCards, force = false }) {
   const metrics = [$('#room-chat'), $('.action-panel'), $('.own-status')];
   const table = $('.table'), played = $('.played-cards');
   const input = table && state ? layoutInputs(table, state, me, reducedMotion, metrics) : null;
@@ -66,6 +68,7 @@ export function updateTableLayout({ state, me, tableMotion, reducedMotion = fals
   css(table, '--leader-scale', emphasis);
   tableMotion.setEmphasisScale(emphasis, { immediate: reducedMotion || !!state.lifecycle?.paused });
   const low = strip && rect.height <= 340, shortPortrait = mode === 'portrait-grid';
+  const portraitSeats = !strip && rect.width < 600;
   const expandedPortrait = rect.width <= 850 && rect.height > rect.width && document.body.classList.contains('hand-expanded');
   const self = Math.max(0, state.players.findIndex(player => player.id === me));
   const ordered = state.players.map((player, index) => ({ id: player.id, index, seat: relativeSeat(index, self, state.players.length) })).sort((a, b) => a.seat - b.seat);
@@ -76,10 +79,14 @@ export function updateTableLayout({ state, me, tableMotion, reducedMotion = fals
   const area = { left: rect.left + side, right: rect.right - rightSide,
     top: rect.top + (strip ? low ? 82 : rect.height >= 420 ? 154 : 126 : shortPortrait ? 154 : rect.width < 600 ? 194 : 158),
     bottom: rect.bottom - (strip ? low ? 88 : 104 : shortPortrait ? 210 : rect.width < 600 ? 260 : 280) };
+  // Landscape already has a narrow status dock at the left. Reserve that
+  // column, rather than letting its multiline turn prompt shrink every card.
+  // Reserve it during review too, keeping a recovered trick in the same lane.
+  if (strip) area.left = Math.max(area.left, rect.left + 164);
   const docks = all('.own-status,.hand-section,.action-panel,.hand-section.expanded > .play-confirm')
     // The expanded hand is a temporary overlay on a short landscape table.
     // Keep the public trick in its normal lane underneath it.
-    .filter(node => !(strip && node.matches('.hand-section.expanded')))
+    .filter(node => !(strip && node.matches('.hand-section.expanded,.own-status')))
     .map(node => ({ rect: node.getBoundingClientRect(), style: getComputedStyle(node) }));
   for (const dock of docks) {
     if (dock.rect.height && dock.style.display !== 'none' && dock.style.visibility !== 'hidden') area.bottom = Math.min(area.bottom, dock.rect.top - 8);
@@ -101,9 +108,9 @@ export function updateTableLayout({ state, me, tableMotion, reducedMotion = fals
   const seatWrites = ordered.map(player => {
     const node = table.querySelector('.opponents [data-player="' + player.id + '"]');
     const pos = seatPosition(player.index, self, state.players.length);
-    const rawX = foresight || shortPortrait || expandedPortrait ? side + (rect.width - side - rightSide) / opponentCount * (player.seat + (hasOwnSeat ? -.5 : .5)) : strip ? side + (rect.width - side - rightSide) / ordered.length * (player.seat + .5) : side + (rect.width - side - rightSide) * pos.x / 100;
+    const rawX = foresight || portraitSeats || expandedPortrait ? side + (rect.width - side - rightSide) / opponentCount * (player.seat + (hasOwnSeat ? -.5 : .5)) : strip ? side + (rect.width - side - rightSide) / ordered.length * (player.seat + .5) : side + (rect.width - side - rightSide) * pos.x / 100;
     const x = Math.max(side + seatWidth / 2, Math.min(rect.width - rightSide - seatWidth / 2, rawX));
-    const y = foresight ? headerBottom - rect.top + 8 + identityHeight / 2 : shortPortrait || expandedPortrait ? Math.max(110, safeTop + 94) : strip ? Math.max(low ? 84 : 92, safeTop + 76) : seatTop + (pos.y - 12) / 78 * Math.max(80, seatBottom - seatTop);
+    const y = foresight ? headerBottom - rect.top + 8 + identityHeight / 2 : portraitSeats || expandedPortrait ? Math.max(shortPortrait ? 110 : 132, safeTop + 94) : strip ? Math.max(low ? 84 : 92, safeTop + 76) : seatTop + (pos.y - 12) / 78 * Math.max(80, seatBottom - seatTop);
     return { node, x, y };
   });
   for (const { node, x, y } of seatWrites) {
@@ -111,7 +118,7 @@ export function updateTableLayout({ state, me, tableMotion, reducedMotion = fals
   }
   // Compact rows now include both numbers. Reserve their measured bottom,
   // rather than assuming an avatar-only row above the public cards.
-  if (strip || shortPortrait || expandedPortrait) {
+  if (strip || portraitSeats || expandedPortrait) {
     const seatBottoms = seatWrites.filter(({ node }) => node).map(({ node }) => node.getBoundingClientRect().bottom);
     area.top = Math.max(area.top, ...seatBottoms.map(bottom => bottom + 8));
   }
@@ -139,8 +146,15 @@ export function updateTableLayout({ state, me, tableMotion, reducedMotion = fals
       return { id: player.id, self: player.id === me, x: player.seat === 0 ? center.x : avatar ? avatar.left + avatar.width / 2 : center.x,
         y: player.seat === 0 ? area.bottom + 80 : avatar ? avatar.top + avatar.height / 2 : center.y };
     });
-    const preferredWidth = strip ? low ? 56 : 84 : rect.width < 600 ? 62 : 94;
-    const layout = strip ? stripCardSlots(area, seats, preferredWidth, emphasis) : shortPortrait || expandedPortrait ? compactCardSlots(area, seats, preferredWidth, emphasis) : playedCardSlots(area, seats, center, obstacles, preferredWidth, emphasis, 46);
+    const preferredWidth = strip ? low ? 62 : 86 : rect.width < 600 ? 86 : 112;
+    const done = ['trickEnd','roundEnd','finished'].includes(state.phase);
+    const scope = `${state.round}:${state.completedTricks + (done ? 0 : 1)}`;
+    const geometry = [rect.left,rect.top,rect.width,rect.height,mode,!!state.foresightActive,
+      document.body.classList.contains('hand-expanded'),document.body.classList.contains('hand-collapsed'),...ordered.map(p=>p.id)].join(':');
+    const previous = trickLayout;
+    const layout = previous?.scope === scope && previous.geometry === geometry ? previous.layout
+      : tablePlaySlots(area, seats, preferredWidth, strip, obstacles);
+    if (layout && state.trick.length) trickLayout = {scope,geometry,layout};
     data(played, 'layout', layout ? mode : 'unavailable');
     let links = played.querySelector('.played-links');
     if (!links) {
@@ -155,10 +169,12 @@ export function updateTableLayout({ state, me, tableMotion, reducedMotion = fals
         const slot = layout.slots.get(node.dataset.player), player = ordered.find(player => player.id === node.dataset.player);
         if (!slot) continue;
         css(node, '--play-x', `${slot.x - rect.left}px`); css(node, '--play-y', `${slot.y - rect.top}px`);
+        css(node, '--table-angle', `${slot.angle}deg`);
         css(node, '--player-color', avatars.get(player.id)?.style.getPropertyValue('--avatar-color') || '#f3ead6');
         const name = node.querySelector('.played-name'), text = shortSeatName(state.players[player.index].name, player.seat, player.id === me);
         if (name.textContent !== text) name.textContent = text;
-        if (!strip && !shortPortrait && seats.length >= 5 && player.id !== me && avatarRects.get(player.id)) linkTargets.push({ node, player });
+        // The small owner/seat label repeats the existing seat identity. No
+        // second avatar ring or crossing spokes over the central trick.
       }
     }
     // Read all established destinations before updating connection lines and
@@ -181,8 +197,11 @@ export function updateTableLayout({ state, me, tableMotion, reducedMotion = fals
   const cardRects = all('.played').map(node => ({ node, card: playedCardRect(node) }));
   for (const { node, card } of cardRects) {
     for (const [prefix, avatar] of [['from', avatarRects.get(node.dataset.player)], ['winner', winnerRect]]) {
-      css(node, `--${prefix}-${prefix === 'from' ? 'x' : 'dx'}`, `${avatar ? avatar.left + avatar.width / 2 - card.x : 0}px`);
-      css(node, `--${prefix}-${prefix === 'from' ? 'y' : 'dy'}`, `${avatar ? avatar.top + avatar.height / 2 - card.y : 0}px`);
+      const hand = prefix === 'from' && playOrigins?.get(node.dataset.cardId);
+      const origin = hand ? {x:hand.x*innerWidth,y:hand.y*innerHeight}
+        : avatar ? {x:avatar.left+avatar.width/2,y:avatar.top+avatar.height/2} : card;
+      css(node, `--${prefix}-${prefix === 'from' ? 'x' : 'dx'}`, `${origin.x-card.x}px`);
+      css(node, `--${prefix}-${prefix === 'from' ? 'y' : 'dy'}`, `${origin.y-card.y}px`);
     }
   }
   layouts.set(table, layoutInputs(table, state, me, reducedMotion, metrics));
