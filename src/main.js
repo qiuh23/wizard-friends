@@ -54,6 +54,7 @@ import './immersive-table.css';
 import './home-menu.css';
 import './visual-first.css';
 import './table-polish.css';
+import './table-play.css';
 import { bindBidControls } from './bid-controls.js';
 import { FloatingLayers, containsEvent } from './floating-layers.js';
 import { renderUI, updateUIDraft } from './ui/root.tsx';
@@ -251,6 +252,14 @@ function render() {
   const container = $('.table')?.getBoundingClientRect();
   document.body.dataset.tableLayout = tableLayoutMode(container?.width || document.documentElement.clientWidth, container?.height || window.innerHeight);
   const previousHand=captureHand($('.hand'));
+  const activeCards = new Set(state?.trick.map(play=>play.card.id) || []);
+  for (const id of handPlayOrigins.keys()) if (!activeCards.has(id)) handPlayOrigins.delete(id);
+  for (const play of state?.trick || []) {
+    const previous = previousHand?.cards.get(play.card.id)?.rect;
+    if (previous && state.players[play.player]?.id === me && !handPlayOrigins.has(play.card.id)) {
+      handPlayOrigins.set(play.card.id,{x:(previous.left+previous.width/2)/innerWidth,y:(previous.top+previous.height/2)/innerHeight});
+    }
+  }
   const scorePanel = $('#table-score-panel'), ledger = $('.score-ledger .history-scroll');
   const scoreScroll = { top: scorePanel?.scrollTop || 0, left: ledger?.scrollLeft || 0, row: ledger?.scrollTop || 0 };
   if (!state) {
@@ -454,6 +463,7 @@ function updateSocialRegions() {
 }
 // The node list changes only when a game view changes, never on an idle frame.
 let htmlCards = [], htmlLinks = null;
+const handPlayOrigins = new Map();
 const htmlFrame = frameScheduler.add(frameTime => {
   if (document.hidden) return null;
   if (trumpReveal.effect || trumpReveal.pulseAt !== null) trumpReveal.draw();
@@ -488,7 +498,8 @@ function drawHTMLCards(sample = tableMotion.snapshot()) {
     const offset = name => parseFloat(node.style.getPropertyValue(name)) || 0;
     const x = offset('--from-x') * (1 - pose.enter) + offset('--winner-dx') * pose.collect;
     const y = offset('--from-y') * (1 - pose.enter) + offset('--winner-dy') * pose.collect - pose.lift;
-    const transform = `translate(${x}px, ${y}px) scale(${pose.scale})`;
+    const angle = parseFloat(node.style.getPropertyValue('--table-angle')) || 0;
+    const transform = `translate(${x}px, ${y}px) perspective(900px) rotateX(32deg) rotateZ(${angle}deg) scale(${pose.scale})`;
     const opacity = String(pose.enter * pose.opacity);
     if(shadow) {
       shadow.style.transform=`translate(${x}px, ${y}px) scale(${pose.scale})`;
@@ -500,7 +511,7 @@ function drawHTMLCards(sample = tableMotion.snapshot()) {
   }
 }
 function updateLayoutMetrics(force = false) {
-  const changed=updateTableLayout({state,me,tableMotion,reducedMotion:motionMedia.matches,drawHTMLCards:() => htmlFrame.request(),force});
+  const changed=updateTableLayout({state,me,tableMotion,playOrigins:handPlayOrigins,reducedMotion:motionMedia.matches,drawHTMLCards:() => htmlFrame.request(),force});
   // Reuse the existing layout scheduler/observer. Details must fit above the
   // actual result dock after rotation, wrapping names or browser chrome changes.
   const protectedNodes = document.querySelectorAll('.own-status,.hand-section,.concealed-hand,.action-panel:not(.settlement-panel),.settlement-actions');

@@ -1,11 +1,11 @@
 import { TRICK_REVIEW_MS } from './game.js';
 
-export const CARD_ENTER_MS = 260;
+export const CARD_ENTER_MS = 420;
 export const CARD_COLLECT_MS = 1100;
 export const CARD_COLLECT_STAGGER_MS = 35;
 export const CARD_LABEL_FADE_MS = 140;
-export const LEADING_CARD_SCALE = 1.22;
-export const COMPACT_LEADING_CARD_SCALE = 1.15;
+export const LEADING_CARD_SCALE = 1.025;
+export const COMPACT_LEADING_CARD_SCALE = 1.015;
 const EMPHASIS_MS = 220;
 const progress = (elapsed, duration) => Math.max(0, Math.min(1, elapsed / duration));
 const smooth = value => value * value * (3 - 2 * value);
@@ -121,9 +121,11 @@ export class TableMotion {
     const enter = progress(enterMs, CARD_ENTER_MS);
     const collect = smooth(progress(collectMs ?? 0, collectDurationMs));
     const emphasis = this.emphasisAt(id, time);
-    const leadingLift = 4 * Math.max(0, Math.min(1, (emphasis - 1) / Math.max(.01, this.emphasisScale - 1)));
+    // A short airborne approach lands early, then slides the last few pixels.
+    // A leading card stays on the felt; its fine gold rim supplies emphasis.
+    const landing = Math.max(0, 1 - enter / .72);
     return { enter: 1 - (1 - enter) ** 3, collect,
-      lift: 18 * 4 * collect * (1 - collect) + leadingLift * (1 - collect),
+      lift: 18 * 4 * collect * (1 - collect) + 14 * landing * landing * (1 - collect),
       scale: (1 - .65 * collect) * (1 + (emphasis - 1) * (1 - collect)),
       opacity: 1 - smooth(progress(collect - .65, .35)),
     };

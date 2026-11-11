@@ -64,6 +64,44 @@ export function stripCardSlots(area, seats, preferredWidth, emphasis = 1.15) {
   })) };
 }
 
+// A trick belongs in the middle of the felt. Reserve the entire table's seats
+// before the first play, so neither play order nor a new leader moves a card.
+// Short landscape uses a clockwise row; elsewhere the viewer sits at the foot
+// of a small, readable circle. Opposite cards still face the local viewer.
+export function tablePlaySlots(area, seats, preferredWidth, strip = false, obstacles = []) {
+  const rings = {
+    3: [[0, .52], [-.58, -.48], [.58, -.48]],
+    4: [[0, .52], [-1, -.52], [0, -.52], [1, -.52]],
+    5: [[0, .52], [-1, .52], [-.55, -.52], [.55, -.52], [1, .52]],
+    6: [[0, .52], [-1, .52], [-1, -.52], [0, -.52], [1, -.52], [1, .52]],
+  };
+  const positions = strip ? seats.map((_, i) => [i - (seats.length - 1) / 2, 0]) : rings[seats.length];
+  if (!positions || area.bottom <= area.top || area.right <= area.left) return null;
+  const xRange = Math.max(...positions.map(p => p[0])) - Math.min(...positions.map(p => p[0]));
+  const yRange = Math.max(...positions.map(p => p[1])) - Math.min(...positions.map(p => p[1]));
+  // Perspective makes the outer landscape faces slightly wider at their near
+  // edge. Leave air for that trapezoid, including the leading card's gold rim.
+  const pitchX = strip ? 1.30 : 1.24;
+  const gapX = strip ? area.right-area.left > 600 ? 16 : area.right-area.left > 440 ? 12 : 8 : 12;
+  const maxWidth = Math.min(preferredWidth, (area.right - area.left - gapX * xRange) / (1.14 + pitchX * xRange),
+    (area.bottom - area.top - 34 - 40 * yRange) / (1.5 + 1.62 * yRange));
+  const center = { x:(area.left + area.right) / 2, y:(area.top + area.bottom) / 2 };
+  for (let width = Math.floor(maxWidth); width >= 28; width -= 2) {
+    const slotWidth = width * 1.14, height = width * 1.5 + 34;
+    for (const dy of [0, -12, 12, -24, 24]) {
+      const slots = new Map(seats.map((seat, index) => {
+        const [px, py] = positions[index];
+        const x = center.x + px * (width * pitchX + gapX), y = center.y + dy + py * (width * 1.62 + 40);
+        return [seat.id, { x, y, angle: [ -2, 3, -3, 2, -2, 3 ][index], rect: { left:x-slotWidth/2, right:x+slotWidth/2, top:y-height/2, bottom:y+height/2 } }];
+      }));
+      const boxes = [...slots.values()].map(slot => slot.rect);
+      if (boxes.every((r, i) => r.left >= area.left && r.right <= area.right && r.top >= area.top && r.bottom <= area.bottom &&
+        !obstacles.some(o => intersects(r, o)) && !boxes.slice(i + 1).some(o => intersects(r, o)))) return { width, slots };
+    }
+  }
+  return null;
+}
+
 // Include a seat number so identical initials and truncated long names remain
 // unambiguous, even when the table has only room for a short owner label.
 export function shortSeatName(name, seat, self = false) {

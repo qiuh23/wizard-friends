@@ -1,0 +1,70 @@
+vite v6.4.4 building for production...
+transforming...
+✓ 167 modules transformed.
+rendering chunks...
+computing gzip size...
+.local/table-play-cn-dist/index.html                        0.63 kB │ gzip:   0.43 kB
+.local/table-play-cn-dist/assets/red-01-C30ltNOU.svg       25.11 kB │ gzip:   5.14 kB
+.local/table-play-cn-dist/assets/red-02-CK72vot6.svg       25.57 kB │ gzip:   5.64 kB
+.local/table-play-cn-dist/assets/blue-03-WoUq21iW.svg      25.60 kB │ gzip:   5.25 kB
+.local/table-play-cn-dist/assets/red-09-CQoZQugB.svg       26.15 kB │ gzip:   5.66 kB
+.local/table-play-cn-dist/assets/blue-09-CyrReOgc.svg      26.47 kB │ gzip:   5.68 kB
+.local/table-play-cn-dist/assets/red-04-HRs3dFzG.svg       26.50 kB │ gzip:   5.86 kB
+.local/table-play-cn-dist/assets/red-10-OONTewGb.svg       26.67 kB │ gzip:   5.41 kB
+.local/table-play-cn-dist/assets/red-03-DMgs-xri.svg       29.20 kB │ gzip:   5.81 kB
+.local/table-play-cn-dist/assets/blue-05-rRfzi1nr.svg      29.57 kB │ gzip:   5.76 kB
+.local/table-play-cn-dist/assets/red-06-DyctGNSU.svg       29.69 kB │ gzip:   6.02 kB
+.local/table-play-cn-dist/assets/blue-04-BCb7MQWi.svg      30.24 kB │ gzip:   5.65 kB
+.local/table-play-cn-dist/assets/red-13-Dv_BbDcV.svg       30.27 kB │ gzip:   6.62 kB
+.local/table-play-cn-dist/assets/blue-06-DTHxQMlN.svg      30.88 kB │ gzip:   6.04 kB
+.local/table-play-cn-dist/assets/blue-02-OG2_8Hgl.svg      30.93 kB │ gzip:   5.57 kB
+.local/table-play-cn-dist/assets/blue-01-BbSbTEV7.svg      31.30 kB │ gzip:   5.36 kB
+.local/table-play-cn-dist/assets/red-05-DOdWwM_5.svg       31.30 kB │ gzip:   6.34 kB
+.local/table-play-cn-dist/assets/blue-08-DuuQNNCO.svg      32.57 kB │ gzip:   5.84 kB
+.local/table-play-cn-dist/assets/blue-10-84nCF6r4.svg      35.13 kB │ gzip:   6.55 kB
+.local/table-play-cn-dist/assets/blue-12-BLaFi6N0.svg      35.27 kB │ gzip:   6.97 kB
+.local/table-play-cn-dist/assets/red-08-BQgARi_6.svg       36.20 kB │ gzip:   7.28 kB
+.local/table-play-cn-dist/assets/yellow-01-D-DDRHO6.svg    38.60 kB │ gzip:   7.98 kB
+.local/table-play-cn-dist/assets/wizard-CNtFAyzH.svg       41.37 kB │ gzip:   8.24 kB
+.local/table-play-cn-dist/assets/yellow-05-DQrJmjJO.svg    41.50 kB │ gzip:   8.27 kB
+.local/table-play-cn-dist/assets/yellow-02-BAzaYER1.svg    42.87 kB │ gzip:   8.41 kB
+.local/table-play-cn-dist/assets/red-07-RLotFkNO.svg       43.87 kB │ gzip:   8.76 kB
+.local/table-play-cn-dist/assets/jester-5Mk3Cdbj.svg       44.51 kB │ gzip:   8.38 kB
+.local/table-play-cn-dist/assets/yellow-03-DbNhoWFA.svg    45.95 kB │ gzip:   9.02 kB
+.local/table-play-cn-dist/assets/red-12-D4Mqe3kg.svg       46.89 kB │ gzip:   9.49 kB
+.local/table-play-cn-dist/assets/yellow-07-C1l9HsdW.svg    46.97 kB │ gzip:   9.08 kB
+.local/table-play-cn-dist/assets/yellow-04-sIcH-3z3.svg    47.50 kB │ gzip:   9.62 kB
+.local/table-play-cn-dist/assets/blue-11-DOl1aAuI.svg      48.96 kB │ gzip:   8.58 kB
+.local/table-play-cn-dist/assets/yellow-08-CksjOuTR.svg    48.97 kB │ gzip:   9.73 kB
+.local/table-play-cn-dist/assets/yellow-11-BNa0M6EU.svg    49.14 kB │ gzip:   9.41 kB
+.local/table-play-cn-dist/assets/red-11-CbHlRuOm.svg       49.98 kB │ gzip:   8.97 kB
+.local/table-play-cn-dist/assets/blue-07-DH1mMpsh.svg      51.10 kB │ gzip:   7.40 kB
+.local/table-play-cn-dist/assets/yellow-06-CK2stXJE.svg    51.27 kB │ gzip:   9.70 kB
+.local/table-play-cn-dist/assets/yellow-10-BS_l4rp8.svg    53.40 kB │ gzip:   9.90 kB
+.local/table-play-cn-dist/assets/yellow-09-BMp03m5K.svg    55.33 kB │ gzip:  10.43 kB
+.local/table-play-cn-dist/assets/yellow-12-DboRcn7c.svg    74.70 kB │ gzip:  11.12 kB
+.local/table-play-cn-dist/assets/blue-13-B-pJa-9m.svg      75.58 kB │ gzip:  11.35 kB
+.local/table-play-cn-dist/assets/yellow-13-otXn-9Lr.svg    75.60 kB │ gzip:  13.34 kB
+.local/table-play-cn-dist/assets/green-04-TcEUHNYs.svg     95.51 kB │ gzip:  15.76 kB
+.local/table-play-cn-dist/assets/green-01-BcBugQaA.svg     96.12 kB │ gzip:  15.96 kB
+.local/table-play-cn-dist/assets/green-03-D9KcZdsJ.svg     99.34 kB │ gzip:  16.55 kB
+.local/table-play-cn-dist/assets/green-05-uLT6poVi.svg     99.90 kB │ gzip:  16.11 kB
+.local/table-play-cn-dist/assets/green-09-EvYK7NJ_.svg    111.18 kB │ gzip:  18.97 kB
+.local/table-play-cn-dist/assets/green-10-DFxFeKw8.svg    113.90 kB │ gzip:  20.06 kB
+.local/table-play-cn-dist/assets/green-02-CVcsUuFZ.svg    116.00 kB │ gzip:  15.96 kB
+.local/table-play-cn-dist/assets/green-07-DUo7DmmO.svg    121.79 kB │ gzip:  21.55 kB
+.local/table-play-cn-dist/assets/green-06-CYbFSpZU.svg    125.48 kB │ gzip:  21.63 kB
+.local/table-play-cn-dist/assets/green-12-DRwv0lPM.svg    144.84 kB │ gzip:  26.38 kB
+.local/table-play-cn-dist/assets/green-13-B4HccT6l.svg    149.40 kB │ gzip:  27.22 kB
+.local/table-play-cn-dist/assets/green-08-h3HHosye.svg    150.55 kB │ gzip:  27.57 kB
+.local/table-play-cn-dist/assets/green-11-Dd-SEvGB.svg    210.46 kB │ gzip:  40.97 kB
+.local/table-play-cn-dist/assets/main-v3oq7CGE.css        209.72 kB │ gzip:  38.48 kB
+.local/table-play-cn-dist/assets/index-CRqLInGR.js         39.61 kB │ gzip:  14.74 kB
+.local/table-play-cn-dist/assets/main-D4HZLuvK.js         387.48 kB │ gzip: 126.75 kB
+.local/table-play-cn-dist/assets/table-scene-BtnKPtL0.js  558.72 kB │ gzip: 142.07 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 898ms

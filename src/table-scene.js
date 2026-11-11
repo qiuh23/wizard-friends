@@ -7,6 +7,8 @@ import { winner } from './game.js';
 import { frameScheduler } from './frame-scheduler.js';
 
 const motionMedia = matchMedia('(prefers-reduced-motion: reduce)');
+export const TABLE_CARD_Y = .382;
+export const TABLE_VIEW_ANGLE = 58;
 export class TableScene {
   constructor({ onInvalidate } = {}) {
     this.onInvalidate = onInvalidate;
@@ -90,7 +92,7 @@ export class TableScene {
     const woodMap = new THREE.CanvasTexture(canvas); woodMap.colorSpace = THREE.SRGBColorSpace;
     const wood = this.material('#a69c92',{ map: woodMap, roughness: .68 });
     const brass = this.material('#b99a5c',{ metalness: .7, roughness: .32 });
-    this.surround = this.mesh(new THREE.PlaneGeometry(90,90),this.material('#082b20',{roughness:.97}),0,.334,0);
+    this.surround = this.mesh(new THREE.PlaneGeometry(90,90),this.material('#082b20',{roughness:.97}),0,-.42,0);
     this.surround.rotation.x = -Math.PI / 2;
     this.surround.visible = false;
     this.tableSurface = [
@@ -139,6 +141,12 @@ export class TableScene {
     const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(positions,3));
     this.dust=new THREE.Points(geo,new THREE.PointsMaterial({color:'#e8c180',size:.025,transparent:true,opacity:.65,depthWrite:false}));
     this.scene.add(this.dust);
+    const contact = document.createElement('canvas'); contact.width = 128; contact.height = 192;
+    const ctx = contact.getContext('2d');
+    ctx.fillStyle = '#000'; ctx.shadowColor = '#000'; ctx.shadowBlur = 7;
+    ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 3;
+    ctx.beginPath(); ctx.roundRect(9, 10, 110, 168, 5); ctx.fill();
+    this.contactShadowTexture = new THREE.CanvasTexture(contact);
   }
   candle(x,z,height,brass) {
     const group = new THREE.Group(); group.position.set(x,0,z); this.scene.add(group); this.candles.push(group);
@@ -239,6 +247,8 @@ export class TableScene {
     const keys=new Set(entries.map(x=>x.card.id));
     for(const [id,group] of this.cards) if(!keys.has(id)){
       this.scene.remove(group);
+      const shadow = group.userData.shadow;
+      if (shadow) { this.scene.remove(shadow); shadow.geometry.dispose(); shadow.material.dispose(); }
       group.traverse(obj=>{obj.geometry?.dispose();if(obj.material) obj.material.dispose();});
       this.cards.delete(id);
     }
@@ -247,25 +257,32 @@ export class TableScene {
       if(!group){
         group=new THREE.Group();
         const edge=this.mesh(new THREE.BoxGeometry(1.12,.035,1.68),this.material('#d4bd87'),0,0,0,group);
-        const face=this.mesh(new THREE.PlaneGeometry(1.1,1.66),this.material('#ffffff',{map:this.face(card),roughness:.65,metalness:.08}),0,.02,0,group);
-        // Screen-aligned cards are raised for projection only. They must not
-        // cast long detached shadows onto the felt. A DOM contact shadow follows
-        // the exact same anchor and animation in both graphics modes.
+        const material = this.mode === 'hero' ? this.material('#ffffff',{map:this.face(card),roughness:.65,metalness:.08})
+          : new THREE.MeshBasicMaterial({map:this.face(card),color:'#ffffff',toneMapped:false,fog:false});
+        const face=this.mesh(new THREE.PlaneGeometry(1.1,1.66),material,0,.024,0,group);
+        // Artwork stays color-accurate under the warm scene lighting. The edge
+        // is a thin physical solid; a soft, coplanar shadow touches the felt.
         edge.castShadow=face.castShadow=false;
         edge.receiveShadow=face.receiveShadow=false;
         face.rotation.x=-Math.PI/2;
+        const rim=this.mesh(new THREE.PlaneGeometry(1.15,1.71),new THREE.MeshBasicMaterial({color:'#f2d38a',toneMapped:false,fog:false}),0,.021,0,group);
+        rim.rotation.x=-Math.PI/2; rim.castShadow=false;
+        group.userData.rim=rim;
+        if (this.contactShadowTexture && this.mode === 'game') {
+          const shadow = this.mesh(new THREE.PlaneGeometry(1.28,1.94),new THREE.MeshBasicMaterial({map:this.contactShadowTexture,transparent:true,opacity:.28,depthWrite:false}),0,.355,0);
+          shadow.rotation.x=-Math.PI/2; shadow.castShadow=false;
+          shadow.visible=this.mode==='game';
+          group.userData.shadow=shadow;
+        }
         group.position.set((i-entries.length/2)*1.1, motionMedia.matches? .43 : 2.8, 3.5);
         group.userData.face=face;group.userData.edge=edge;this.scene.add(group);this.cards.set(card.id,group);
       }
       const isWinner=state && ['trickEnd','roundEnd','finished'].includes(state.phase) && state.lastWinner===player;
       const isLeading = currentWinner === player;
-      group.userData.edge.scale.set(isLeading ? 1.05 : 1,1,isLeading ? 1.035 : 1);
-      group.userData.edge.material.color.set(isLeading ? '#ffe09a' : '#d4bd87');
-      group.userData.edge.material.emissive.set(isLeading ? '#ffcf63' : '#000000');
-      group.userData.edge.material.emissiveIntensity=isLeading ? .4 : 0;
+      group.userData.rim.visible = isLeading;
       group.userData.leading = isLeading;
       group.userData.player=player;
-      group.userData.target=new THREE.Vector3((i-(entries.length-1)/2)*(this.mode==='hero' ? 3.1 : 1.28),isWinner ? .56 : .43,this.mode==='hero' ? .65 : 1.4);
+      group.userData.target=new THREE.Vector3((i-(entries.length-1)/2)*(this.mode==='hero' ? 3.1 : 1.28),this.mode==='hero' ? .43 : TABLE_CARD_Y,this.mode==='hero' ? .65 : 1.4);
       group.userData.rotation=(i-(entries.length-1)/2)*(this.mode==='hero' ? -.14 : -.035);
       group.userData.face.material.emissive?.set(isWinner?'#9e742f':'#000000');
       if ('emissiveIntensity' in group.userData.face.material) group.userData.face.material.emissiveIntensity=isWinner ? .25 : 0;
@@ -289,16 +306,22 @@ export class TableScene {
     this.camera.aspect=width/height;
     this.camera.clearViewOffset();
     this.trump.quaternion.identity();
-    const touchTable = this.mode === 'game' && (width <= 850 || compact);
-    for (const surface of this.tableSurface) surface.visible = !touchTable;
-    // On a phone the felt is the playfield, rather than a small table model
-    // between wide strips of timber. Keep the original framed table on desktop.
-    this.tableInlay.scale.set(touchTable ? 1.45 : 1,1,touchTable && height > width ? 2.5 : 1);
+    for (const surface of this.tableSurface) surface.visible = true;
+    this.tableInlay.scale.set(1,1,1);
 
     if (this.mode === 'game') {
       const mobile = width <= 600;
-      const distance = THREE.MathUtils.clamp((mobile ? 9.6 : 11.8) / (2 * Math.tan(THREE.MathUtils.degToRad(43 / 2)) * this.camera.aspect), height <= 540 && width >= 600 ? 7.7 : 9, 34);
-      this.camera.position.set(0, distance * .68, distance * .73);
+      this.camera.fov = compact ? 32 : 43;
+      const distance = THREE.MathUtils.clamp((mobile ? 9.6 : 11.8) / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * this.camera.aspect), height <= 540 && width >= 600 ? 7.7 : 9, 34);
+      const angle = THREE.MathUtils.degToRad(TABLE_VIEW_ANGLE);
+      this.camera.position.set(0, distance * Math.sin(angle), distance * Math.cos(angle));
+      // Fit the original timber rim to each screen. The camera only changes on
+      // viewport/layout changes, never in response to a played or leading card.
+      const portrait = height > width;
+      const scaleX = portrait ? .82 : compact ? .95 : .88;
+      const scaleZ = portrait ? 2.3 : compact ? .78 : .95;
+      for (const surface of this.tableSurface) surface.scale.set(scaleX,1,scaleZ);
+      this.tableInlay.scale.set(portrait ? 1.1 : compact ? 1.15 : 1.05,1,portrait ? 2 : compact ? .75 : 1.1);
       // Actual game cards are positioned only from their persistent DOM slots
       // in alignCardSeats(); resize must not requeue them by cards played so far.
       this.trump.scale.setScalar(mobile ? 1.4 : height <= 520 ? .65 : .95);
@@ -308,6 +331,8 @@ export class TableScene {
         this.trump.position.set(0, mobile ? 1.4 : .95, mobile ? 1.1 : 1.25);
       }
     } else {
+      this.camera.fov = 43;
+      for (const surface of this.tableSurface) surface.scale.set(1,1,1);
       this.camera.position.set(0,7.3,10.2);
       if (!this.lobby) this.camera.setViewOffset(width, height, -width * (width > 700 ? .18 : .28), 0, width, height);
       else if (width < 700) this.camera.position.multiplyScalar(1.4);
@@ -329,7 +354,7 @@ export class TableScene {
     this.renderer.domElement.removeEventListener('webglcontextlost', this.onContextLost);
     this.renderer.domElement.removeEventListener('webglcontextrestored', this.onContextRestored);
     motionMedia.removeEventListener?.('change', this.onMotionChange);
-    const materials = new Set(), textures = new Set(this.textures.values());
+    const materials = new Set(), textures = new Set([...this.textures.values(), this.contactShadowTexture].filter(Boolean));
     this.scene.traverse(object => {
       object.geometry?.dispose();
       for (const material of Array.isArray(object.material) ? object.material : object.material ? [object.material] : []) materials.add(material);
@@ -408,34 +433,47 @@ export class TableScene {
       ...anchors.flatMap(({x,y,width,offsets}) => [x,y,width,...offsets])].join(':');
     if (key === this.cardLayoutKey) return;
     this.cardLayoutKey = key;
-    // Upright faces must sit completely above the felt, including the lower
-    // half. Re-project this raised center so the screen anchor stays exact.
-    const plane = new THREE.Plane(new THREE.Vector3(0,1,0),-2);
+    const plane = new THREE.Plane(new THREE.Vector3(0,1,0),-TABLE_CARD_Y);
     const ray = new THREE.Raycaster();
     const pointAt = (x,y) => {
       ray.setFromCamera(new THREE.Vector2((x-canvas.left)/canvas.width*2-1,-(y-canvas.top)/canvas.height*2+1),this.camera);
       return ray.ray.intersectPlane(plane,new THREE.Vector3());
     };
     for (const { group, x, y, width: cardWidth, offsets } of anchors) {
-      const target = pointAt(x,y); if(!target) continue;
-      group.userData.target.copy(target);
-      // Faces remain physical meshes with thickness, tilted toward the viewer
-      // only when a real DOM seat anchor exists (standalone scene is unchanged).
-      group.rotation.x=Math.atan2(this.camera.position.z,this.camera.position.y);
-      if(!group.userData.seatFace) {
-        const face=group.userData.face,previous=face.material;
-        face.material=new THREE.MeshBasicMaterial({map:previous.map,color:'#ffffff',toneMapped:false});
-        previous.dispose();group.userData.seatFace=true;
-      }
+      let target = pointAt(x,y); if(!target) continue;
+      group.rotation.x=0;
       const edge = target.clone().add(new THREE.Vector3(1.1,0,0)).project(this.camera);
-      const origin = target.clone().project(this.camera);
+      let origin = target.clone().project(this.camera);
       const width = Math.abs(edge.x-origin.x)*canvas.width/2;
-      const scale = Math.max(.1,cardWidth/Math.max(1,width));
-      group.scale.set(scale,1,scale);
-      group.userData.rotation=0;
+      let scale = Math.max(.1,cardWidth/Math.max(1,width));
+      const node = table.querySelector(`.played[data-player="${this.state.players[group.userData.player].id}"]`);
+      group.userData.rotation=THREE.MathUtils.degToRad(parseFloat(node?.style.getPropertyValue('--table-angle')) || 0);
+      // At the side of a wide phone the near corners spread outward. Fit the
+      // actual projected quadrilateral, not just the centerline, to its slot.
+      // Uniform scaling and a felt-plane intersection keep a real flat card.
+      const cos=Math.cos(group.userData.rotation),sin=Math.sin(group.userData.rotation);
+      const screen = point => {
+        point.project(this.camera);
+        return {x:canvas.left+(point.x+1)*canvas.width/2,y:canvas.top+(1-point.y)*canvas.height/2};
+      };
+      const bounds = () => {
+        const corners=[];
+        for(const cx of [-.55,.55])for(const cz of [-.83,.83])corners.push(screen(new THREE.Vector3(cx*cos+cz*sin,.024,-cx*sin+cz*cos).multiplyScalar(scale).add(target)));
+        const left=Math.min(...corners.map(p=>p.x)),right=Math.max(...corners.map(p=>p.x));
+        return {width:right-left,x:(left+right)/2,y:(Math.min(...corners.map(p=>p.y))+Math.max(...corners.map(p=>p.y)))/2};
+      };
+      for(let pass=0;pass<3;pass++) {
+        scale*=cardWidth/Math.max(1,bounds().width);
+        const box=bounds(),center=screen(target.clone());
+        target=pointAt(center.x+x-box.x,center.y+y-box.y)||target;
+      }
+      group.userData.target.copy(target);
+      group.scale.setScalar(scale);
+      origin=target.clone().project(this.camera);
       group.userData.from = pointAt(x + offsets[0], y + offsets[1]) || target;
       group.userData.collectTo = pointAt(x + offsets[2], y + offsets[3]) || target;
-      group.userData.collectLift = (pointAt(x, y - 1) || target.clone()).sub(target);
+      const raised = target.clone().add(new THREE.Vector3(0,1,0)).project(this.camera);
+      group.userData.liftPerPixel = 1 / Math.max(1, Math.abs(raised.y-origin.y)*canvas.height/2);
       group.userData.baseScale = group.scale.clone();
       if (!this.motion) group.position.copy(target);
     }
@@ -449,13 +487,23 @@ export class TableScene {
       const pose = motionMedia.matches ? { enter:1,collect:0,lift:0,opacity:1,scale:this.motion.emphasisAt(id,sample.time) } : sharedPose;
       group.position.lerpVectors(data.from, data.target, pose.enter);
       if (pose.collect) group.position.lerp(data.collectTo, pose.collect);
-      if (data.collectLift) group.position.addScaledVector(data.collectLift, pose.lift);
+      group.position.y += pose.lift * data.liftPerPixel;
       group.scale.copy(data.baseScale).multiplyScalar(pose.scale);
-      group.rotation.y = data.rotation;
+      group.rotation.y = data.rotation + (1-pose.enter)*.12;
+      group.rotation.x = (1-pose.enter)*.08;
       group.visible = pose.collect < 1;
       for (const mesh of [data.face, data.edge]) {
         mesh.material.transparent = true;
         mesh.material.opacity = pose.enter * pose.opacity;
+      }
+      data.rim.material.transparent=true;
+      data.rim.material.opacity=pose.enter*pose.opacity;
+      if (data.shadow) {
+        data.shadow.position.set(group.position.x,.355,group.position.z);
+        data.shadow.rotation.z=-group.rotation.y;
+        data.shadow.scale.setScalar(data.baseScale.x * pose.scale * (1 + pose.lift*.004));
+        data.shadow.material.opacity=.28 * pose.enter * pose.opacity / (1 + pose.lift*.035);
+        data.shadow.visible=group.visible;
       }
     }
   }

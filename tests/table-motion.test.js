@@ -119,7 +119,7 @@ test('viewport emphasis changes keep arrival timing and transfer from the interr
   assert.equal(s.motion.pose('wizard-1').scale, first.scale);
   s.advance(220);
   assert.equal(s.motion.pose('wizard-1').scale, COMPACT_LEADING_CARD_SCALE);
-  assert.equal(s.motion.pose('wizard-1').lift, 4);
+  assert.equal(s.motion.pose('wizard-1').lift, 0, 'a leading card stays on the felt');
   assert.equal(s.motion.pose('wizard-2').scale, 1);
   s.motion.sync(s.state, { leader:'wizard-2', serverNow:1330 });
   s.advance(70);
