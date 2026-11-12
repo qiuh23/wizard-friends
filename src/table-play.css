@@ -12,7 +12,7 @@ body[data-screen="game"][data-table-layout] .table .played-cards .played .card {
   box-shadow:0 1px 0 1px #d1be91,1px 3px 3px #020d0960!important;
 }
 body[data-screen="game"][data-table-layout] .table .played-cards .played.winner .card {
-  outline:2px solid #f2d38a;outline-offset:1px;
+  outline:2px solid #8eeeff;outline-offset:1px;
 }
 body[data-screen="game"][data-table-layout] .table .played-cards .played.winner::before { display:none; }
 body[data-screen="game"][data-table-layout] .table .played-cards .played > small {
@@ -25,7 +25,16 @@ body[data-screen="game"][data-table-layout] .table .played-cards .played.winner 
   color:var(--player-color);font-size:12px;font-weight:500;
 }
 body[data-screen="game"][data-table-layout] .table .played-cards .played.winner .played-state {
-  display:block;color:#f2d38a;font-size:10px;line-height:16px;
+  display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;gap:3px;
+  color:#e8fcff;background:#092c48;border:1px solid #8eeeff;border-radius:5px;
+  padding:1px 4px;white-space:nowrap;font-size:10px;font-weight:700;line-height:16px;
+  text-shadow:none;box-shadow:0 0 0 1px #031421,0 2px 4px #0009;
 }
 body[data-screen="game"][data-table-layout] .table .played-cards .played-state::after { display:none; }
 body[data-screen="game"][data-table-layout].has-webgl .table .played-cards .played .card-contact-shadow { display:none; }
+
+/* Status sits below the face, leaving its upper edge free for special-card figures. */
+body[data-screen="game"][data-table-layout] .table .played-cards .played.winner > small { bottom:-10px;overflow:visible;width:100%; }
+body[data-screen="game"][data-table-layout] .table .played-cards .played.winner .played-name { position:absolute;left:0;right:0;bottom:22px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:13px; }
+body[data-screen="game"][data-table-layout] .table .played-cards .played.winner .played-state::before { content:'◆';color:#8eeeff;font-size:9px; }
+body[data-screen="game"][data-table-layout]:is([data-phase="trickEnd"],[data-phase="roundEnd"],[data-phase="finished"]) .table .played-cards .played.winner .played-state::before { content:'✓'; }

@@ -111,7 +111,7 @@ export function TableScreen({ model }: { model: RoomModel }) {
     {done ? <Settlement model={model} /> : <section className={`action-panel bid-phase-${state.phase} ${bidAttention ? 'bid-attention' : ''} ${ownAction ? 'your-action' : ''}`}>
       {state.phase === 'play' && !player && <span id="turn-countdown" role="timer" />}
       <div className="action-title"><h3>{state.lifecycle?.paused ? '牌局已暂停' : prompt.replace('点击金边手牌出牌', '选牌并确认出牌')}</h3><small className="win-reason">{state.phase === 'bid' ? '' : followSuitHint(state, me)}</small></div>
-      {state.canBid ? <div className="bid-options" role="group" aria-label="选择预测赢墩数">{state.bids.map(value => <button key={value} className="bid" data-bid={value} aria-label={`预测赢 ${value} 墩`}>{value}</button>)}</div> : myTurn && state.phase === 'trump' && <div className="trump-options">{(SUITS as Suit[]).map(suit => <button key={suit} data-trump={suit} className={`suit-chip ${suit}`} aria-label={`选择${SUIT_NAMES[suit]}为主牌`}><Icon name={suit} />{SUIT_NAMES[suit].split(' · ')[0]}色</button>)}</div>}
+      {state.canBid ? <div className="bid-options" style={{ '--bid-columns': state.bids.length } as CSSProperties} role="group" aria-label="选择预测赢墩数">{state.bids.map(value => <button key={value} className="bid" data-bid={value} aria-label={`预测赢 ${value} 墩`}>{value}</button>)}</div> : myTurn && state.phase === 'trump' && <div className="trump-options">{(SUITS as Suit[]).map(suit => <button key={suit} data-trump={suit} className={`suit-chip ${suit}`} aria-label={`选择${SUIT_NAMES[suit]}为主牌`}><Icon name={suit} />{SUIT_NAMES[suit].split(' · ')[0]}色</button>)}</div>}
     </section>}
     {!spectating && <Hand model={model} player={player} myTurn={myTurn} />}
   </main><Scores model={model} /></div>;
