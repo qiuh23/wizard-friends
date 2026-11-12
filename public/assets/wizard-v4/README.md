@@ -5,10 +5,13 @@ Sixteen GLBs from the user-provided V9 pack (Wizard assets remain V4).
 GLBs are Y-up, use the existing table units and include their PNG textures.
 No Blender files or preview images are production dependencies.
 
-The runtime requests ten asset types: frame, felt, rune inlay, four candle
-heights, open tome, orb stand and corner plate. Corner plates share resources
-and are hidden on small/compact/low-power layouts. Six additional props remain
+The runtime requests eleven asset types: frame, felt, rune inlay, four candle
+heights, open tome, orb stand, rune lantern and corner plate. Corner plates share resources
+and are hidden on small/compact/low-power layouts. Five additional props remain
 available without being downloaded or crowded onto the table.
 
 Integration, verification and remaining browser checks:
 [`docs/qa/wizard-assets/README.md`](../../../docs/qa/wizard-assets/README.md).
+
+Crystal shell, blue core and local lantern lighting:
+[`docs/qa/wizard-orb/README.md`](../../../docs/qa/wizard-orb/README.md).
