@@ -8,10 +8,11 @@ const CANDLES = [
   ['wizard_candle_070', 'wizard_candle_070_Flame'],
   ['wizard_candle_135', 'wizard_candle_135_Flame'],
 ];
-// The remaining six library props are available, not extra downloads or clutter.
+// The remaining five library props are available, not extra downloads or clutter.
 export const TABLE_ASSETS = Object.freeze([
   'wizard_table_carved_frame', 'wizard_table_felt', 'wizard_table_rune_inlay',
   'wizard_open_tome', 'wizard_orb_stand', 'wizard_table_corner_plate',
+  'wizard_rune_lantern',
   ...CANDLES.map(([name]) => name),
 ]);
 
@@ -142,6 +143,13 @@ export class WizardTableAssets {
       if (!flame?.isMesh) throw new Error(`Missing flame mesh: ${flameName}`);
       return { wrapper: table.candles[i], visualRoot, flame };
     });
+    const lantern = clone('wizard_rune_lantern');
+    lantern.name = 'WizardLantern';
+    const lanternGlass = [];
+    lantern.traverse(object => {
+      if (object.isMesh && object.material.name.startsWith('Orb_jade')) lanternGlass.push(object);
+    });
+    if (!lanternGlass.length) throw new Error('Missing lantern glass material');
     // Validate everything before detaching a single fallback object. Wrapper
     // identity is retained for layoutDecorations, tableProps and deck picking.
     const swaps = [[table.tableInlay, inlay], [table.book, book], [table.orbStand, orbStand],
@@ -150,8 +158,11 @@ export class WizardTableAssets {
     let lighting;
     try {
       swaps.forEach(([wrapper, root]) => { wrapper.clear(); wrapper.add(root); });
+      // Reuse the back-right candle's responsive wrapper; no new seat/layout anchor.
+      lantern.position.set(-.9, 0, -.45); table.candles[3].add(lantern);
       lighting = createWizardLighting({ THREE, scene: table.scene, renderer: table.renderer,
-        candles, legacyLights: table.legacyLights, shadows: false });
+        candles, orb, lantern: { root: lantern, glass: lanternGlass },
+        legacyLights: table.legacyLights, shadows: false });
     } catch (error) {
       lighting?.dispose();
       swaps.forEach(([wrapper], i) => { wrapper.clear(); wrapper.add(...priorChildren[i]); });

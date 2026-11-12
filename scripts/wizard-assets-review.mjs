@@ -58,6 +58,14 @@ async function inspect(page) {
       cardFaces: [...scene.cards.values()].map(g => ({ type: g.userData.face.material.type,
         toneMapped: g.userData.face.material.toneMapped, fog: g.userData.face.material.fog, y: g.userData.target.y })),
       flameError: scene.assets.candles?.map((c, i) => c.flame.getWorldPosition(new THREE.Vector3()).distanceTo(scene.assetLighting.points[i].getWorldPosition(new THREE.Vector3()))),
+      orb: scene.assetLighting?.crystal && {
+        transparent: scene.orb.material.transparent, transmission: scene.orb.material.transmission,
+        depthWrite: scene.orb.material.depthWrite, core: Boolean(scene.orb.getObjectByName('OrbBlueCore')),
+        poolY: scene.assetLighting.crystal.pool.position.y,
+        sourceError: scene.orb.getWorldPosition(new THREE.Vector3()).distanceTo(scene.assetLighting.orbPoint.getWorldPosition(new THREE.Vector3())),
+        pointVisible: scene.assetLighting.orbPoint.visible,
+        lanternVisible: scene.scene.getObjectByName('WizardLantern').visible,
+      },
       legacyOff: scene.legacyLights.every(light => !light.visible), layout: document.querySelector('.table')?.dataset.layoutMode,
       overflow: document.documentElement.scrollWidth > innerWidth + 1 };
   });
@@ -69,6 +77,10 @@ try {
     expect(result.points).toBeLessThanOrEqual(height > width || result.layout === 'strip' ? 2 : 4);
     expect(result.lights).toBeLessThanOrEqual(7); expect(result.overflow).toBe(false);
     expect(Math.max(...result.flameError)).toBeLessThan(1e-6);
+    expect(result.orb).toMatchObject({ transparent: true, transmission: 0, depthWrite: false, core: true, poolY: .356 });
+    expect(result.orb.sourceError).toBeLessThan(1e-6);
+    const small = height > width || result.layout === 'strip' || width <= 600;
+    expect(result.orb.pointVisible).toBe(!small); expect(result.orb.lanternVisible).toBe(!small);
     if (count) for (const face of result.cardFaces) { expect(face.type).toBe('MeshBasicMaterial'); expect(face.toneMapped).toBe(false); expect(face.fog).toBe(false); expect(face.y).toBe(.382); }
     await page.screenshot({ path: `${out}/${count ? `${count}-players` : 'hero'}-${width}x${height}.png` });
     const repeats = [];

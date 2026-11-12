@@ -49,7 +49,7 @@ const clonedLoader = () => ({ loadAsync: async url => {
 
 test('all 16 packaged GLBs match delivered bytes and parse with real Three', async () => {
   const checksums = JSON.parse(await fs.readFile(new URL('checksums.json', directory)));
-  assert.equal(manifest.assets.length, 16); assert.equal(TABLE_ASSETS.length, 10);
+  assert.equal(manifest.assets.length, 16); assert.equal(TABLE_ASSETS.length, 11);
   for (const asset of manifest.assets) {
     const { bytes, scene } = parsed.get(asset.name);
     assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'), checksums[asset.file]);
@@ -118,8 +118,8 @@ test('404 preserves fallback and one explicit retry installs without duplicate l
     return source.loadAsync(url);
   } } });
   assert.equal(await assets.load(), false); assert.equal(table.legacyLights.every(light => light.visible), true);
-  assert.equal(calls, 10); fail = false;
-  assert.equal(await assets.load(), true); assert.equal(calls, 11);
+  assert.equal(calls, 11); fail = false;
+  assert.equal(await assets.load(), true); assert.equal(calls, 12);
   assert.equal(table.scene.children.filter(object => object.name === 'WizardLightingV4').length, 1);
   assets.dispose();
 });
@@ -144,4 +144,40 @@ test('shared texture bitmaps, geometry and materials are released only once', ()
   root.add(new THREE.Mesh(geometry, material), new THREE.Mesh(geometry, material));
   const released = disposeObjectResources([root, root]);
   disposeObjectResources([root], [map, normalMap], released); assert.equal(closed, 1);
+});
+
+test('installed crystal, lantern and warm candles share the existing light budget', async () => {
+  const table = fakeTable(), assets = new WizardTableAssets(table, { loader: clonedLoader() });
+  assert.equal(await assets.load(), true);
+  const rig = table.assetLighting;
+  const originalExposure = 1.25;
+  let state = assets.update({ width: 1440, height: 900 });
+  assert.equal(state.pointLights, 4); assert.equal(state.exposure, originalExposure);
+  assert.deepEqual(rig.points.map(p => p.visible), [true, true, false, false]);
+  assert.equal(rig.orbPoint.visible, true); assert.equal(rig.lanternPoint.visible, true);
+  assert.equal(table.orb.material.name, 'CrystalShell');
+  assert.equal(table.orb.material.transparent, true); assert.equal(table.orb.material.depthWrite, false);
+  assert.equal(table.orb.material.transmission, 0);
+  assert.ok(table.orb.getWorldPosition(new THREE.Vector3()).distanceTo(rig.orbPoint.getWorldPosition(new THREE.Vector3())) < 1e-8);
+  assert.equal(rig.crystal.pool.position.y, .356);
+  assert.ok(rig.crystal.pool.position.y < .382);
+  const lantern = table.scene.getObjectByName('WizardLantern');
+  assert.equal(lantern.visible, true);
+  assert.ok(Math.abs(lantern.getWorldPosition(new THREE.Vector3()).y - .36) < 1e-8);
+  for (const options of [{ width: 390, height: 844 }, { lowPower: true }, { compact: true }]) {
+    state = assets.update(options);
+    assert.equal(state.pointLights, 2);
+    assert.equal(rig.orbPoint.visible, false); assert.equal(rig.lanternPoint.visible, false);
+    assert.equal(lantern.visible, false); assert.equal(rig.crystal.pool.visible, true);
+  }
+  assets.update({ width: 1440, height: 900 });
+  assert.equal(lantern.visible, true); assert.equal(rig.orbPoint.visible, true);
+  table.orbStand.visible = false;
+  assert.equal(assets.update({}).pointLights, 4);
+  assert.equal(rig.crystal.pool.visible, false); assert.equal(rig.orbPoint.visible, false);
+  table.candles[3].visible = false;
+  assert.equal(assets.update({}).pointLights, 3); assert.equal(rig.lanternPoint.visible, false);
+  table.orbStand.visible = true; table.orbStand.removeFromParent();
+  assets.update({}); assert.equal(rig.crystal.pool.visible, false);
+  assets.dispose(); assert.equal(table.scene.getObjectByName('OrbTableGlow'), undefined);
 });
