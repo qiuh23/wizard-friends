@@ -181,3 +181,45 @@ test('installed crystal, lantern and warm candles share the existing light budge
   assets.update({}); assert.equal(rig.crystal.pool.visible, false);
   assets.dispose(); assert.equal(table.scene.getObjectByName('OrbTableGlow'), undefined);
 });
+
+test('actual GLB flames remain in mobile portrait/landscape viewport and feed only two grounded lights', async t => {
+  const original=globalThis.matchMedia,originalStyle=globalThis.getComputedStyle;globalThis.matchMedia=()=>({matches:false});
+  let padding={};globalThis.getComputedStyle=()=>padding;
+  t.after(()=>{if(original)globalThis.matchMedia=original;else delete globalThis.matchMedia;if(originalStyle)globalThis.getComputedStyle=originalStyle;else delete globalThis.getComputedStyle;});
+  const {TableScene}=await import('../src/table-scene.js');
+  const table=fakeTable();table.mode='game';
+  table.coins=new THREE.Group();table.deck=new THREE.Group();
+  table.tableProps=[table.book,table.orbStand,table.coins,table.deck,...table.candles]
+    .map(group=>({group,position:group.position.clone(),scale:group.scale.clone()}));
+  const assets=new WizardTableAssets(table,{loader:clonedLoader()});table.assets=assets;await assets.load();
+  for(const [width,height] of [[320,568],[390,844],[430,932],[667,275],[740,320],[844,390],[932,430]]) {
+    const compact=width>height, fov=compact?32:43;
+    padding=compact?{paddingLeft:'47px',paddingRight:'21px'}:{paddingTop:'44px',paddingBottom:'34px'};
+    const distance=THREE.MathUtils.clamp((width<=600?9.6:11.8)/(2*Math.tan(THREE.MathUtils.degToRad(fov/2))*width/height),height<=540&&width>=600?7.7:9,34);
+    table.host={closest:()=>({dataset:{layoutMode:compact?'strip':'ring'}})};
+    table.camera=new THREE.PerspectiveCamera(fov,width/height,.1,80);
+    const angle=THREE.MathUtils.degToRad(58);table.camera.position.set(0,distance*Math.sin(angle),distance*Math.cos(angle));
+    table.camera.lookAt(0,0,0);table.camera.updateProjectionMatrix();table.camera.updateMatrixWorld();
+    TableScene.prototype.layoutDecorations.call(table,width,height);
+    for(const lowPower of [false,true,false]) {
+      const summary=assets.update({width,height,compact,lowPower,reducedMotion:true});
+      assert.equal(summary.pointLights,2);assert.equal(summary.shadowPointLights,0);
+      for(const [i,c] of assets.candles.entries()) {
+        const position=c.flame.getWorldPosition(new THREE.Vector3());
+        const screen=position.clone().project(table.camera);
+        assert.ok(screen.x>-1&&screen.x<1&&screen.y>-1&&screen.y<1,`${width}x${height} flame ${i}: ${screen.toArray()}`);
+        assert.ok(Math.abs(c.visualRoot.getWorldPosition(new THREE.Vector3()).y-.36)<1e-7);
+        const point=table.assetLighting.points[i];
+        assert.ok(position.distanceTo(point.getWorldPosition(new THREE.Vector3()))<1e-7);
+        assert.equal(point.visible,i<2);assert.equal(point.intensity>0,i<2);
+        const bounds=new THREE.Box3().setFromObject(c.visualRoot);
+        for(const x of [bounds.min.x,bounds.max.x])for(const y of [bounds.min.y,bounds.max.y])for(const z of [bounds.min.z,bounds.max.z]) {
+          const p=new THREE.Vector3(x,y,z).project(table.camera),px=(p.x+1)*width/2,py=(1-p.y)*height/2;
+          assert.ok(px>=(compact?47:0)+7 && px<=width-(compact?21:0)-7,`${width}x${height} horizontal bounds ${px}`);
+          assert.ok(py>=(compact?0:44)+55 && py<=height-(compact?100:46)+1,`${width}x${height} reserved HUD/hand bounds ${py}`);
+        }
+      }
+    }
+  }
+  assets.dispose();
+});

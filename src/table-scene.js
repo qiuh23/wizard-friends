@@ -7,6 +7,7 @@ import { winner } from './game.js';
 import { frameScheduler } from './frame-scheduler.js';
 import { WizardTableAssets } from './rendering/wizard-assets.mjs';
 import { SpecialFigurines } from './rendering/special-figurines.mjs';
+import { decorationViewport } from './rendering/decoration-viewport.mjs';
 
 const motionMedia = matchMedia('(prefers-reduced-motion: reduce)');
 export const TABLE_CARD_Y = .382;
@@ -409,9 +410,11 @@ export class TableScene {
       return;
     }
     const portrait = height > width;
+    const table = this.host.closest('.table');
+    const safe = decorationViewport(width, height, typeof getComputedStyle === 'function' ? getComputedStyle(table) : {});
     const plane = new THREE.Plane(new THREE.Vector3(0,1,0),-.36), ray = new THREE.Raycaster();
     const place = (group, x, y, pixels, size) => {
-      ray.setFromCamera(new THREE.Vector2(x*2-1,1-y*2),this.camera);
+      ray.setFromCamera(new THREE.Vector2(safe.x(x)*2-1,1-safe.y(y)*2),this.camera);
       const point = ray.ray.intersectPlane(plane,new THREE.Vector3());
       if (!point) return;
       // Reuse desktop props at the outer rim, at a bounded screen size. The
@@ -430,6 +433,36 @@ export class TableScene {
     }
     if (compact) {
       for (const group of [this.book, this.deck, this.coins, this.orbStand]) group.visible = false;
+    }
+    // Elevated flames lean outward in perspective, especially in short landscape.
+    // Fit the actual visible mesh bounds, not just the ground pivot, after grounding
+    // imported assets. Keep the upper HUD and lower hand-control band unobscured.
+    this.assets?.update({ mode:this.mode, width, height, compact, lowPower:this.low,
+      reducedMotion:motionMedia.matches, paused:this.paused, time:this.animationTime || 0 });
+    const limits={left:safe.x(0)*width+8,right:safe.x(1)*width-8,
+      top:safe.y(0)*height+56,bottom:safe.y(1)*height-(compact?100:12)};
+    const box=new THREE.Box3(),part=new THREE.Box3();
+    for (const group of this.candles) for (let pass=0;pass<3;pass++) {
+      group.updateWorldMatrix(true,true);box.makeEmpty();
+      group.traverseVisible(object=>{
+        if(!object.isMesh || object.isSprite) return;
+        object.geometry.computeBoundingBox();
+        box.union(part.copy(object.geometry.boundingBox).applyMatrix4(object.matrixWorld));
+      });
+      if(box.isEmpty()) break;
+      const points=[];
+      for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z]) {
+        const p=new THREE.Vector3(x,y,z).project(this.camera);points.push({x:(p.x+1)*width/2,y:(1-p.y)*height/2});
+      }
+      const left=Math.min(...points.map(p=>p.x)),right=Math.max(...points.map(p=>p.x));
+      const top=Math.min(...points.map(p=>p.y)),bottom=Math.max(...points.map(p=>p.y));
+      const dx=left<limits.left?limits.left-left:right>limits.right?limits.right-right:0;
+      const dy=top<limits.top?limits.top-top:bottom>limits.bottom?limits.bottom-bottom:0;
+      if(Math.abs(dx)+Math.abs(dy)<.25) break;
+      const origin=new THREE.Vector3(group.position.x,.36,group.position.z).project(this.camera);
+      ray.setFromCamera(new THREE.Vector2(origin.x+dx*2/width,origin.y-dy*2/height),this.camera);
+      const target=ray.ray.intersectPlane(plane,new THREE.Vector3());
+      if(target) { group.position.x=target.x;group.position.z=target.z; }
     }
   }
   // Keep Three.js faces and their accessible DOM labels at the same stable seat.
