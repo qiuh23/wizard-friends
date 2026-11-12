@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SpecialFigurines } from '../src/rendering/special-figurines.mjs';
+import * as THREE from 'three';
+import { SpecialFigurines, SPECIAL_FIGURINE_SCALE, figurineShade } from '../src/rendering/special-figurines.mjs';
 import { specialCardPose } from '../src/special-card-motion.js';
 import { TableMotion } from '../src/table-motion.js';
 
@@ -29,6 +30,9 @@ test('special characters use one real mesh, shared geometry and no textures or l
     assert.ok(a.geometry.boundingBox.max.y < 1.2);
     assert.equal(a.material.map, null); assert.equal(a.castShadow, false);
     assert.equal(a.material.fog, false);
+    assert.equal(a.material.isMeshBasicMaterial, true);
+    assert.equal(a.material.toneMapped, false);
+    assert.equal(a.material.depthTest, true);
     library.release(a); library.release(b);
   }
   assert.equal(library.create('number'), null); library.dispose();
@@ -45,14 +49,14 @@ test('instance removal never disposes geometry another card still uses; owner di
   assert.equal(library.create('wizard'),null);
 });
 
-test('new special play emerges after landing and settles on the felt beside its own face', () => {
+test('new special play emerges after landing and settles back on its own card face', () => {
   const s=setup(); s.play('w1');
   assert.equal(s.motion.specialPose('w1').visible,false);
   s.advance(630); const jump=s.motion.specialPose('w1');
-  assert.ok(jump.y > .5); assert.ok(jump.z < 0 && jump.z > -.94);
+  assert.ok(jump.y > .5); assert.ok(jump.z > 0 && jump.z < .10);
   assert.equal(s.motion.isAnimating(),true);
   s.advance(490); const landed=s.motion.specialPose('w1');
-  assert.equal(landed.y,0); assert.equal(landed.z,-.94); assert.equal(landed.scale,1);
+  assert.equal(landed.y,0); assert.equal(landed.z,.10); assert.equal(landed.scale,1);
   assert.equal(s.motion.isAnimating(),false);
   s.play('n1','number'); assert.equal(s.motion.specialPose('n1'),null);
 });
@@ -77,7 +81,7 @@ test('initial load, reconnect, stale events and missing events show a settled fi
     replacement.sync(s.state,{initial:scenario==='initial',serverNow:scenario==='late'?5000:1500});
     assert.equal(replacement.specialPose('w1').active,false,scenario);
     assert.equal(replacement.specialPose('w1').y,0,scenario);
-    assert.equal(replacement.specialPose('w1').z,-.94,scenario);
+    assert.equal(replacement.specialPose('w1').z,.10,scenario);
   }
 });
 
@@ -115,4 +119,36 @@ test('system reduced-motion toggle retires a paused entrance without needing a n
   const s=setup();s.play('w1');s.advance(500);s.state.lifecycle={paused:true};s.sync();
   s.motion.setReducedMotion(true);const settled=s.motion.specialPose('w1');
   s.motion.setReducedMotion(false);assert.deepEqual(s.motion.specialPose('w1'),settled);
+});
+
+
+test('brighter local shading has a bounded fill floor and larger figures still fit the card footprint', () => {
+  assert.ok(SPECIAL_FIGURINE_SCALE/.55>1.4);
+  for(const n of [[0,1,0],[0,-1,0],[0,0,1],[0,0,-1],[1,0,0],[-1,0,0]]){
+    assert.ok(figurineShade(...n)>=.64 && figurineShade(...n)<=1);
+  }
+  const library=new SpecialFigurines();
+  for(const kind of ['wizard','jester']){
+    const figure=library.create(kind),box=figure.geometry.boundingBox;
+    assert.ok(Math.abs(box.min.x)*SPECIAL_FIGURINE_SCALE<.55);
+    assert.ok(box.max.x*SPECIAL_FIGURINE_SCALE<.55);
+    assert.ok(box.min.z*SPECIAL_FIGURINE_SCALE+.10>-.83);
+    assert.ok(box.max.z*SPECIAL_FIGURINE_SCALE+.10<.83);
+    library.release(figure);
+  }
+  library.dispose();
+});
+
+
+test('wizard eyes remain visible below the brim at the game camera angle', () => {
+  const library=new SpecialFigurines(),figure=library.create('wizard');figure.updateMatrixWorld(true);
+  const camera=new THREE.Vector3(0,8.48,5.3),colors=figure.geometry.attributes.color;
+  for(const x of [-.05,.05]){
+    const target=new THREE.Vector3(x,.695,.185);
+    const hit=new THREE.Raycaster(camera,target.sub(camera).normalize()).intersectObject(figure)[0];
+    assert.ok(hit);
+    assert.ok(Math.max(colors.getX(hit.face.a),colors.getY(hit.face.a),colors.getZ(hit.face.a))<.08,
+      'the ray reaches the dark eye rather than blue hat or pale face');
+  }
+  library.release(figure);library.dispose();
 });

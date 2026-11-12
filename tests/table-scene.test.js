@@ -123,3 +123,35 @@ test('mobile candle footprints retain their 21/24 px budget instead of shrinking
     if(compact)assert.equal(props.every(p=>!p.visible),true);
   }
 });
+
+test('larger miniatures land on their own card and survive shared-geometry card removal', async t => {
+  const original=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:false});
+  t.after(()=>{if(original)globalThis.matchMedia=original;else delete globalThis.matchMedia;});
+  const {TableScene}=await import('../src/table-scene.js');
+  const {TableMotion}=await import('../src/table-motion.js');
+  const scene={cards:new Map(),figurines:new SpecialFigurines(),scene:new THREE.Scene(),mode:'game',
+    material:TableScene.prototype.material,mesh:TableScene.prototype.mesh,face:()=>null,motion:new TableMotion(()=>1000)};
+  const entries=[0,1].map(player=>({player,card:{id:`wizard-${player}`,kind:'wizard'}}));
+  const state={phase:'play',round:1,completedTricks:0,trick:entries,trump:null,events:[],options:{deckMode:'standard'}};
+  scene.motion.sync(state,{initial:true,serverNow:1000});
+  TableScene.prototype.updateCards.call(scene,entries,state);
+  for(const group of scene.cards.values()){
+    const d=group.userData;d.from=d.target.clone();d.baseScale=new THREE.Vector3(.5,.5,.5);
+    d.collectTo=new THREE.Vector3(2,.382,0);d.liftPerPixel=.02;
+  }
+  TableScene.prototype.drawCards.call(scene,scene.motion.snapshot());
+  for(const group of scene.cards.values()){
+    const figure=group.userData.figurine;assert.equal(figure.parent,group);assert.equal(figure.visible,true);
+    assert.equal(figure.position.z,.10);assert.equal(figure.position.y,.027);assert.equal(figure.scale.x,.8);
+    group.updateWorldMatrix(true,true);
+    const feet=new THREE.Box3().setFromObject(figure).min.y;
+    const faceY=group.userData.face.getWorldPosition(new THREE.Vector3()).y;
+    assert.ok(feet>faceY&&feet-faceY<.01,'feet sit just above the actual face');
+  }
+  const geometry=scene.cards.get('wizard-1').userData.figurine.geometry;let disposed=0;
+  geometry.addEventListener('dispose',()=>disposed++);
+  TableScene.prototype.updateCards.call(scene,entries.slice(1),state);
+  assert.equal(disposed,0);assert.equal(scene.cards.get('wizard-1').userData.figurine.geometry,geometry);
+  TableScene.prototype.updateCards.call(scene,[],state);assert.equal(disposed,0);
+  scene.figurines.dispose();assert.equal(disposed,1);
+});

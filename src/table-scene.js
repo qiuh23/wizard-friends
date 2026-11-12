@@ -6,7 +6,7 @@ import { playedCardRect } from './table-layout.js';
 import { winner } from './game.js';
 import { frameScheduler } from './frame-scheduler.js';
 import { WizardTableAssets } from './rendering/wizard-assets.mjs';
-import { SpecialFigurines } from './rendering/special-figurines.mjs';
+import { SpecialFigurines, SPECIAL_FIGURINE_SCALE } from './rendering/special-figurines.mjs';
 import { decorationViewport } from './rendering/decoration-viewport.mjs';
 
 const motionMedia = matchMedia('(prefers-reduced-motion: reduce)');
@@ -122,10 +122,10 @@ export class TableScene {
       const rune=this.mesh(new THREE.OctahedronGeometry(.07),brass,Math.cos(angle)*2.58,.36,Math.sin(angle)*2.58,this.tableInlay);
       rune.scale.y=.1;
     }
-    this.candle(-5.25,-1.7,1.15, brass);
-    this.candle(5.15,-1.8,.85,brass);
-    this.candle(-4.8,-2.1,.7,brass);
-    this.candle(4.8,-2.4,1.35,brass);
+    this.candle(-4.65,-1.7,1.15, brass);
+    this.candle(4.60,-1.8,.85,brass);
+    this.candle(-4.55,-2.35,.7,brass);
+    this.candle(4.55,-2.5,1.35,brass);
     const book = this.book = new THREE.Group(); book.position.set(-5,.5,1.55); book.rotation.y=.25; this.scene.add(book);
     this.mesh(new THREE.BoxGeometry(1.2,.18,1.7),this.material('#b3a080'),0,0,0,book);
     for (const y of [-.13,.13]) this.mesh(new THREE.BoxGeometry(1.3,.065,1.8),this.material('#402128'),0,y,0,book);
@@ -285,7 +285,7 @@ export class TableScene {
         group.userData.rimBack=rimBack;
         if (this.mode === 'game') {
           const figurine = this.figurines.create(card.kind);
-          if (figurine) { this.scene.add(figurine); group.userData.figurine=figurine; }
+          if (figurine) { group.add(figurine); group.userData.figurine=figurine; }
         }
         if (this.contactShadowTexture && this.mode === 'game') {
           const shadow = this.mesh(new THREE.PlaneGeometry(1.28,1.94),new THREE.MeshBasicMaterial({map:this.contactShadowTexture,transparent:true,opacity:.28,depthWrite:false}),0,.355,0);
@@ -429,7 +429,7 @@ export class TableScene {
     place(this.coins, portrait ? .92 : .94, portrait ? .49 : .39, portrait ? 24 : 28, .9);
     for (let i=0;i<this.candles.length;i++) {
       const left=i%2===0, outer=i<2;
-      place(this.candles[i], left ? .035 : .965, portrait ? outer ? .21 : .38 : outer ? .32 : .66, portrait ? 21 : compact ? 24 : 22, .78);
+      place(this.candles[i], left ? .075 : .925, portrait ? outer ? .21 : .38 : outer ? .32 : .66, portrait ? 21 : compact ? 24 : 22, .78);
     }
     if (compact) {
       for (const group of [this.book, this.deck, this.coins, this.orbStand]) group.visible = false;
@@ -556,12 +556,11 @@ export class TableScene {
         const figurine=data.figurine;
         figurine.visible=Boolean(miniature?.visible && group.visible);
         if (miniature) {
-          const scale=data.baseScale.x*.55;
-          // World sibling, not a child of the moving card: feet land on felt.
-          const offset=new THREE.Vector3(miniature.x,0,miniature.z).multiplyScalar(data.baseScale.x);
-          offset.applyAxisAngle(new THREE.Vector3(0,1,0),data.rotation);
-          figurine.position.copy(data.target).add(offset);
-          figurine.position.y=.36+miniature.y*data.baseScale.x;
+          const scale=SPECIAL_FIGURINE_SCALE;
+          // Card-local placement: rise from its art and settle on the face at
+          // y=.024, with a tiny separation to avoid depth flicker. Parenting also
+          // keeps the figure attached during arrival, emphasis and collection.
+          figurine.position.set(miniature.x,.027+miniature.y,miniature.z);
           figurine.rotation.set(0,miniature.turn,0);
           figurine.scale.set(scale*miniature.scale/Math.sqrt(miniature.squash),scale*miniature.scale*miniature.squash,scale*miniature.scale/Math.sqrt(miniature.squash));
         }

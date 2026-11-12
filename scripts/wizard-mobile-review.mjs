@@ -46,13 +46,13 @@ for(const [width,height,count] of [[844,390,3],[667,275,6],[1024,460,6],[390,844
       record.scene=await page.evaluate(()=>{
         const s=window.__mobileScene;s.resize();s.drawCards(s.motion.snapshot());s.renderer.render(s.scene,s.camera);
         const figures=[...s.cards.values()].filter(g=>g.userData.figurine).map(g=>({name:g.userData.figurine.name,
-          visible:g.userData.figurine.visible,y:g.userData.figurine.position.y,triangles:g.userData.figurine.geometry.attributes.position.count/3}));
+          visible:g.userData.figurine.visible,cardParent:g.userData.figurine.parent===g,y:g.userData.figurine.position.y,triangles:g.userData.figurine.geometry.attributes.position.count/3}));
         const result={figures,lights:s.updateAssetLighting(),calls:s.renderer.info.render.calls};
         for(const low of [true,false,true,false])s.setLow(low);
-        result.figureCount=s.scene.children.filter(o=>o.name.startsWith('SpecialFigurine_')).length;
+        result.figureCount=[...s.cards.values()].filter(g=>g.userData.figurine?.parent===g).length;
         return result;
       });
-      expect(record.scene.figureCount).toBe(2);expect(record.scene.figures.every(f=>f.visible&&Math.abs(f.y-.36)<1e-6)).toBeTruthy();
+      expect(record.scene.figureCount).toBe(2);expect(record.scene.figures.every(f=>f.visible&&f.cardParent&&Math.abs(f.y-.027)<1e-6)).toBeTruthy();
       expect(record.scene.lights.pointLights).toBeLessThanOrEqual(width<600||height<=540?2:4);
       expect(await page.locator('.played.winner .played-state').evaluate(node=>getComputedStyle(node).backgroundColor)).toBe('rgb(9, 44, 72)');
     }

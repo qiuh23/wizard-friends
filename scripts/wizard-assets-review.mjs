@@ -61,6 +61,12 @@ async function inspect(page) {
       orb: scene.assetLighting?.crystal && {
         transparent: scene.orb.material.transparent, transmission: scene.orb.material.transmission,
         depthWrite: scene.orb.material.depthWrite, core: Boolean(scene.orb.getObjectByName('OrbBlueCore')),
+        heart: Boolean(scene.orb.getObjectByName('OrbCrystalHeart')),
+        lanternLeft: scene.scene.getObjectByName('WizardLantern').parent === scene.candles[2],
+        lanternCore: Boolean(scene.scene.getObjectByName('LeftRuneLanternCore')),
+        warmPoolY: scene.assetLighting.warmth.pools[0].position.y,
+        leftWarmth: scene.assetLighting.warmth.pools[0].material.opacity,
+        rightWarmth: scene.assetLighting.warmth.pools[1].material.opacity,
         poolY: scene.assetLighting.crystal.pool.position.y,
         sourceError: scene.orb.getWorldPosition(new THREE.Vector3()).distanceTo(scene.assetLighting.orbPoint.getWorldPosition(new THREE.Vector3())),
         pointVisible: scene.assetLighting.orbPoint.visible,
@@ -77,7 +83,8 @@ try {
     expect(result.points).toBeLessThanOrEqual(height > width || result.layout === 'strip' ? 2 : 4);
     expect(result.lights).toBeLessThanOrEqual(7); expect(result.overflow).toBe(false);
     expect(Math.max(...result.flameError)).toBeLessThan(1e-6);
-    expect(result.orb).toMatchObject({ transparent: true, transmission: 0, depthWrite: false, core: true, poolY: .356 });
+    expect(result.orb).toMatchObject({ transparent: true, transmission: 0, depthWrite: false, core: true, heart: true, lanternLeft: true, lanternCore: true, warmPoolY: .3555, poolY: .356 });
+    expect(result.orb.leftWarmth).toBeGreaterThan(result.orb.rightWarmth);
     expect(result.orb.sourceError).toBeLessThan(1e-6);
     const small = height > width || result.layout === 'strip' || width <= 600;
     expect(result.orb.pointVisible).toBe(!small); expect(result.orb.lanternVisible).toBe(!small);
