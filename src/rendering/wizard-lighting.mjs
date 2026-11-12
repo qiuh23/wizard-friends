@@ -1,4 +1,5 @@
 import { createCrystalOrb } from './wizard-orb.mjs';
+import { createTableWarmth } from './wizard-warmth.mjs';
 
 /** V4 lighting adapter. No global RAF. Call update AFTER existing layoutDecorations().
  * Inject the same THREE namespace as the application; no bundled Three dependency.
@@ -6,14 +7,14 @@ import { createCrystalOrb } from './wizard-orb.mjs';
  */
 export const LIGHT_PROFILES = Object.freeze({
   hero:    { hemisphere:.28, fill:.14, rim:.16, candle:18, range:7, count:4, exposure:1.20 },
-  desktop: { hemisphere:.25, fill:.20, rim:.10, candle:12, range:5.5, count:4, exposure:1.25 },
-  portrait:{ hemisphere:.42, fill:.30, rim:0, candle:7, range:4, count:2, exposure:1.25 },
-  compact: { hemisphere:.48, fill:.34, rim:0, candle:9, range:4, count:2, exposure:1.25 },
+  desktop: { hemisphere:.25, fill:.20, rim:.10, candle:12, range:6.5, count:4, exposure:1.25 },
+  portrait:{ hemisphere:.42, fill:.30, rim:0, candle:7, range:5, count:2, exposure:1.25 },
+  compact: { hemisphere:.48, fill:.34, rim:0, candle:9, range:5, count:2, exposure:1.25 },
 });
 export function chooseProfile({mode='game',width=1000,height=700,compact=false}={}) {
   return mode==='hero' ? 'hero' : compact ? 'compact' : height>width ? 'portrait' : 'desktop';
 }
-export function createWizardLighting({THREE,scene,renderer,candles,orb=null,lantern=null,legacyLights=[],shadows=false}) {
+export function createWizardLighting({THREE,scene,renderer,candles,orb=null,lantern=null,camera=null,legacyLights=[],shadows=false}) {
   if(!Array.isArray(candles)||candles.length!==4) throw new Error('Expected four candle records in original source order');
   if(candles.some(c=>!c.wrapper||!c.visualRoot?.parent||!c.flame)) throw new Error('Attach all four visual roots and resolve flame nodes before creating lighting');
   if(scene.getObjectByName?.('WizardLightingV4')) throw new Error('Dispose the existing WizardLightingV4 before creating another');
@@ -26,16 +27,17 @@ export function createWizardLighting({THREE,scene,renderer,candles,orb=null,lant
   const fill=new THREE.DirectionalLight('#c2d4eb',0);fill.position.set(0,6,2);group.add(fill);
   const rim=new THREE.DirectionalLight('#90acc8',0);rim.position.set(3,4,-5);group.add(rim);
   const points=candles.map((c,i)=>{const p=new THREE.PointLight('#ffb665',0,7,2);p.name=`CandleSource_${i}`;p.castShadow=false;p.shadow.mapSize.set(256,256);p.shadow.bias=-.0003;p.shadow.normalBias=.025;group.add(p);return p;});
-  const crystal=orb?createCrystalOrb({THREE,orb,scene}):null;
+  const warmth=createTableWarmth({THREE,scene,candles,lantern});
+  const crystal=orb?createCrystalOrb({THREE,orb,scene,camera}):null;
   const orbPoint=orb?new THREE.PointLight('#7bbdff',0,2.8,2):null;
   if(orbPoint){orbPoint.name='OrbSource';orbPoint.castShadow=false;group.add(orbPoint);}
   const lanternPoint=lantern?new THREE.PointLight('#ffc077',0,3.2,2):null;
   if(lanternPoint){lanternPoint.name='LanternSource';lanternPoint.castShadow=false;group.add(lanternPoint);}
   const lanternMaterials=lantern?.glass.map(mesh=>{
-    const original=mesh.material,material=original.clone();
+    const original=mesh.material,originalOrder=mesh.renderOrder,material=original.clone();
     material.color.set('#e5af68');material.emissive.set('#ffc077');material.emissiveIntensity=.65;
-    material.metalness=0;material.roughness=.4;mesh.material=material;
-    return {mesh,original,material};
+    material.metalness=0;material.roughness=.4;material.transparent=true;material.opacity=.58;material.depthWrite=false;mesh.material=material;mesh.renderOrder=1;
+    return {mesh,original,originalOrder,material};
   })||[];
   const flameShadowState=new Map();
   candles.forEach(c=>{const remember=o=>{if(!flameShadowState.has(o))flameShadowState.set(o,o.castShadow);o.castShadow=false;};remember(c.flame);c.flame.traverse?.(o=>{if(o.isMesh)remember(o);});});
@@ -101,11 +103,12 @@ export function createWizardLighting({THREE,scene,renderer,candles,orb=null,lant
       const s=Math.max(.08,Math.abs(scale.y));
       source.visible=active;source.intensity=active?intensity*s*s:0;source.distance=range*Math.max(.35,s);
     }
+    warmth.update({small,visible:effectivelyVisible});
     crystal?.update({visible:effectivelyVisible(orb),small,reducedMotion,paused,time});
     const shadowEnabled=previousShadow||points.some(p=>p.castShadow);
     if(renderer.shadowMap.enabled!==shadowEnabled){renderer.shadowMap.enabled=shadowEnabled;renderer.shadowMap.needsUpdate=true;}
     return {profile,pointLights:[...points,orbPoint,lanternPoint].filter(p=>p?.visible).length,shadowPointLights:points.filter(p=>p.castShadow).length,exposure:config.exposure};
   }
-  function dispose(){if(disposed)return;disposed=true;scene.remove(group);crystal?.dispose();lanternMaterials.forEach(({mesh,original,material})=>{mesh.material=original;material.dispose();});points.forEach(p=>{p.shadow.map?.dispose();p.shadow.mapPass?.dispose();p.shadow.map=null;p.shadow.mapPass=null;});candles.forEach((c,i)=>{c.flame.scale.copy(bases[i]);});flameShadowState.forEach((castShadow,o)=>{o.castShadow=castShadow;});prior.forEach(({light,visible})=>{light.visible=visible;});renderer.toneMappingExposure=previousExposure;renderer.shadowMap.enabled=previousShadow;}
-  return {update,dispose,group,points,orbPoint,lanternPoint,crystal,hemisphere,fill,rim};
+  function dispose(){if(disposed)return;disposed=true;scene.remove(group);crystal?.dispose();warmth.dispose();lanternMaterials.forEach(({mesh,original,originalOrder,material})=>{mesh.material=original;mesh.renderOrder=originalOrder;material.dispose();});points.forEach(p=>{p.shadow.map?.dispose();p.shadow.mapPass?.dispose();p.shadow.map=null;p.shadow.mapPass=null;});candles.forEach((c,i)=>{c.flame.scale.copy(bases[i]);});flameShadowState.forEach((castShadow,o)=>{o.castShadow=castShadow;});prior.forEach(({light,visible})=>{light.visible=visible;});renderer.toneMappingExposure=previousExposure;renderer.shadowMap.enabled=previousShadow;}
+  return {update,dispose,group,points,orbPoint,lanternPoint,crystal,warmth,hemisphere,fill,rim};
 }

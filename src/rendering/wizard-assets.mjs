@@ -158,9 +158,9 @@ export class WizardTableAssets {
     let lighting;
     try {
       swaps.forEach(([wrapper, root]) => { wrapper.clear(); wrapper.add(root); });
-      // Reuse the back-right candle's responsive wrapper; no new seat/layout anchor.
-      lantern.position.set(-.9, 0, -.45); table.candles[3].add(lantern);
-      lighting = createWizardLighting({ THREE, scene: table.scene, renderer: table.renderer,
+      // Reuse the left secondary candle wrapper, balancing the right-hand crystal.
+      lantern.position.set(.85, 0, -.30); table.candles[2].add(lantern);
+      lighting = createWizardLighting({ THREE, scene: table.scene, renderer: table.renderer, camera: table.camera,
         candles, orb, lantern: { root: lantern, glass: lanternGlass },
         legacyLights: table.legacyLights, shadows: false });
     } catch (error) {

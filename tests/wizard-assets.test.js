@@ -163,6 +163,9 @@ test('installed crystal, lantern and warm candles share the existing light budge
   assert.ok(rig.crystal.pool.position.y < .382);
   const lantern = table.scene.getObjectByName('WizardLantern');
   assert.equal(lantern.visible, true);
+  assert.equal(lantern.parent, table.candles[2]);
+  assert.equal(rig.warmth.lanternCore.parent, lantern);
+  assert.ok(rig.warmth.lanternCore.material.opacity > .5);
   assert.ok(Math.abs(lantern.getWorldPosition(new THREE.Vector3()).y - .36) < 1e-8);
   for (const options of [{ width: 390, height: 844 }, { lowPower: true }, { compact: true }]) {
     state = assets.update(options);
@@ -175,7 +178,7 @@ test('installed crystal, lantern and warm candles share the existing light budge
   table.orbStand.visible = false;
   assert.equal(assets.update({}).pointLights, 4);
   assert.equal(rig.crystal.pool.visible, false); assert.equal(rig.orbPoint.visible, false);
-  table.candles[3].visible = false;
+  table.candles[2].visible = false;
   assert.equal(assets.update({}).pointLights, 3); assert.equal(rig.lanternPoint.visible, false);
   table.orbStand.visible = true; table.orbStand.removeFromParent();
   assets.update({}); assert.equal(rig.crystal.pool.visible, false);
