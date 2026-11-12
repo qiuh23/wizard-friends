@@ -5,6 +5,7 @@ import { cardFaceCanvas, loadCardFace, onCardFaceReady } from './card-face.js';
 import { playedCardRect } from './table-layout.js';
 import { winner } from './game.js';
 import { frameScheduler } from './frame-scheduler.js';
+import { WizardTableAssets } from './rendering/wizard-assets.mjs';
 
 const motionMedia = matchMedia('(prefers-reduced-motion: reduce)');
 export const TABLE_CARD_Y = .382;
@@ -51,14 +52,18 @@ export class TableScene {
       this.observedSize = key;
       this.requestResize();
     });
-    this.scene.add(new THREE.HemisphereLight('#d8ded9', '#334139', 1.65));
+    const hemisphere = new THREE.HemisphereLight('#d8ded9', '#334139', 1.65);
+    this.scene.add(hemisphere);
     const light = new THREE.DirectionalLight('#ffe6c2', 1.6);
     // Broad non-shadowing fill. Candle point lights supply the warm local pools.
     light.position.set(-4, 9, 4); light.castShadow = false;
     this.scene.add(light);
     const rim = new THREE.DirectionalLight('#c5d7df', .65); rim.position.set(5, 4, -6); this.scene.add(rim);
+    this.legacyLights = [hemisphere, light, rim];
     this.buildTable();
     this.buildTrump();
+    this.assets = new WizardTableAssets(this);
+    this.assetLoad = this.assets.load();
     this.onContextLost = e => {
       e.preventDefault(); this.lost = true; this.host?.classList.remove('ready');
       document.body.classList.remove('has-webgl');
@@ -67,6 +72,7 @@ export class TableScene {
     };
     this.onContextRestored = () => {
       this.lost = false;
+      if (this.assets.status === 'fallback') this.assetLoad = this.assets.load();
       this.requestResize();
       this.onInvalidate?.();
     };
@@ -125,6 +131,7 @@ export class TableScene {
     this.mesh(new THREE.CylinderGeometry(.48,.6,.15,32),brass,0,.48,0,this.orbStand);
     this.orb = this.mesh(new THREE.SphereGeometry(.43,28,20),this.material('#65aaac',{metalness:.4,roughness:.13,emissive:'#183b44',emissiveIntensity:1}),0,.96,0,this.orbStand);
     const orbLight = new THREE.PointLight('#9bc9c4',2,4); orbLight.position.set(0,1.3,0); this.orbStand.add(orbLight);
+    this.legacyLights.push(orbLight);
     this.coins = new THREE.Group(); this.coins.position.set(3.85,0,2.6); this.scene.add(this.coins);
     for(let i=0;i<7;i++){
       const coin=this.mesh(new THREE.CylinderGeometry(.16,.16,.045,20),brass,(i%3)*.28,.4+Math.floor(i/3)*.05,(i%2)*.2,this.coins);
@@ -157,6 +164,7 @@ export class TableScene {
     const flame=this.mesh(new THREE.SphereGeometry(.09,12,12),new THREE.MeshBasicMaterial({color:'#ffe7a5'}),0,1.1+height,0,group);
     flame.scale.set(.7,1.8,.7);
     const point=new THREE.PointLight('#ffb45b',14,7); point.position.copy(flame.position); group.add(point);
+    this.legacyLights.push(point);
     this.flames.push({flame,point,offset:x});
     const glowCanvas=document.createElement('canvas'); glowCanvas.width=64; glowCanvas.height=64;
     const ctx=glowCanvas.getContext('2d'), gradient=ctx.createRadialGradient(32,32,0,32,32,32);
@@ -343,27 +351,27 @@ export class TableScene {
     this.camera.lookAt(0,0,0);this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld();
     this.layoutDecorations(width, height);
     }
+    this.updateAssetLighting();
     if (this.mode === 'game') { this.alignCardSeats(); this.alignTrump(); }
     this.cardsDirty = true;
     this.requestDraw();
   }
   requestDraw() { if (!this.drawing) this.drawFrame?.request(); }
   requestResize() { this.resizePending = true; this.requestDraw(); }
+  updateAssetLighting() {
+    return this.assets?.update({ mode: this.mode, width: this.width, height: this.height,
+      compact: this.host?.closest('.table')?.dataset.layoutMode === 'strip',
+      lowPower: this.low, reducedMotion: motionMedia.matches, paused: this.paused,
+      time: this.animationTime || 0 });
+  }
   dispose() {
+    if (this.disposed) return;
+    this.disposed = true;
     this.observer.disconnect(); this.drawFrame.dispose();
     this.renderer.domElement.removeEventListener('webglcontextlost', this.onContextLost);
     this.renderer.domElement.removeEventListener('webglcontextrestored', this.onContextRestored);
     motionMedia.removeEventListener?.('change', this.onMotionChange);
-    const materials = new Set(), textures = new Set([...this.textures.values(), this.contactShadowTexture].filter(Boolean));
-    this.scene.traverse(object => {
-      object.geometry?.dispose();
-      for (const material of Array.isArray(object.material) ? object.material : object.material ? [object.material] : []) materials.add(material);
-    });
-    for (const material of materials) {
-      if (material.map) textures.add(material.map);
-      material.dispose();
-    }
-    for (const texture of textures) texture.dispose();
+    this.assets.dispose([...this.textures.values(), this.contactShadowTexture].filter(Boolean));
     this.renderer.dispose(); this.renderer.domElement.remove(); this.host = null;
   }
   deckScreenRect() {
@@ -515,6 +523,7 @@ export class TableScene {
       if (object.material) object.material.needsUpdate = true;
     });
     this.resize();
+    this.updateAssetLighting();
   }
   animate(time) {
     if(this.lost||document.hidden||!this.host?.isConnected)return null;
@@ -525,7 +534,7 @@ export class TableScene {
     if (!this.paused) this.animationTime = (this.animationTime || 0) + elapsed;
     const sceneTime = this.animationTime || 0;
     const t=motionMedia.matches?0:sceneTime*.001;
-    for(const {flame,point,offset} of this.flames){flame.scale.y=1.7+Math.sin(t*1.7+offset)*.06;point.intensity=(this.mode==='game' ? 6 : 12)+Math.sin(t*1.4+offset)*.12;}
+    if (!this.assetLighting) for(const {flame,point,offset} of this.flames){flame.scale.y=1.7+Math.sin(t*1.7+offset)*.06;point.intensity=(this.mode==='game' ? 6 : 12)+Math.sin(t*1.4+offset)*.12;}
     this.dust.visible=!this.low && this.mode !== 'game';
     this.dust.rotation.y=t*.014;
     this.orb.rotation.y=t*.2;
@@ -542,6 +551,7 @@ export class TableScene {
     }
     if (this.cardsDirty || sample?.animating || this.cardsAnimating) this.drawCards(sample);
     this.cardsDirty = false; this.cardsAnimating = sample?.animating;
+    this.updateAssetLighting();
     this.renderer.render(this.scene,this.camera);
     if (!this.paused && !motionMedia.matches) return interval;
     return null;

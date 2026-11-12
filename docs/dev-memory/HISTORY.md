@@ -598,3 +598,9 @@
 
 - 用户明确要求推送到 `qiuh23/wizard-friends` 并创建 PR。终端无 GitHub HTTPS 推送凭据，改用已连接的 GitHub 授权上传本地已提交的 25 个文件（含 4 张 PNG）；逐文件 blob SHA 和完整 tree SHA `901eb4756b1f36ef820e25bc547949ceb80fe932` 均与已测试本地版本一致。
 - 远端实现提交 `6e563173a0e5f7e98b706714bede2c28445c88d7`，分支 `codex/review-only/table-play`；已创建 [PR #39](https://github.com/qiuh23/wizard-friends/pull/39)，目标 main，含测试结果、截图和真机验证限制。保留既有 review-only / skip-ci 约定；未合并或部署。后续文档提交仅同步交付状态，不改已验证游戏源码。
+
+## 2026-11-12 — Blender 桌面与真实烛光接入
+
+- 用户授权云端克隆、接入素材并为本仓库推送独立 PR，不合并。基于最新 main `4d61b8f`，使用实际 V9 分包中的原始巫师 V4 GLB；16件入库，运行仅加载10类，保留原玩法、布局、牌高与不受光牌面。
+- 桌面/四烛原子替换，准确停用8盏旧灯，点光跟随火焰世界位置；手机、紧凑及低功耗最多2点光。失败回退、显式重试、销毁后迟到加载、共享资源释放和原调度更新均有测试。独立代码审查发现并修正缺节点素材的缓存重试问题。
+- check、369项单测、双站构建及global Worker dry-run通过；Pillow解码2张内嵌贴图通过。浏览器启动遭 socket EPERM，云浏览器无法访问执行器localhost，未获得实际截图、GPU帧耗时或视觉验收。新增可复跑浏览器矩阵；范围和限制见 [素材接入 QA](../qa/wizard-assets/README.md)。未合并、未部署。
