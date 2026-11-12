@@ -1,0 +1,360 @@
+{
+  "version": 4,
+  "source_commit": "4d61b8f950cd2d3c74a0700b6f4ccfa37bfff028",
+  "source_file": "src/table-scene.js",
+  "units": "source units; GLB Y-up; ground pivot",
+  "assets": [
+    {
+      "name": "wizard_candle",
+      "file": "wizard_candle.glb",
+      "triangles": 1916,
+      "dimensions_gltf_xyz": [
+        0.78,
+        2.045,
+        0.78
+      ],
+      "nodes": [
+        "wizard_candle",
+        "wizard_candle_Static",
+        "Flame"
+      ],
+      "materials": [
+        "Antique_brass",
+        "Arcane_ink",
+        "Brass_highlight",
+        "Flame_emissive",
+        "Warm_wax"
+      ],
+      "bytes": 89120
+    },
+    {
+      "name": "wizard_open_tome",
+      "file": "wizard_open_tome.glb",
+      "triangles": 732,
+      "dimensions_gltf_xyz": [
+        1.3,
+        0.192,
+        1.8
+      ],
+      "nodes": [
+        "wizard_open_tome",
+        "wizard_open_tome_Static"
+      ],
+      "materials": [
+        "Arcane_ink",
+        "Brass_highlight",
+        "Ivory_pages",
+        "Oxblood_leather"
+      ],
+      "bytes": 56900
+    },
+    {
+      "name": "wizard_orb_stand",
+      "file": "wizard_orb_stand.glb",
+      "triangles": 1600,
+      "dimensions_gltf_xyz": [
+        1.2,
+        0.985,
+        1.2
+      ],
+      "nodes": [
+        "wizard_orb_stand",
+        "wizard_orb_stand_Static",
+        "Orb"
+      ],
+      "materials": [
+        "Antique_brass",
+        "Brass_highlight",
+        "Orb_jade"
+      ],
+      "bytes": 71632
+    },
+    {
+      "name": "wizard_candle_070",
+      "file": "wizard_candle_070.glb",
+      "triangles": 1916,
+      "dimensions_gltf_xyz": [
+        0.78,
+        1.595,
+        0.78
+      ],
+      "nodes": [
+        "wizard_candle_070",
+        "wizard_candle_070_Static",
+        "wizard_candle_070_Flame"
+      ],
+      "materials": [
+        "Antique_brass",
+        "Arcane_ink",
+        "Brass_highlight",
+        "Flame_emissive",
+        "Warm_wax"
+      ],
+      "bytes": 89168
+    },
+    {
+      "name": "wizard_candle_085",
+      "file": "wizard_candle_085.glb",
+      "triangles": 1916,
+      "dimensions_gltf_xyz": [
+        0.78,
+        1.745,
+        0.78
+      ],
+      "nodes": [
+        "wizard_candle_085",
+        "wizard_candle_085_Static",
+        "wizard_candle_085_Flame"
+      ],
+      "materials": [
+        "Antique_brass",
+        "Arcane_ink",
+        "Brass_highlight",
+        "Flame_emissive",
+        "Warm_wax"
+      ],
+      "bytes": 89164
+    },
+    {
+      "name": "wizard_candle_135",
+      "file": "wizard_candle_135.glb",
+      "triangles": 1916,
+      "dimensions_gltf_xyz": [
+        0.78,
+        2.245,
+        0.78
+      ],
+      "nodes": [
+        "wizard_candle_135",
+        "wizard_candle_135_Static",
+        "wizard_candle_135_Flame"
+      ],
+      "materials": [
+        "Antique_brass",
+        "Arcane_ink",
+        "Brass_highlight",
+        "Flame_emissive",
+        "Warm_wax"
+      ],
+      "bytes": 89164
+    },
+    {
+      "name": "wizard_closed_tome",
+      "file": "wizard_closed_tome.glb",
+      "triangles": 616,
+      "dimensions_gltf_xyz": [
+        1.11,
+        0.321,
+        1.43
+      ],
+      "nodes": [
+        "wizard_closed_tome",
+        "wizard_closed_tome_Static"
+      ],
+      "materials": [
+        "Antique_brass",
+        "Arcane_ink",
+        "Brass_highlight",
+        "Ivory_pages",
+        "Oxblood_leather"
+      ],
+      "bytes": 51820
+    },
+    {
+      "name": "wizard_scroll",
+      "file": "wizard_scroll.glb",
+      "triangles": 544,
+      "dimensions_gltf_xyz": [
+        1.16,
+        0.21,
+        1.51
+      ],
+      "nodes": [
+        "wizard_scroll",
+        "wizard_scroll_Static"
+      ],
+      "materials": [
+        "Arcane_ink",
+        "Brass_highlight",
+        "Ivory_pages",
+        "Oxblood_leather"
+      ],
+      "bytes": 38144
+    },
+    {
+      "name": "wizard_card_casket",
+      "file": "wizard_card_casket.glb",
+      "triangles": 752,
+      "dimensions_gltf_xyz": [
+        1.06,
+        0.99,
+        1.555
+      ],
+      "nodes": [
+        "wizard_card_casket",
+        "wizard_card_casket_Static"
+      ],
+      "materials": [
+        "Antique_brass",
+        "Arcane_ink",
+        "Brass_highlight",
+        "Dark_wood",
+        "Ivory_pages",
+        "Oxblood_leather"
+      ],
+      "bytes": 61232
+    },
+    {
+      "name": "wizard_potion_tray",
+      "file": "wizard_potion_tray.glb",
+      "triangles": 2852,
+      "dimensions_gltf_xyz": [
+        1.26,
+        0.785,
+        1.26
+      ],
+      "nodes": [
+        "wizard_potion_tray",
+        "wizard_potion_tray_Static"
+      ],
+      "materials": [
+        "Antique_brass",
+        "Bottle_amber",
+        "Bottle_amethyst",
+        "Bottle_emerald",
+        "Brass_highlight",
+        "Dark_wood",
+        "Ivory_pages"
+      ],
+      "bytes": 137164
+    },
+    {
+      "name": "wizard_ink_quill",
+      "file": "wizard_ink_quill.glb",
+      "triangles": 484,
+      "dimensions_gltf_xyz": [
+        0.58789,
+        1.19167,
+        0.58
+      ],
+      "nodes": [
+        "wizard_ink_quill",
+        "wizard_ink_quill_Static"
+      ],
+      "materials": [
+        "Antique_brass",
+        "Arcane_ink",
+        "Brass_highlight",
+        "Dark_wood",
+        "Ivory_pages"
+      ],
+      "bytes": 33496
+    },
+    {
+      "name": "wizard_rune_lantern",
+      "file": "wizard_rune_lantern.glb",
+      "triangles": 344,
+      "dimensions_gltf_xyz": [
+        0.50229,
+        0.912,
+        0.58
+      ],
+      "nodes": [
+        "wizard_rune_lantern",
+        "wizard_rune_lantern_Static"
+      ],
+      "materials": [
+        "Antique_brass",
+        "Brass_highlight",
+        "Orb_jade"
+      ],
+      "bytes": 25736
+    },
+    {
+      "name": "wizard_table_carved_frame",
+      "file": "wizard_table_carved_frame.glb",
+      "triangles": 972,
+      "dimensions_gltf_xyz": [
+        13.0,
+        0.7425,
+        8.8
+      ],
+      "nodes": [
+        "wizard_table_carved_frame",
+        "wizard_table_carved_frame_Static"
+      ],
+      "materials": [
+        "Antique_brass",
+        "Brass_highlight",
+        "Walnut",
+        "Wood_recess"
+      ],
+      "bytes": 421808,
+      "embedded_texture": "Walnut_BaseColor"
+    },
+    {
+      "name": "wizard_table_felt",
+      "file": "wizard_table_felt.glb",
+      "triangles": 92,
+      "dimensions_gltf_xyz": [
+        10.35,
+        0.0275,
+        6.5
+      ],
+      "nodes": [
+        "wizard_table_felt",
+        "wizard_table_felt_Static"
+      ],
+      "materials": [
+        "Felt_emerald",
+        "Thread_olive"
+      ],
+      "bytes": 210376,
+      "embedded_texture": "Felt_emerald_BaseColor"
+    },
+    {
+      "name": "wizard_table_rune_inlay",
+      "file": "wizard_table_rune_inlay.glb",
+      "triangles": 3888,
+      "dimensions_gltf_xyz": [
+        5.618,
+        0.01779,
+        5.618
+      ],
+      "nodes": [
+        "wizard_table_rune_inlay",
+        "wizard_table_rune_inlay_Static"
+      ],
+      "materials": [
+        "Antique_brass"
+      ],
+      "bytes": 246736
+    },
+    {
+      "name": "wizard_table_corner_plate",
+      "file": "wizard_table_corner_plate.glb",
+      "triangles": 584,
+      "dimensions_gltf_xyz": [
+        0.62,
+        0.063,
+        0.62
+      ],
+      "nodes": [
+        "wizard_table_corner_plate",
+        "wizard_table_corner_plate_Static"
+      ],
+      "materials": [
+        "Antique_brass",
+        "Arcane_ink",
+        "Brass_highlight",
+        "Wood_recess"
+      ],
+      "bytes": 29116
+    }
+  ],
+  "source_file_blob": "07be6f958926af2c0b9856d78876138d8964cc6b",
+  "lighting_module": "wizard-lighting.mjs",
+  "geometry_material_revision": "V3 unchanged; V4 updates runtime lifecycle, offline fill lighting and import instructions",
+  "editable_source": "wizard_candlelit_table_v4.blend",
+  "rebuild_script": "export_v4_from_blend.py"
+}
