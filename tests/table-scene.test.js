@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadCardFace, preloadCardFaces } from '../src/card-face.js';
 import * as THREE from 'three';
+import { SpecialFigurines } from '../src/rendering/special-figurines.mjs';
 
 test('flat played cards use a physical edge, unlit art, and the rule engine leader without an elevated shadow caster',async t=>{
   const original=globalThis.matchMedia;
   globalThis.matchMedia=()=>({matches:false});
   t.after(()=>{if(original)globalThis.matchMedia=original;else delete globalThis.matchMedia;});
   const {TableScene}=await import('../src/table-scene.js');
-  const scene={cards:new Map(),scene:new THREE.Scene(),mode:'game',material:TableScene.prototype.material,mesh:TableScene.prototype.mesh,face:()=>null};
+  const scene={cards:new Map(),figurines:new SpecialFigurines(),scene:new THREE.Scene(),mode:'game',material:TableScene.prototype.material,mesh:TableScene.prototype.mesh,face:()=>null};
   const entries=[{player:0,card:{id:'a',kind:'number',suit:'red',rank:2}},{player:1,card:{id:'b',kind:'number',suit:'red',rank:8}}];
   TableScene.prototype.updateCards.call(scene,entries,{phase:'play',trick:entries,trump:'blue',options:{deckMode:'standard'}});
   for(const group of scene.cards.values())for(const mesh of [group.userData.face,group.userData.edge]) {
@@ -20,11 +21,14 @@ test('flat played cards use a physical edge, unlit art, and the rule engine lead
     assert.equal(group.userData.face.rotation.x,-Math.PI/2);
     assert.equal(group.userData.face.material.isMeshBasicMaterial,true);
     assert.equal(group.userData.rim.visible,id==='b');
+    assert.equal(group.userData.rimBack.visible,id==='b');
+    assert.equal(group.userData.rim.material.color.getHexString(),'9cefff');
+    assert.equal(group.userData.rimBack.material.color.getHexString(),'102636');
   }
   assert.equal(scene.cards.size,2);
 });
 
-test('gold rim follows Wizard, Jester, trump, led-suit and mono ties after every play',async t=>{
+test('high-contrast rim follows Wizard, Jester, trump, led-suit and mono ties after every play',async t=>{
   const original=globalThis.matchMedia;
   globalThis.matchMedia=()=>({matches:false});
   t.after(()=>{if(original)globalThis.matchMedia=original;else delete globalThis.matchMedia;});
@@ -37,7 +41,7 @@ test('gold rim follows Wizard, Jester, trump, led-suit and mono ties after every
     [[n('red',4),n('red',9),j,n('green',13)],[0,1,1,1],null,'standard'],
     [[n('red',4),n('blue',13),n('green',13),w],[0,1,1,3],null,'mono'],
   ]) {
-    const scene={cards:new Map(),scene:new THREE.Scene(),mode:'game',material:TableScene.prototype.material,mesh:TableScene.prototype.mesh,face:()=>null};
+    const scene={cards:new Map(),figurines:new SpecialFigurines(),scene:new THREE.Scene(),mode:'game',material:TableScene.prototype.material,mesh:TableScene.prototype.mesh,face:()=>null};
     const entries=cards.map((card,player)=>({player,card:{...card,id:`card-${player}`}}));
     for(let count=1;count<=entries.length;count++) {
       const trick=entries.slice(0,count);
@@ -95,4 +99,27 @@ test('background face retry updates every existing GPU texture without another f
   assert.equal(firstScene.draws, 1); assert.equal(secondScene.draws, 1); assert.equal(disposedScene.draws, 0);
   await preloadCardFaces(); await loadCardFace(card);
   assert.equal(first.version, 2); assert.equal(second.version, 2);
+});
+
+test('mobile candle footprints retain their 21/24 px budget instead of shrinking twice', async t => {
+  const original=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:false});
+  t.after(()=>{if(original)globalThis.matchMedia=original;else delete globalThis.matchMedia;});
+  const {TableScene}=await import('../src/table-scene.js');
+  for (const [width,height,compact] of [[844,390,true],[667,275,true],[1024,460,true],[390,844,false]]) {
+    const camera=new THREE.PerspectiveCamera(compact?32:43,width/height,.1,80);
+    camera.position.set(0,8.48,5.3);camera.lookAt(0,0,0);camera.updateProjectionMatrix();camera.updateMatrixWorld();
+    const candles=Array.from({length:4},()=>new THREE.Group());
+    const props=Array.from({length:4},()=>new THREE.Group());
+    const scene={mode:'game',camera,candles,book:props[0],orbStand:props[1],deck:props[2],coins:props[3],
+      host:{closest:()=>({dataset:{layoutMode:compact?'strip':'ring'}})},trumpRingMaterial:{},
+      tableProps:[...candles,...props].map(group=>({group,position:group.position.clone(),scale:group.scale.clone()}))};
+    TableScene.prototype.layoutDecorations.call(scene,width,height);
+    for(const candle of candles){
+      const p=new THREE.Vector3(candle.position.x,.36,candle.position.z);
+      const a=p.clone().project(camera),b=p.clone().add(new THREE.Vector3(.78*candle.scale.x,0,0)).project(camera);
+      const pixels=Math.abs(b.x-a.x)*width/2;
+      assert.ok(Math.abs(pixels-(compact?24:21))<1e-7,`${width}x${height}: ${pixels}`);
+    }
+    if(compact)assert.equal(props.every(p=>!p.visible),true);
+  }
 });

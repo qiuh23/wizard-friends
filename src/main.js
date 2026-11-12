@@ -104,7 +104,7 @@ function updateTrumpMotion() {
 }
 motionMedia.addEventListener('change', () => {
   updateTrumpMotion();
-  tableMotion.reducedMotion = motionMedia.matches;
+  tableMotion.setReducedMotion(motionMedia.matches);
   tableMotion.setEmphasisScale(document.body.dataset.tableLayout === 'strip' ? COMPACT_LEADING_CARD_SCALE : LEADING_CARD_SCALE, {immediate:true});
   layoutSchedule.request({force:true}); htmlFrame.request(); tableScene?.requestDraw();
 });

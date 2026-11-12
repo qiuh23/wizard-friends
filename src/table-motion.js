@@ -1,4 +1,5 @@
 import { TRICK_REVIEW_MS } from './game.js';
+import { SPECIAL_CARD_ENTER_MS, isSpecialCard, specialCardPose } from './special-card-motion.js';
 
 export const CARD_ENTER_MS = 420;
 export const CARD_COLLECT_MS = 1100;
@@ -18,6 +19,7 @@ export class TableMotion {
     this.last = now();
     this.time = 0;
     this.entries = new Map();
+    this.specialEntries = new Map();
     this.emphasis = new Map();
     this.collectAt = null;
     this.manualCollectAt = null;
@@ -36,13 +38,13 @@ export class TableMotion {
     const done = ['trickEnd', 'roundEnd', 'finished'].includes(state?.phase);
     const scope = state ? `${state.round}:${state.completedTricks + (done ? 0 : 1)}` : '';
     if (initial || scope !== this.scope) {
-      this.entries.clear(); this.emphasis.clear(); this.manualCollectAt = null;
+      this.entries.clear(); this.specialEntries.clear(); this.emphasis.clear(); this.manualCollectAt = null;
     }
     this.scope = scope;
     this.paused = !!state?.lifecycle?.paused;
     this.leader = leader;
     this.emphasisScale = emphasisScale;
-    this.reducedMotion = !!reducedMotion;
+    this.setReducedMotion(reducedMotion);
     const cards = new Set();
     for (const { card } of state?.trick || []) {
       cards.add(card.id);
@@ -55,8 +57,13 @@ export class TableMotion {
       const event = state.events?.findLast(e => e.type === 'play' && e.round === state.round && e.card?.id === card.id);
       const age = initial ? CARD_ENTER_MS : event ? Math.max(0, serverNow - event.time) : CARD_ENTER_MS;
       this.entries.set(card.id, time - Math.min(CARD_ENTER_MS, age));
+      if (isSpecialCard(card)) {
+        const eventAge = event && Number.isFinite(event.time) ? Math.max(0, serverNow - event.time) : Infinity;
+        this.specialEntries.set(card.id, { kind: card.kind,
+          at: initial || this.reducedMotion || eventAge >= SPECIAL_CARD_ENTER_MS ? null : time - eventAge });
+      }
     }
-    for (const id of this.entries.keys()) if (!cards.has(id)) { this.entries.delete(id); this.emphasis.delete(id); }
+    for (const id of this.entries.keys()) if (!cards.has(id)) { this.entries.delete(id); this.specialEntries.delete(id); this.emphasis.delete(id); }
     const life = state?.lifecycle;
     const collectionRemaining = this.paused ? life?.collectionRemainingMs
       : Number.isFinite(life?.collectionAt) ? life.collectionAt - serverNow : null;
@@ -130,9 +137,20 @@ export class TableMotion {
       opacity: 1 - smooth(progress(collect - .65, .35)),
     };
   }
+  setReducedMotion(value) {
+    this.reducedMotion = !!value; this.frameSample = null;
+    if (this.reducedMotion) for (const entry of this.specialEntries.values()) entry.at = null;
+  }
+  specialPose(id, time = this.clock()) {
+    const entry = this.specialEntries.get(id);
+    if (!entry) return null;
+    return specialCardPose(entry.kind, entry.at === null ? Infinity : time - entry.at,
+      this.pose(id, time).collect, this.reducedMotion);
+  }
   isAnimating(time = this.clock()) {
     return !this.paused && !this.reducedMotion && (this.collectAt !== null && time >= this.collectAt - CARD_LABEL_FADE_MS && time < this.collectAt + CARD_COLLECT_MS ||
       [...this.entries.values()].some(at => time < at + CARD_ENTER_MS) ||
+      [...this.specialEntries.keys()].some(id => this.specialPose(id, time)?.active) ||
       [...this.emphasis.values()].some(value => value.from !== value.to && time < value.at + EMPHASIS_MS));
   }
   nextUpdateDelay(time = this.clock()) {
@@ -146,6 +164,7 @@ export class TableMotion {
     if (frameTime !== undefined && this.frameSample?.frameTime === frameTime) return this.frameSample;
     const time = this.clock();
     const sample = { frameTime, time, poses: new Map([...this.entries.keys()].map(id => [id, this.pose(id, time)])),
+      specialPoses: new Map([...this.specialEntries.keys()].map(id => [id, this.specialPose(id, time)])),
       labelOpacity: this.labelOpacity(time), animating: this.isAnimating(time), nextDelay: this.nextUpdateDelay(time) };
     if (frameTime !== undefined) this.frameSample = sample;
     return sample;

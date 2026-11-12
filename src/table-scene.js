@@ -6,6 +6,7 @@ import { playedCardRect } from './table-layout.js';
 import { winner } from './game.js';
 import { frameScheduler } from './frame-scheduler.js';
 import { WizardTableAssets } from './rendering/wizard-assets.mjs';
+import { SpecialFigurines } from './rendering/special-figurines.mjs';
 
 const motionMedia = matchMedia('(prefers-reduced-motion: reduce)');
 export const TABLE_CARD_Y = .382;
@@ -28,6 +29,7 @@ export class TableScene {
     this.renderer.domElement.setAttribute('aria-hidden', 'true');
     this.textures = new Map(); this.cards = new Map(); this.flames = []; this.candles = [];
     this.mode = 'hero'; this.key = ''; this.frame = 0;
+    this.figurines = new SpecialFigurines();
     this.trumpMotion = !motionMedia.matches;
     this.drawFrame = frameScheduler.add(time => {
       this.drawing = true;
@@ -254,6 +256,7 @@ export class TableScene {
       ? winner(entries, state.trump, state.options.deckMode) : null;
     const keys=new Set(entries.map(x=>x.card.id));
     for(const [id,group] of this.cards) if(!keys.has(id)){
+      this.figurines.release(group.userData.figurine);
       this.scene.remove(group);
       const shadow = group.userData.shadow;
       if (shadow) { this.scene.remove(shadow); shadow.geometry.dispose(); shadow.material.dispose(); }
@@ -273,9 +276,16 @@ export class TableScene {
         edge.castShadow=face.castShadow=false;
         edge.receiveShadow=face.receiveShadow=false;
         face.rotation.x=-Math.PI/2;
-        const rim=this.mesh(new THREE.PlaneGeometry(1.15,1.71),new THREE.MeshBasicMaterial({color:'#f2d38a',toneMapped:false,fog:false}),0,.021,0,group);
+        const rim=this.mesh(new THREE.PlaneGeometry(1.15,1.71),new THREE.MeshBasicMaterial({color:'#9cefff',toneMapped:false,fog:false}),0,.021,0,group);
         rim.rotation.x=-Math.PI/2; rim.castShadow=false;
         group.userData.rim=rim;
+        const rimBack=this.mesh(new THREE.PlaneGeometry(1.20,1.76),new THREE.MeshBasicMaterial({color:'#102636',toneMapped:false,fog:false}),0,.020,0,group);
+        rimBack.rotation.x=-Math.PI/2; rimBack.castShadow=false;
+        group.userData.rimBack=rimBack;
+        if (this.mode === 'game') {
+          const figurine = this.figurines.create(card.kind);
+          if (figurine) { this.scene.add(figurine); group.userData.figurine=figurine; }
+        }
         if (this.contactShadowTexture && this.mode === 'game') {
           const shadow = this.mesh(new THREE.PlaneGeometry(1.28,1.94),new THREE.MeshBasicMaterial({map:this.contactShadowTexture,transparent:true,opacity:.28,depthWrite:false}),0,.355,0);
           shadow.rotation.x=-Math.PI/2; shadow.castShadow=false;
@@ -287,7 +297,7 @@ export class TableScene {
       }
       const isWinner=state && ['trickEnd','roundEnd','finished'].includes(state.phase) && state.lastWinner===player;
       const isLeading = currentWinner === player;
-      group.userData.rim.visible = isLeading;
+      group.userData.rim.visible = group.userData.rimBack.visible = isLeading;
       group.userData.leading = isLeading;
       group.userData.player=player;
       group.userData.target=new THREE.Vector3((i-(entries.length-1)/2)*(this.mode==='hero' ? 3.1 : 1.28),this.mode==='hero' ? .43 : TABLE_CARD_Y,this.mode==='hero' ? .65 : 1.4);
@@ -371,6 +381,8 @@ export class TableScene {
     this.renderer.domElement.removeEventListener('webglcontextlost', this.onContextLost);
     this.renderer.domElement.removeEventListener('webglcontextrestored', this.onContextRestored);
     motionMedia.removeEventListener?.('change', this.onMotionChange);
+    for (const group of this.cards.values()) this.figurines.release(group.userData.figurine);
+    this.figurines.dispose();
     this.assets.dispose([...this.textures.values(), this.contactShadowTexture].filter(Boolean));
     this.renderer.dispose(); this.renderer.domElement.remove(); this.host = null;
   }
@@ -414,11 +426,10 @@ export class TableScene {
     place(this.coins, portrait ? .92 : .94, portrait ? .49 : .39, portrait ? 24 : 28, .9);
     for (let i=0;i<this.candles.length;i++) {
       const left=i%2===0, outer=i<2;
-      place(this.candles[i], left ? .035 : .965, portrait ? outer ? .21 : .38 : outer ? .32 : .66, portrait ? 13 : 14, .78);
+      place(this.candles[i], left ? .035 : .965, portrait ? outer ? .21 : .38 : outer ? .32 : .66, portrait ? 21 : compact ? 24 : 22, .78);
     }
     if (compact) {
       for (const group of [this.book, this.deck, this.coins, this.orbStand]) group.visible = false;
-      for (const candle of this.candles) candle.scale.multiplyScalar(.65);
     }
   }
   // Keep Three.js faces and their accessible DOM labels at the same stable seat.
@@ -506,6 +517,22 @@ export class TableScene {
       }
       data.rim.material.transparent=true;
       data.rim.material.opacity=pose.enter*pose.opacity;
+      data.rimBack.material.transparent=true; data.rimBack.material.opacity=pose.enter*pose.opacity;
+      const miniature=sample.specialPoses?.get(id);
+      if (data.figurine) {
+        const figurine=data.figurine;
+        figurine.visible=Boolean(miniature?.visible && group.visible);
+        if (miniature) {
+          const scale=data.baseScale.x*.55;
+          // World sibling, not a child of the moving card: feet land on felt.
+          const offset=new THREE.Vector3(miniature.x,0,miniature.z).multiplyScalar(data.baseScale.x);
+          offset.applyAxisAngle(new THREE.Vector3(0,1,0),data.rotation);
+          figurine.position.copy(data.target).add(offset);
+          figurine.position.y=.36+miniature.y*data.baseScale.x;
+          figurine.rotation.set(0,miniature.turn,0);
+          figurine.scale.set(scale*miniature.scale/Math.sqrt(miniature.squash),scale*miniature.scale*miniature.squash,scale*miniature.scale/Math.sqrt(miniature.squash));
+        }
+      }
       if (data.shadow) {
         data.shadow.position.set(group.position.x,.355,group.position.z);
         data.shadow.rotation.z=-group.rotation.y;

@@ -7,8 +7,8 @@ import { createCrystalOrb } from './wizard-orb.mjs';
 export const LIGHT_PROFILES = Object.freeze({
   hero:    { hemisphere:.28, fill:.14, rim:.16, candle:18, range:7, count:4, exposure:1.20 },
   desktop: { hemisphere:.25, fill:.20, rim:.10, candle:12, range:5.5, count:4, exposure:1.25 },
-  portrait:{ hemisphere:.32, fill:.22, rim:0, candle:7, range:4, count:2, exposure:1.25 },
-  compact: { hemisphere:.36, fill:.24, rim:0, candle:4, range:3, count:2, exposure:1.20 },
+  portrait:{ hemisphere:.42, fill:.30, rim:0, candle:7, range:4, count:2, exposure:1.25 },
+  compact: { hemisphere:.48, fill:.34, rim:0, candle:9, range:4, count:2, exposure:1.25 },
 });
 export function chooseProfile({mode='game',width=1000,height=700,compact=false}={}) {
   return mode==='hero' ? 'hero' : compact ? 'compact' : height>width ? 'portrait' : 'desktop';
