@@ -67,7 +67,7 @@ test('explicit invitation server and watch are preserved; ambiguous invitations 
 test('runtime same-origin relay overrides fixed Cloudflare build configuration without an external probe', async () => {
   const location = new URL(`${origin}/`);
   const calls = [];
-  await loadRuntimeConfig({ location, fetcher: async (url, options) => { calls.push(url.href); assert.equal(options.redirect, 'error'); assert.equal(options.credentials, 'same-origin'); assert.ok(options.signal); return Response.json(config); } });
+  await loadRuntimeConfig({ location, fetcher: async (url, options) => { calls.push(url.href); assert.equal(options.cache, 'no-store'); assert.equal(options.redirect, 'error'); assert.equal(options.credentials, 'same-origin'); assert.ok(options.signal); return Response.json(config); } });
   assert.deepEqual(calls, [`${origin}/runtime-config.json`]);
   assert.equal(relayOrigin('https://wizard-friends.qiuh23.workers.dev', location), origin);
   assert.equal(relayURL('/api/presence', relayOrigin('https://cloudflare.test', location)), 'ws://115.29.188.62:8081/api/presence');
