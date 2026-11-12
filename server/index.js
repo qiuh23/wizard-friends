@@ -1,7 +1,7 @@
 import { serverEdition } from '../src/site-policy.js';
 import http from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { resolve, extname, sep } from 'node:path';
+import { resolve, extname, sep, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { RoomRelay, RoomDirectory } from '../worker/index.js';
@@ -10,8 +10,9 @@ import { SecurityStore } from './security-store.js';
 import { adminAuthorized, recordSecurity, securityCall, DEFAULT_CONTACT, ConnectionGuard } from '../worker/security.js';
 import { RoomStore } from './storage.js';
 import { exactAllowedOrigins, normalizeRuntimeConfig } from '../src/backend-entry.js';
+import { immutableAssetSet, staticCacheHeaders, matchesETag } from './static-cache.js';
 
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.glb': 'model/gltf-binary' };
 const clone = value => structuredClone(value);
 const json = (response, value, status = 200) => { response.writeHead(status, { 'Content-Type': MIME['.json'], 'Cache-Control': 'no-store' }); response.end(JSON.stringify(value)); };
 
@@ -104,6 +105,8 @@ export async function createServer(options = {}) {
   const staticDir = resolve(options.staticDir || env.STATIC_DIR || 'dist');
   let build = {};
   try { build = JSON.parse(await readFile(resolve(staticDir, 'build-info.json'), 'utf8')); } catch {}
+  let immutable = new Set();
+  try { immutable = immutableAssetSet(JSON.parse(await readFile(resolve(staticDir, 'asset-cache-manifest.json'), 'utf8'))); } catch {}
   if (env.RELEASE_SHA && build.revision && env.RELEASE_SHA !== build.revision) throw new Error('RELEASE_SHA does not match the installed frontend revision.');
   const revision = build.revision || env.RELEASE_SHA || 'development';
   if (env.NODE_ENV === 'production') {
@@ -168,7 +171,11 @@ export async function createServer(options = {}) {
       try { if ((await stat(path)).isDirectory()) path = resolve(path, 'index.html'); }
       catch { if (!extname(url.pathname)) path = resolve(staticDir, 'index.html'); }
       const data = await readFile(path);
-      response.writeHead(200, { 'Content-Type': MIME[extname(path)] || 'application/octet-stream', 'Cache-Control': extname(path) === '.html' || extname(path) === '.json' ? 'no-store' : 'public, max-age=3600' });
+      const headers = { 'Content-Type': MIME[extname(path)] || 'application/octet-stream', ...staticCacheHeaders(`/${relative(staticDir, path).split(sep).join('/')}`, data, immutable) };
+      if (headers['Cache-Control'] !== 'no-store' && matchesETag(request.headers['if-none-match'], headers.ETag)) {
+        response.writeHead(304, headers); return response.end();
+      }
+      response.writeHead(200, { ...headers, 'Content-Length': data.length });
       response.end(request.method === 'HEAD' ? undefined : data);
     } catch (error) { if (!response.headersSent) json(response, { error: error.code === 'ENOENT' ? 'Not found' : 'Request failed' }, error.code === 'ENOENT' ? 404 : 500); else response.destroy(); }
   });

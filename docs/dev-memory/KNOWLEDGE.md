@@ -153,3 +153,7 @@
 
 - 不透明内球会遮住与其共心的发光Sprite。保留深度测试时，应把小高光放在面向相机的球心前、玻璃内，或让实体自身发光；仅测试opacity变化不能证明高光可见。
 - 模型变大或变亮仍不保证面部可读，俯视角帽檐会挡住眼睛；用实际几何射线检查遮挡，再做真实浏览器视觉复核。见[QA](../qa/wizard-figurine-clarity/README.md)。
+
+## 2026-11-12 — 缓存构建合同
+
+`asset-cache.mjs` 生成模型路径、国内清单及海外 `_headers`；`check-asset-cache.mjs` 在每次 build 后核对字节、引用、规则一致性。Cloudflare 精确规则上限100，当前79；增加大量资源时须先调整策略，不能静默遗漏或退成固定网址强缓存。`test:cache` 使用真实 HTTP 和持久浏览器配置，不使用 Playwright 路由（路由会关闭浏览器 HTTP 缓存）。现有服务器按原子 release 目录运行，HTML 的 no-cache/ETag 与资源 immutable 配合使用。

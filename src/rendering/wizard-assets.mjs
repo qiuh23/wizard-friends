@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createWizardLighting } from './wizard-lighting.mjs';
+import { wizardAssetURL } from './wizard-asset-url.mjs';
 
 const CANDLES = [
   ['wizard_candle', 'Flame'],
@@ -41,14 +42,14 @@ export function disposeObjectResources(roots, extraTextures = [], disposed = new
 
 /** Cache per table owner, never let a destroyed table poison another instance. */
 export class WizardAssetLibrary {
-  constructor(loader = new GLTFLoader(), baseUrl = `${import.meta.env?.BASE_URL || '/'}assets/wizard-v4/`) {
+  constructor(loader = new GLTFLoader(), baseUrl) {
     this.loader = loader; this.baseUrl = baseUrl;
     this.promises = new Map(); this.roots = new Set(); this.released = new WeakSet();
     this.disposed = false;
   }
   load(name) {
     if (this.disposed) return Promise.reject(new Error('Wizard asset library disposed'));
-    const url = `${this.baseUrl}${name}.glb`;
+    const url = wizardAssetURL(name, this.baseUrl);
     if (!this.promises.has(url)) {
       const promise = this.loader.loadAsync(url).then(gltf => {
         if (this.disposed) {

@@ -16,7 +16,7 @@ async function checkedArtifact(env, edition, url) {
 const uuid = value => typeof value === 'string' && /^[a-f0-9-]{36}$/.test(value);
 const MAX_FRAME = 256 * 1024;
 const DIRECTORY_TTL = 90000;
-const json = (value, status = 200) => Response.json(value, { status });
+const json = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
 const send = (ws, value) => { try { ws.send(JSON.stringify(value)); } catch {} };
 const close = (ws, code = 1000, reason = '') => { try { ws.close(code, reason); } catch {} };
 const attachment = ws => ws.deserializeAttachment() || {};
