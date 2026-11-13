@@ -106,3 +106,46 @@ test('real hint controller: explicit lower only, keep/close/timeout ignore, repe
   const hint=new GraphicsQualityHint({document:doc,once:new QualityHintOnce(store),canShow:()=>true});
   assert.equal(hint.suggest(0),false);assert.equal(store.getItem(QUALITY_HINT_SEEN_KEY),null);
 });
+
+test('TableScene setter is the only quality transition, persists across scenes and tolerates denied storage', async t => {
+  const originalMedia=globalThis.matchMedia,originalStorage=globalThis.localStorage;
+  globalThis.matchMedia=()=>({matches:false});globalThis.localStorage=storage();
+  t.after(()=>{if(originalMedia)globalThis.matchMedia=originalMedia;else delete globalThis.matchMedia;
+    if(originalStorage)globalThis.localStorage=originalStorage;else delete globalThis.localStorage;});
+  const {TableScene}=await import('../src/table-scene.js');
+  let layouts=0,lighting=0;const material={};
+  const scene={low:readLowGraphics(),renderer:{shadowMap:{enabled:false}},scene:{traverse:cb=>cb({material})},
+    resize(){layouts++;},updateAssetLighting(){lighting++;},qualityAdviser:new SlowFrameAdviser()};
+  assert.equal(scene.low,false);
+  for(const low of [true,false,true]) {
+    TableScene.prototype.setLow.call(scene,low);assert.equal(scene.low,low);assert.equal(readLowGraphics(),low);
+    assert.equal(scene.renderer.shadowMap.enabled,false);assert.equal(material.needsUpdate,true);
+  }
+  assert.equal(layouts,3);assert.equal(lighting,3);
+  globalThis.localStorage=blocked;
+  assert.doesNotThrow(()=>TableScene.prototype.setLow.call(scene,false));assert.equal(scene.low,false);
+});
+
+test('actual TableScene animate return values preserve ambient, card-motion and paused/reduced demand', async t => {
+  const originalMedia=globalThis.matchMedia,originalDoc=globalThis.document;
+  const media={matches:false};globalThis.matchMedia=()=>media;globalThis.document={hidden:false};
+  t.after(()=>{if(originalMedia)globalThis.matchMedia=originalMedia;else delete globalThis.matchMedia;
+    if(originalDoc)globalThis.document=originalDoc;else delete globalThis.document;});
+  const {TableScene}=await import('../src/table-scene.js?quality-cadence');
+  const {TableMotion}=await import('../src/table-motion.js');
+  let now=0;const motion=new TableMotion(()=>now);
+  const state={phase:'play',round:1,completedTricks:0,trick:[],events:[]};
+  motion.sync(state,{serverNow:0});
+  let renders=0;const scene={host:{isConnected:true},mode:'game',motion,assetLighting:{},low:false,paused:false,
+    dust:{rotation:{}},orb:{rotation:{}},trump:{visible:false},cards:new Map(),drawCards(){},updateAssetLighting(){},
+    renderer:{render(){renders++;}}};
+  assert.equal(TableScene.prototype.animate.call(scene,now),33);
+  state.trick.push({card:{id:'red-1'},player:0});
+  state.events.push({type:'play',round:1,card:{id:'red-1'},time:0});motion.sync(state,{serverNow:0});
+  now=50;assert.equal(TableScene.prototype.animate.call(scene,now),0);
+  scene.low=true;assert.equal(TableScene.prototype.animate.call(scene,now),33);
+  now=2000;assert.equal(TableScene.prototype.animate.call(scene,now),50);
+  scene.paused=true;assert.equal(TableScene.prototype.animate.call(scene,now),null);
+  scene.paused=false;media.matches=true;assert.equal(TableScene.prototype.animate.call(scene,now),null);
+  globalThis.document.hidden=true;const before=renders;assert.equal(TableScene.prototype.animate.call(scene,now),null);assert.equal(renders,before);
+});

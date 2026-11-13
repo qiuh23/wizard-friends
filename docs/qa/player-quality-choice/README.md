@@ -23,6 +23,13 @@ Based on main `cbd81d465f3a76f22382201c36c5236360fa6934`. This change does not a
 
 ## Verification
 
-Initial focused pass: 29 tests, including the real FrameScheduler replay, sustained versus deliberate cadence, startup/focus/layout guards, persistence and blocked storage, hint keep/close/timeout/navigation/double-click lifecycle, real GLB loading and phone/landscape light positions. Broader build/regression and DOM results are recorded before final review.
+- `npm run check`: syntax and strict UI types passed.
+- `npm test`: all 415 tests passed. This includes real FrameScheduler replay; real TableScene animate/setLow methods with renderer stubs; sustained versus deliberate cadence; startup/focus/layout guards; persistence and blocked storage; hint keep/close/timeout/navigation/double-click lifecycle; and real Three/GLB loading.
+- `SITE_EDITION=global npm run build`, `SITE_EDITION=cn npm run build`: passed; existing large-bundle warning unchanged.
+- Global `npm run worker:check`: dry-run passed with an executor-local XDG config directory; no upload/deployment. The first attempt only failed to create the unavailable default home config path.
+- Real GLB projection at 320×568, 390×844, 430×932, 667×275, 740×320, 844×390 and 932×430, switching high/low/high: passed. Adding the compact crystal revealed a small right-safe-area overflow; the existing candle boundary fitter now also fits the crystal mesh. Flame/lantern/crystal meshes remain outside the reserved HUD/hand bands. Glows are not treated as solid mesh bounds.
+- Keyboard dismissal restores the preceding focus only when focus was inside the hint. No focus is moved merely by showing it.
+
+DOM results are recorded after the final official preview pass.
 
 The available browser has no WebGL1/2. CPU-side real Three/GLB geometry checks and DOM checks do not substitute for mobile GPU or visual 3D acceptance. No claimed actual-device FPS, thermal, or battery improvement. No manual deployment is part of this change; only the existing main release workflows may run after an authorized merge.

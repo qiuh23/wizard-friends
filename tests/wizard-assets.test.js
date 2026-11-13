@@ -214,6 +214,21 @@ test('actual GLB flames remain in mobile portrait/landscape viewport with player
       assert.equal(summary.pointLights,lowPower?2:4);assert.equal(summary.shadowPointLights,0);
       assert.equal(table.assetLighting.orbPoint.visible,!lowPower);
       assert.equal(table.assetLighting.lanternPoint.visible,!lowPower);
+      if (!lowPower) for (const root of [table.orbStand, table.scene.getObjectByName('WizardLantern')]) {
+        const bounds = new THREE.Box3();
+        root.updateWorldMatrix(true,true);
+        root.traverseVisible(object => {
+          if (!object.isMesh || object.isSprite) return;
+          object.geometry.computeBoundingBox();
+          bounds.union(object.geometry.boundingBox.clone().applyMatrix4(object.matrixWorld));
+        });
+        for (const x of [bounds.min.x,bounds.max.x]) for (const y of [bounds.min.y,bounds.max.y]) for (const z of [bounds.min.z,bounds.max.z]) {
+          const point = new THREE.Vector3(x,y,z).project(table.camera);
+          const px = (point.x+1)*width/2, py = (1-point.y)*height/2;
+          assert.ok(px >= (compact?47:0)+7 && px <= width-(compact?21:0)-7, `${width}x${height} ${root.name || 'crystal'} x=${px}`);
+          assert.ok(py >= (compact?0:44)+55 && py <= height-(compact?100:46)+1, `${width}x${height} ${root.name || 'crystal'} y=${py}`);
+        }
+      }
       for(const [i,c] of assets.candles.entries()) {
         const position=c.flame.getWorldPosition(new THREE.Vector3());
         const screen=position.clone().project(table.camera);

@@ -454,14 +454,14 @@ export class TableScene {
       this.orbStand.visible = !this.low;
     }
     // Elevated flames lean outward in perspective, especially in short landscape.
-    // Fit the actual visible mesh bounds, not just the ground pivot, after grounding
+    // Fit candle/lantern and crystal mesh bounds, not just ground pivots, after grounding
     // imported assets. Keep the upper HUD and lower hand-control band unobscured.
     this.assets?.update({ mode:this.mode, width, height, compact, lowPower:this.low,
       reducedMotion:motionMedia.matches, paused:this.paused, time:this.animationTime || 0 });
     const limits={left:safe.x(0)*width+8,right:safe.x(1)*width-8,
       top:safe.y(0)*height+56,bottom:safe.y(1)*height-(compact?100:12)};
     const box=new THREE.Box3(),part=new THREE.Box3();
-    for (const group of this.candles) for (let pass=0;pass<3;pass++) {
+    for (const group of [...this.candles, this.orbStand].filter(group => group.visible)) for (let pass=0;pass<3;pass++) {
       group.updateWorldMatrix(true,true);box.makeEmpty();
       group.traverseVisible(object=>{
         if(!object.isMesh || object.isSprite) return;

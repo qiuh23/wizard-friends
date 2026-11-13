@@ -33,6 +33,7 @@ export class GraphicsQualityHint {
     node.querySelector('[data-quality-keep]').onclick = () => this.dismiss();
     node.querySelector('[data-quality-close]').onclick = () => this.dismiss();
     node.onkeydown = event => { if (event.key === 'Escape') { event.stopPropagation(); this.dismiss(); } };
+    this.previousFocus = this.doc.activeElement;
     node.style.visibility = 'visible'; this.once.shown();
     // No focus change, backdrop, pause, or automatic quality change. Ignoring expires it.
     this.timer = this.setTimer(() => this.dismiss(), 12000);
@@ -56,6 +57,11 @@ export class GraphicsQualityHint {
   refresh() { if (this.node && !this.position()) this.dismiss(); }
   dismiss() {
     this.clearTimer(this.timer); this.timer = null;
+    const restoreFocus = this.node?.contains?.(this.doc.activeElement);
     this.node?.remove(); this.node = null;
+    if (restoreFocus) {
+      const target = this.previousFocus?.isConnected ? this.previousFocus : this.doc.querySelector('#table-menu');
+      target?.focus({ preventScroll: true });
+    }
   }
 }
