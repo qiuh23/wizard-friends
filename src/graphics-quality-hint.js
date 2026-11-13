@@ -15,8 +15,9 @@ export function qualityHintPosition(width, height, viewport, obstacles) {
 }
 
 export class GraphicsQualityHint {
+  // Wrap native Window timers: storing them as methods gives them an illegal receiver.
   constructor({ canShow, lower, once = new QualityHintOnce(), document: doc = globalThis.document,
-    setTimer = setTimeout, clearTimer = clearTimeout } = {}) {
+    setTimer = (callback, delay) => setTimeout(callback, delay), clearTimer = id => clearTimeout(id) } = {}) {
     Object.assign(this, { canShow, lower, once, doc, setTimer, clearTimer });
     this.nextAttempt = 0;
   }

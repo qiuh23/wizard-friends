@@ -149,3 +149,14 @@ test('actual TableScene animate return values preserve ambient, card-motion and 
   scene.paused=false;media.matches=true;assert.equal(TableScene.prototype.animate.call(scene,now),null);
   globalThis.document.hidden=true;const before=renders;assert.equal(TableScene.prototype.animate.call(scene,now),null);assert.equal(renders,before);
 });
+
+test('default browser timers never receive the hint object as their native receiver', t => {
+  const originalSet=globalThis.setTimeout,originalClear=globalThis.clearTimeout;
+  let callback,cleared=false;
+  globalThis.setTimeout=function(fn,delay) { assert.ok(!(this instanceof GraphicsQualityHint),'native timers reject a custom receiver'); assert.equal(delay,12000); callback=fn; return 23; };
+  globalThis.clearTimeout=function(id) { assert.ok(!(this instanceof GraphicsQualityHint),'native clearTimeout rejects a custom receiver'); if(id===23)cleared=true; };
+  t.after(()=>{globalThis.setTimeout=originalSet;globalThis.clearTimeout=originalClear;});
+  const {doc}=fakeDOM();
+  const hint=new GraphicsQualityHint({document:doc,once:new QualityHintOnce(storage()),canShow:()=>true});
+  assert.equal(hint.suggest(0),true);callback();assert.equal(hint.node,null);assert.equal(cleared,true);
+});

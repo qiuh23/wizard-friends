@@ -24,12 +24,21 @@ Based on main `cbd81d465f3a76f22382201c36c5236360fa6934`. This change does not a
 ## Verification
 
 - `npm run check`: syntax and strict UI types passed.
-- `npm test`: all 415 tests passed. This includes real FrameScheduler replay; real TableScene animate/setLow methods with renderer stubs; sustained versus deliberate cadence; startup/focus/layout guards; persistence and blocked storage; hint keep/close/timeout/navigation/double-click lifecycle; and real Three/GLB loading.
+- `npm test`: all 416 tests passed. This includes real FrameScheduler replay; real TableScene animate/setLow methods with renderer stubs; sustained versus deliberate cadence; startup/focus/layout guards; persistence and blocked storage; hint keep/close/timeout/navigation/double-click lifecycle; and real Three/GLB loading.
 - `SITE_EDITION=global npm run build`, `SITE_EDITION=cn npm run build`: passed; existing large-bundle warning unchanged.
 - Global `npm run worker:check`: dry-run passed with an executor-local XDG config directory; no upload/deployment. The first attempt only failed to create the unavailable default home config path.
 - Real GLB projection at 320×568, 390×844, 430×932, 667×275, 740×320, 844×390 and 932×430, switching high/low/high: passed. Adding the compact crystal revealed a small right-safe-area overflow; the existing candle boundary fitter now also fits the crystal mesh. Flame/lantern/crystal meshes remain outside the reserved HUD/hand bands. Glows are not treated as solid mesh bounds.
 - Keyboard dismissal restores the preceding focus only when focus was inside the hint. No focus is moved merely by showing it.
 
-DOM results are recorded after the final official preview pass.
+### Official browser DOM pass (2026-11-13)
+
+A bounded static fixture bundled the **real** advisory module, preference helpers, TableScene setter, shared base/theme CSS and hint CSS. Its renderer and game-state rectangles were stubs. This isolates the newly added DOM lifecycle; it is not a full multiplayer game or 3D scene acceptance test.
+
+- 390×844, 320×568, 844×390: the 210×72 px hint fit with zero intersections against the measured card/seat/hand/status/toolbar fixture rectangles. Phone first load displayed high quality.
+- Keep high, Close, Escape and 12-second ignore: no quality change; subsequent suggestion and page refresh did not re-show. Keyboard close restored the initiating control and showing never took focus.
+- Lower: only that action changed to low through the original setter, and low survived page refresh. The settings toggle restored high without re-showing a consumed hint.
+- Changing into the player's action state dismissed the suggestion without changing quality. Returning to the waiting state did not repeat it.
+- Actual Chrome caught native timer receiver errors that injected Node timers did not expose. Wrapped the default timer calls, added a receiver-sensitive regression and replayed the entire flow successfully. No new application errors occurred after the fix; unrelated browser-extension metadata warnings remain outside the app.
+- Used only `sites-preview` and its exact returned root URL. Stopped and confirmed the preview daemon after the pass. No extra server or GPU/security setting was used.
 
 The available browser has no WebGL1/2. CPU-side real Three/GLB geometry checks and DOM checks do not substitute for mobile GPU or visual 3D acceptance. No claimed actual-device FPS, thermal, or battery improvement. No manual deployment is part of this change; only the existing main release workflows may run after an authorized merge.
