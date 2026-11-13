@@ -29,12 +29,12 @@ test('flame world positions and inverse-square scale compensation follow transfo
   }); rig.dispose();
 });
 
-test('desktop seven-light budget; phone, hero phone, compact and low-power four-light budget', () => {
+test('high quality keeps seven-light budget on phones, compact and hero; only low power reduces it', () => {
   const { rig } = setup();
-  assert.equal(rig.update({ width: 1000, height: 700 }).pointLights, 4); assert.equal(rig.rim.visible, true);
-  for (const options of [{ lowPower: true }, { width: 390, height: 844 }, { mode: 'hero', width: 390, height: 844 }, { compact: true }]) {
-    assert.equal(rig.update(options).pointLights, 2); assert.equal(rig.rim.visible, false);
-    let visible = 0; rig.group.traverseVisible(o => { if (o.isLight) visible++; }); assert.equal(visible, 4);
+  for (const options of [{ width: 1000, height: 700 }, { width: 390, height: 844 }, { mode: 'hero', width: 390, height: 844 }, { compact: true }]) {
+    assert.equal(rig.update(options).pointLights, 4); assert.equal(rig.rim.visible, true);
+    let visible = 0; rig.group.traverseVisible(o => { if (o.isLight) visible++; }); assert.equal(visible, 7);
+    assert.equal(rig.update({ ...options, lowPower: true }).pointLights, 2); assert.equal(rig.rim.visible, false);
   } rig.dispose();
 });
 

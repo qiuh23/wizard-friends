@@ -114,7 +114,7 @@ try {
           shadows: scene.renderer.shadowMap.enabled, deck: bounds(scene.deck.children.at(-1)), cards };
       }, count);
       phoneResults.push(layout);
-      expect(layout.low).toBe(true);
+      expect(layout.low).toBe(false);
       expect(layout.dpr).toBe(2);
       expect(layout.antialias).toBe(true);
       expect(layout.shadows).toBe(false);
@@ -137,7 +137,7 @@ try {
   });
   expect(restored.scales).toEqual([1, 1, 1, 1, 1, 1]);
   expect(restored.dpr).toBe(2);
-  expect(restored.shadows).toBe(true);
+  expect(restored.shadows).toBe(false);
   expect(errors).toEqual([]);
   console.log(JSON.stringify({ phoneResults, restored, errors }));
 } finally {

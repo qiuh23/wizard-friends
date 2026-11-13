@@ -58,6 +58,8 @@ import './table-play.css';
 import { bindBidControls } from './bid-controls.js';
 import { FloatingLayers, containsEvent } from './floating-layers.js';
 import { renderUI, updateUIDraft } from './ui/root.tsx';
+import { GraphicsQualityHint } from './graphics-quality-hint.js';
+import './graphics-quality-hint.css';
 
 new ScreenDirection();
 
@@ -79,6 +81,7 @@ let refreshHandOnLayout = false;
 const layoutSchedule = createLayoutScheduler(({force}) => {
   if (updateLayoutMetrics(force)) tableScene?.resize();
   social?.positionNotices();
+  qualityHint.refresh();
   if (refreshHandOnLayout) {
     refreshHandOnLayout = false;
     handMotion.attach($('.hand'), null, selectedCard);
@@ -124,7 +127,7 @@ function syncScene() {
       try {
         tableScene = new TableScene({onInvalidate:() => {
           layoutSchedule.request({force:true}); htmlFrame.request();
-        }}); updateTrumpMotion(); syncScene(); updateGraphicsButton();
+        }, onQualitySuggestion: time => qualityHint.suggest(time)}); updateTrumpMotion(); syncScene(); updateGraphicsButton();
       } catch {
         sceneFailed = true; document.body.classList.remove('has-webgl'); updateGraphicsButton();
       }
@@ -137,6 +140,8 @@ function updateGraphicsButton() {
   button.textContent = sceneFailed ? '◇ 2D 模式' : tableScene?.low ? '◇ 省电' : '◇ 3D 质感';
   button.disabled = sceneFailed || !tableScene;
   button.setAttribute('aria-label', sceneFailed ? 'WebGL 不可用，已自动使用二维界面' : '切换三维画面质量与省电模式');
+  button.setAttribute('aria-pressed', String(!!tableScene?.low));
+  qualityHint.refresh();
 }
 
 const $ = s => document.querySelector(s);
@@ -158,6 +163,16 @@ const handMotion = new HandMotion(showHoveredCard, {retainNodes:false});
 const tableMotion = new TableMotion();
 const trumpReveal = new TrumpReveal();
 const scoreBubbles = new ScoreBubbles();
+const qualityHint = new GraphicsQualityHint({
+  canShow: () => !!tableScene && !tableScene.low && !sceneFailed && !document.hidden && document.hasFocus()
+    && state?.phase === 'play' && !state.lifecycle?.paused && !state.lifecycle?.reconnecting
+    && (practice || networkReady) && !menuOpen && !scoresOpen && !rulesOpen && !settingsOpen
+    && !state.foresightActive && !tableMotion.isAnimating()
+    && (spectating || state.players[state.turn]?.id !== me),
+  lower: () => { if (tableScene) { tableScene.setLow(true); updateGraphicsButton(); } },
+});
+globalThis.addEventListener('blur', () => qualityHint.dismiss());
+document.addEventListener('visibilitychange', () => { if (document.hidden) qualityHint.dismiss(); });
 let renderEpoch = 0, hoveredCard = null;
 let selectedCard = null, handExpanded = false, handCollapsed = false, handSort = sessionStore.getItem('wizard-hand-sort') === 'rank' ? 'rank' : 'suit', handScroll = 0, gridScroll = 0, selectionContext = '';
 let foresightSort = ['suit', 'rank'].includes(sessionStore.getItem('wizard-foresight-sort')) ? sessionStore.getItem('wizard-foresight-sort') : null;
@@ -238,6 +253,7 @@ function uiModel(returnRooms = []) {
   };
 }
 function render() {
+  qualityHint.refresh();
   const previousForesight = $('.foresight-hands');
   const foresightScroll = previousForesight?.scrollTop || 0;
   const foresightFocus = previousForesight?.contains(document.activeElement) ? document.activeElement.id || 'foresight-hands' : null;
@@ -374,7 +390,7 @@ function bindCommon() {
   document.body.dataset.spectator = String(spectating);
   if (!state) { updateOnlineCount(); directory.mount($('.home-room-list')); }
   const graphics = $('#graphics');
-  graphics.onclick = () => { if (tableScene) { tableScene.setLow(!tableScene.low); updateGraphicsButton(); } };
+  graphics.onclick = () => { if (tableScene) { qualityHint.once.consumed = true; qualityHint.dismiss(); tableScene.setLow(!tableScene.low); updateGraphicsButton(); } };
   $('#trump-motion').onclick = () => {
     trumpMotionPreference = String(document.body.dataset.trumpMotion !== 'on');
     localStore.setItem('wizard-trump-motion', trumpMotionPreference); updateTrumpMotion();

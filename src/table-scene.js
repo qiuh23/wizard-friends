@@ -5,6 +5,7 @@ import { cardFaceCanvas, loadCardFace, onCardFaceReady } from './card-face.js';
 import { playedCardRect } from './table-layout.js';
 import { winner } from './game.js';
 import { frameScheduler } from './frame-scheduler.js';
+import { readLowGraphics, saveLowGraphics, SlowFrameAdviser } from './graphics-quality.js';
 import { WizardTableAssets } from './rendering/wizard-assets.mjs';
 import { SpecialFigurines, SPECIAL_FIGURINE_SCALE } from './rendering/special-figurines.mjs';
 import { decorationViewport } from './rendering/decoration-viewport.mjs';
@@ -13,10 +14,12 @@ const motionMedia = matchMedia('(prefers-reduced-motion: reduce)');
 export const TABLE_CARD_Y = .382;
 export const TABLE_VIEW_ANGLE = 58;
 export class TableScene {
-  constructor({ onInvalidate } = {}) {
+  constructor({ onInvalidate, onQualitySuggestion } = {}) {
     this.onInvalidate = onInvalidate;
-    const qualityPreference = localStorage.getItem('wizard-low-graphics');
-    this.low = qualityPreference === null ? matchMedia('(max-width: 600px)').matches : qualityPreference === 'true';
+    this.low = readLowGraphics();
+    this.qualityAdviser = new SlowFrameAdviser();
+    this.qualityAdviser.reset(performance.now(), 5000);
+    this.onQualitySuggestion = onQualitySuggestion;
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.FogExp2('#100e13', .033);
     this.camera = new THREE.PerspectiveCamera(43, 1, .1, 80);
@@ -44,6 +47,12 @@ export class TableScene {
         }
         if (this.resizePending) this.resize();
         const delay = this.animate(time);
+        // Advisory failure must never interrupt the table or its demand-driven queue.
+        try {
+          const eligible = !this.low && this.mode === 'game' && !this.paused && !this.lost
+            && this.assets?.status === 'ready' && !document.hidden && document.hasFocus();
+          if (this.qualityAdviser.sample(time, delay, eligible)) this.onQualitySuggestion?.(time);
+        } catch { /* Optional advice only. */ }
         if (ready) this.onInvalidate?.();
         return delay;
       } finally { this.drawing = false; }
@@ -67,6 +76,10 @@ export class TableScene {
     this.buildTrump();
     this.assets = new WizardTableAssets(this);
     this.assetLoad = this.assets.load();
+    this.onFocusChange = () => this.qualityAdviser.reset(performance.now(), 2000);
+    globalThis.addEventListener('blur', this.onFocusChange);
+    globalThis.addEventListener('focus', this.onFocusChange);
+    document.addEventListener('visibilitychange', this.onFocusChange);
     this.onContextLost = e => {
       e.preventDefault(); this.lost = true; this.host?.classList.remove('ready');
       document.body.classList.remove('has-webgl');
@@ -314,7 +327,7 @@ export class TableScene {
     const {width,height}=this.host.getBoundingClientRect();
     if(!width||!height)return;
     const compact = this.host.closest('.table')?.dataset.layoutMode === 'strip';
-    const layoutKey = [width,height,compact,this.mode,this.foresight,this.lobby].join(':');
+    const layoutKey = [width,height,compact,this.mode,this.foresight,this.lobby,this.low].join(':');
     const changed = layoutKey !== this.layoutKey;
     this.layoutKey = layoutKey;
     if (width !== this.width || height !== this.height) {
@@ -322,6 +335,7 @@ export class TableScene {
       this.renderer.setSize(width,height,false);
     }
     if (changed) {
+    this.qualityAdviser?.reset(performance.now());
     this.camera.aspect=width/height;
     this.camera.clearViewOffset();
     this.trump.quaternion.identity();
@@ -382,6 +396,9 @@ export class TableScene {
     this.renderer.domElement.removeEventListener('webglcontextlost', this.onContextLost);
     this.renderer.domElement.removeEventListener('webglcontextrestored', this.onContextRestored);
     motionMedia.removeEventListener?.('change', this.onMotionChange);
+    globalThis.removeEventListener('blur', this.onFocusChange);
+    globalThis.removeEventListener('focus', this.onFocusChange);
+    document.removeEventListener('visibilitychange', this.onFocusChange);
     for (const group of this.cards.values()) this.figurines.release(group.userData.figurine);
     this.figurines.dispose();
     this.assets.dispose([...this.textures.values(), this.contactShadowTexture].filter(Boolean));
@@ -432,17 +449,19 @@ export class TableScene {
       place(this.candles[i], left ? .075 : .925, portrait ? outer ? .21 : .38 : outer ? .32 : .66, portrait ? 21 : compact ? 24 : 22, .78);
     }
     if (compact) {
-      for (const group of [this.book, this.deck, this.coins, this.orbStand]) group.visible = false;
+      for (const group of [this.book, this.deck, this.coins]) group.visible = false;
+      // Compact layout may move the crystal, but only a player-selected low mode hides it.
+      this.orbStand.visible = !this.low;
     }
     // Elevated flames lean outward in perspective, especially in short landscape.
-    // Fit the actual visible mesh bounds, not just the ground pivot, after grounding
+    // Fit candle/lantern and crystal mesh bounds, not just ground pivots, after grounding
     // imported assets. Keep the upper HUD and lower hand-control band unobscured.
     this.assets?.update({ mode:this.mode, width, height, compact, lowPower:this.low,
       reducedMotion:motionMedia.matches, paused:this.paused, time:this.animationTime || 0 });
     const limits={left:safe.x(0)*width+8,right:safe.x(1)*width-8,
       top:safe.y(0)*height+56,bottom:safe.y(1)*height-(compact?100:12)};
     const box=new THREE.Box3(),part=new THREE.Box3();
-    for (const group of this.candles) for (let pass=0;pass<3;pass++) {
+    for (const group of [...this.candles, this.orbStand].filter(group => group.visible)) for (let pass=0;pass<3;pass++) {
       group.updateWorldMatrix(true,true);box.makeEmpty();
       group.traverseVisible(object=>{
         if(!object.isMesh || object.isSprite) return;
@@ -575,7 +594,8 @@ export class TableScene {
     }
   }
   setLow(value) {
-    this.low=value;localStorage.setItem('wizard-low-graphics',String(value));
+    this.low=Boolean(value);saveLowGraphics(this.low);
+    this.qualityAdviser?.reset(performance.now());
     this.renderer.shadowMap.enabled=false;
     // Refresh cached shaders too, or the previous shadow map remains visible.
     this.scene.traverse(object => {

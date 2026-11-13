@@ -178,7 +178,7 @@ export class WizardTableAssets {
   }
   update(options) {
     if (this.disposed) return;
-    if (this.corners) this.corners.visible = !options.compact && options.width > 850 && !options.lowPower;
+    if (this.corners) this.corners.visible = !options.lowPower;
     return this.table.assetLighting?.update(options);
   }
   dispose(textures = []) {
