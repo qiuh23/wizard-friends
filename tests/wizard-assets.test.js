@@ -167,8 +167,12 @@ test('installed crystal, lantern and warm candles share the existing light budge
   assert.equal(rig.warmth.lanternCore.parent, lantern);
   assert.ok(rig.warmth.lanternCore.material.opacity > .5);
   assert.ok(Math.abs(lantern.getWorldPosition(new THREE.Vector3()).y - .36) < 1e-8);
-  for (const options of [{ width: 390, height: 844 }, { lowPower: true }, { compact: true }]) {
+  for (const options of [{ width: 390, height: 844 }, { compact: true }]) {
     state = assets.update(options);
+    assert.equal(state.pointLights, 4);
+    assert.equal(rig.orbPoint.visible, true); assert.equal(rig.lanternPoint.visible, true);
+    assert.equal(lantern.visible, true); assert.equal(assets.corners.visible, true);
+    state = assets.update({ ...options, lowPower: true });
     assert.equal(state.pointLights, 2);
     assert.equal(rig.orbPoint.visible, false); assert.equal(rig.lanternPoint.visible, false);
     assert.equal(lantern.visible, false); assert.equal(rig.crystal.pool.visible, true);
@@ -185,7 +189,7 @@ test('installed crystal, lantern and warm candles share the existing light budge
   assets.dispose(); assert.equal(table.scene.getObjectByName('OrbTableGlow'), undefined);
 });
 
-test('actual GLB flames remain in mobile portrait/landscape viewport and feed only two grounded lights', async t => {
+test('actual GLB flames remain in mobile portrait/landscape viewport with player-selected light budgets', async t => {
   const original=globalThis.matchMedia,originalStyle=globalThis.getComputedStyle;globalThis.matchMedia=()=>({matches:false});
   let padding={};globalThis.getComputedStyle=()=>padding;
   t.after(()=>{if(original)globalThis.matchMedia=original;else delete globalThis.matchMedia;if(originalStyle)globalThis.getComputedStyle=originalStyle;else delete globalThis.getComputedStyle;});
@@ -203,10 +207,13 @@ test('actual GLB flames remain in mobile portrait/landscape viewport and feed on
     table.camera=new THREE.PerspectiveCamera(fov,width/height,.1,80);
     const angle=THREE.MathUtils.degToRad(58);table.camera.position.set(0,distance*Math.sin(angle),distance*Math.cos(angle));
     table.camera.lookAt(0,0,0);table.camera.updateProjectionMatrix();table.camera.updateMatrixWorld();
-    TableScene.prototype.layoutDecorations.call(table,width,height);
     for(const lowPower of [false,true,false]) {
+      table.low=lowPower;
+      TableScene.prototype.layoutDecorations.call(table,width,height);
       const summary=assets.update({width,height,compact,lowPower,reducedMotion:true});
-      assert.equal(summary.pointLights,2);assert.equal(summary.shadowPointLights,0);
+      assert.equal(summary.pointLights,lowPower?2:4);assert.equal(summary.shadowPointLights,0);
+      assert.equal(table.assetLighting.orbPoint.visible,!lowPower);
+      assert.equal(table.assetLighting.lanternPoint.visible,!lowPower);
       for(const [i,c] of assets.candles.entries()) {
         const position=c.flame.getWorldPosition(new THREE.Vector3());
         const screen=position.clone().project(table.camera);

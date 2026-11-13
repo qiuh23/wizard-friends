@@ -80,14 +80,13 @@ try {
   for (const [width, height, count] of [[1440,900,0],[1440,900,3],[1440,900,6],[390,844,6],[844,390,6],[667,300,6]]) {
     const { context, page } = await open(width, height, count);
     const result = await inspect(page); expect(result.status).toBe('ready'); expect(result.legacyOff).toBe(true);
-    expect(result.points).toBeLessThanOrEqual(height > width || result.layout === 'strip' ? 2 : 4);
+    expect(result.points).toBe(4);
     expect(result.lights).toBeLessThanOrEqual(7); expect(result.overflow).toBe(false);
     expect(Math.max(...result.flameError)).toBeLessThan(1e-6);
     expect(result.orb).toMatchObject({ transparent: true, transmission: 0, depthWrite: false, core: true, heart: true, lanternLeft: true, lanternCore: true, warmPoolY: .3555, poolY: .356 });
     expect(result.orb.leftWarmth).toBeGreaterThan(result.orb.rightWarmth);
     expect(result.orb.sourceError).toBeLessThan(1e-6);
-    const small = height > width || result.layout === 'strip' || width <= 600;
-    expect(result.orb.pointVisible).toBe(!small); expect(result.orb.lanternVisible).toBe(!small);
+    expect(result.orb.pointVisible).toBe(true); expect(result.orb.lanternVisible).toBe(true);
     if (count) for (const face of result.cardFaces) { expect(face.type).toBe('MeshBasicMaterial'); expect(face.toneMapped).toBe(false); expect(face.fog).toBe(false); expect(face.y).toBe(.382); }
     await page.screenshot({ path: `${out}/${count ? `${count}-players` : 'hero'}-${width}x${height}.png` });
     const repeats = [];

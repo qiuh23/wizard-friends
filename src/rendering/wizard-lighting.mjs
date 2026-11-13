@@ -8,8 +8,8 @@ import { createTableWarmth } from './wizard-warmth.mjs';
 export const LIGHT_PROFILES = Object.freeze({
   hero:    { hemisphere:.28, fill:.14, rim:.16, candle:18, range:7, count:4, exposure:1.20 },
   desktop: { hemisphere:.25, fill:.20, rim:.10, candle:12, range:6.5, count:4, exposure:1.25 },
-  portrait:{ hemisphere:.42, fill:.30, rim:0, candle:7, range:5, count:2, exposure:1.25 },
-  compact: { hemisphere:.48, fill:.34, rim:0, candle:9, range:5, count:2, exposure:1.25 },
+  portrait:{ hemisphere:.42, fill:.30, rim:.10, candle:7, range:5, count:4, exposure:1.25 },
+  compact: { hemisphere:.48, fill:.34, rim:.10, candle:9, range:5, count:4, exposure:1.25 },
 });
 export function chooseProfile({mode='game',width=1000,height=700,compact=false}={}) {
   return mode==='hero' ? 'hero' : compact ? 'compact' : height>width ? 'portrait' : 'desktop';
@@ -49,15 +49,15 @@ export function createWizardLighting({THREE,scene,renderer,candles,orb=null,lant
   function update({mode='game',width=1000,height=700,compact=false,lowPower=false,reducedMotion=false,paused=false,time=0}={}) {
     if(disposed)return;
     const profile=chooseProfile({mode,width,height,compact}),config=LIGHT_PROFILES[profile];
-    const small=lowPower||compact||height>width||width<=600;
+    const small=lowPower;
     hemisphere.intensity=config.hemisphere;fill.intensity=config.fill;rim.intensity=small?0:config.rim;rim.visible=rim.intensity>0;
     hemisphere.visible=hemisphere.intensity>0;fill.visible=fill.intensity>0;
     renderer.toneMappingExposure=config.exposure;
     group.updateWorldMatrix(true,false);
     const count=small?2:config.count;
-    // Reserve the two secondary candle slots for the orb and lantern on desktop.
+    // Keep the existing four-point budget at every high-quality viewport.
     // The four visible flames remain, with the main left/right candles lighting them.
-    // Phones keep two warm lights; the orb's inexpensive core/pool still glow.
+    // Only the player's low-power choice removes the orb and lantern point lights.
     const orbActive=Boolean(orb&&!small&&effectivelyVisible(orb));
     const lanternActive=Boolean(lantern&&!small&&effectivelyVisible(lantern.root.parent));
     if(lantern){

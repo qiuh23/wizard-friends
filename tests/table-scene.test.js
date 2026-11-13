@@ -120,7 +120,7 @@ test('mobile candle footprints retain their 21/24 px budget instead of shrinking
       const pixels=Math.abs(b.x-a.x)*width/2;
       assert.ok(Math.abs(pixels-(compact?24:21))<1e-7,`${width}x${height}: ${pixels}`);
     }
-    if(compact)assert.equal(props.every(p=>!p.visible),true);
+    if(compact) { assert.equal(props[1].visible,true,'high quality retains the crystal'); assert.ok([props[0],props[2],props[3]].every(p=>!p.visible)); }
   }
 });
 

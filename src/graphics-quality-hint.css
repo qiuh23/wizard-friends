@@ -1,0 +1,14 @@
+/* An optional small suggestion; no backdrop, focus trap, or reserved gameplay space. */
+.graphics-quality-hint {
+  position:fixed;z-index:12;width:max-content;max-width:calc(100vw - 24px);
+  padding:8px 10px;border:1px solid #bfa46a80;border-radius:10px;
+  background:#162b25;color:#eee4cc;box-shadow:0 3px 12px #0003;
+  font:12px/1.4 system-ui,sans-serif;
+}
+.graphics-quality-hint > div { display:flex;gap:6px;align-items:center;margin-top:5px; }
+.graphics-quality-hint button {
+  min-height:32px;padding:5px 8px;border:1px solid #bfa46a60;border-radius:7px;
+  background:#244235;color:#fff0cd;font:inherit;white-space:nowrap;
+}
+.graphics-quality-hint [data-quality-close] { margin-left:auto;min-width:32px; }
+.graphics-quality-hint button:focus-visible { outline:2px solid #b9f3f4;outline-offset:2px; }
