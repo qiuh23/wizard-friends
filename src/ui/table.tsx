@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { RoomModel, CardView, PlayerView, Suit } from './types';
 import { Card, Icon, IconButton } from './primitives';
 import { SUITS, SUIT_NAMES, winner } from '../game.js';
@@ -14,11 +14,11 @@ import { Settlement } from './settlement';
 const avatarColors = ['#94d6cb', '#eeb9a4', '#a9caff', '#f1d37b', '#c9b4ec', '#b9d59a'];
 const cardLabel = (card: CardView) => card.kind === 'wizard' ? '巫师 W' : card.kind === 'jester' ? '小丑 J' : `${SUIT_NAMES[card.suit!].split(' · ')[0]} ${card.rank}`;
 
-function Avatar({ model, player, index, lead }: { model: RoomModel; player: PlayerView; index: number; lead?: { label: string } | null }) {
+function SeatDetails({ model, player, index, lead, children }: { model: RoomModel; player: PlayerView; index: number; lead?: { label: string } | null; children: ReactNode }) {
   const prediction = bidStatus(model.state, player.id, { connected: model.practice || model.networkReady });
   const detail = `${player.name}${player.id === model.me ? ' · 你' : ''}${lead ? ` · ${lead.label}` : ''}${prediction === 'submitted' ? ' · 已预测' : prediction ? ' · 等待预测' : ''}`;
-  return <button className="avatar" data-bid-state={prediction} data-player-details={player.id} style={{ '--avatar-color': avatarColors[index % avatarColors.length] } as CSSProperties} aria-controls="table-score-panel" aria-expanded={model.scoresOpen && model.scoreSource === player.id} aria-label={`查看 ${detail} 的信息`} title={detail}>
-    <span className="avatar-glyph">{avatarCharacter(player.name)}</span><small className="avatar-seat">{index + 1}</small>{lead && <span className="lead-badge" aria-hidden="true">先</span>}{prediction && <span className="bid-state-mark" aria-hidden="true">{prediction === 'submitted' ? '✓' : '…'}</span>}
+  return <button type="button" className="seat-details" data-player-details={player.id} aria-controls="table-score-panel" aria-expanded={model.scoresOpen && model.scoreSource === player.id} aria-label={`查看 ${detail} 的信息`} title={detail}>
+    <span className="avatar" data-bid-state={prediction} style={{ '--avatar-color': avatarColors[index % avatarColors.length] } as CSSProperties} aria-hidden="true"><span className="avatar-glyph">{avatarCharacter(player.name)}</span><small className="avatar-seat">{index + 1}</small>{lead && <span className="lead-badge" aria-hidden="true">先</span>}{prediction && <span className="bid-state-mark" aria-hidden="true">{prediction === 'submitted' ? '✓' : '…'}</span>}</span>{children}
   </button>;
 }
 
@@ -33,8 +33,7 @@ function OwnStatus({ model, player }: { model: RoomModel; player?: PlayerView })
   const actionIcon = disconnected ? 'reconnect' : state.lifecycle?.paused ? 'pause' : state.lifecycle?.reconnecting ? 'reconnect' : ownTurn ? 'play' : 'clock';
   const actionText = disconnected ? '重连中' : state.lifecycle?.paused ? '已暂停' : state.lifecycle?.reconnecting ? '等待重连' : ownTurn ? '你出牌' : `等 ${shortSeatName(state.players[state.turn]?.name, relativeSeat(state.turn, index, state.players.length))}`;
   return <section className={`own-status ${(state.phase === 'bid' ? state.canBid : ['play', 'trump'].includes(state.phase) && ownTurn) ? 'active' : ''}`} aria-label="你的本轮预测和成绩">
-    <Avatar model={model} player={player} index={index} lead={lead?.seat === index ? lead : null} />
-    <span className="own-name" title={player.name}>{player.name}<small>你</small></span><div className="own-metrics"><span aria-label={`实赢 ${player.won} 墩`}><Icon name="trophy" /><small>赢</small><b>{player.won}</b></span><span aria-label={`预测 ${player.bid ?? '未提交'} 墩`}><Icon name="target" /><small>估</small><b>{player.bid ?? '—'}</b></span></div>
+    <SeatDetails model={model} player={player} index={index} lead={lead?.seat === index ? lead : null}><span className="own-name" title={player.name}>{player.name}<small>你</small></span></SeatDetails><div className="own-metrics"><span aria-label={`实赢 ${player.won} 墩`}><Icon name="trophy" /><small>赢</small><b>{player.won}</b></span><span aria-label={`预测 ${player.bid ?? '未提交'} 墩`}><Icon name="target" /><small>估</small><b>{player.bid ?? '—'}</b></span></div>
     {state.phase === 'play' && <div className="own-action"><span><b><Icon name={actionIcon} />{actionText}</b><small className="follow-requirement">{ownTurn ? followSuitHint(state, me) : ''}</small><small className="play-block-reason" role="status" aria-live="polite" hidden={!reason}>{reason}</small></span><span id="turn-countdown" role="timer" /></div>}
   </section>;
 }
@@ -94,7 +93,7 @@ export function TableScreen({ model }: { model: RoomModel }) {
         const identity = `${p.name} · 实赢 ${p.won} · 预测 ${p.bid ?? (p.bidSubmitted ? '已锁定' : '未预测')}${index === state.dealer ? ' · 庄家' : ''}${!p.online ? ' · 离线' : ''}`;
         const active = !done && !(state.phase === 'bid' && state.options.predictionMode !== 'public') && state.turn === index;
         return <div key={p.id} className={`player ${lead?.seat === index ? 'lead-seat' : ''} ${!p.online ? 'offline' : ''} ${active ? 'active' : ''}`} role="group" aria-label={identity} data-seat={pos.seat} data-player={p.id} style={{ '--seat-x': `${pos.x}%`, '--seat-y': `${pos.y}%` } as CSSProperties} title={identity}>
-          <Avatar model={model} player={p} index={index} lead={lead?.seat === index ? lead : null} /><span className="seat-name">{domestic ? p.name : shortSeatName(p.name, pos.seat)}{domestic && (p.nicknameBadge ?? 0) > 1 && <small>#{p.nicknameBadge}</small>}{domestic && p.bot && <small>电脑</small>}</span>
+          <SeatDetails model={model} player={p} index={index} lead={lead?.seat === index ? lead : null}><span className="seat-name">{domestic ? p.name : shortSeatName(p.name, pos.seat)}{domestic && (p.nicknameBadge ?? 0) > 1 && <small>#{p.nicknameBadge}</small>}{domestic && p.bot && <small>电脑</small>}</span></SeatDetails>
           <span className="prediction"><span aria-label={`实赢 ${p.won} 墩`}><small>赢</small><b>{p.won}</b></span><span aria-label={Number.isInteger(p.bid) ? `预测 ${p.bid} 墩` : p.bidSubmitted ? '预测已锁定，未公开' : '尚未预测'} className={Number.isInteger(p.bid) ? '' : 'target-secret'}><small>估</small><b>{p.bid ?? (p.bidSubmitted ? <Icon name="lock" /> : '—')}</b></span></span>
           {active && <span className="turn-label"><Icon name={state.phase === 'play' ? 'play' : 'target'} />{state.phase === 'play' ? '出牌' : state.phase === 'bid' ? '预测' : '选色'}</span>}
         </div>;

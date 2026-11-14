@@ -34,8 +34,8 @@ export class ScoreBubbles {
     this.draw();
     if (!this.effect) return;
     for (const [avatar, node] of this.nodes) if (!avatar.isConnected) { node.remove(); this.nodes.delete(avatar); }
-    for (const avatar of root.querySelectorAll('.avatar[data-player-details]')) {
-      const delta = this.effect.results.get(avatar.dataset.playerDetails);
+    for (const avatar of root.querySelectorAll('[data-player-details] .avatar')) {
+      const delta = this.effect.results.get(avatar.closest('[data-player-details]').dataset.playerDetails);
       if (delta === undefined || this.nodes.has(avatar)) continue;
       const node = avatar.ownerDocument.createElement('span');
       node.className = `round-score-bubble ${delta >= 0 ? 'score-gain' : 'score-loss'}`;

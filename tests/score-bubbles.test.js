@@ -42,3 +42,11 @@ test('leaving settlement and pausing clear bubbles without restarting on resume'
     s.state.lifecycle={}; s.state.phase='roundEnd'; s.sync(); assert.equal(s.bubbles.effect,null);
   }
 });
+
+test('score bubbles remain attached to the visual portrait inside the larger seat button',()=>{
+  const s=setup();s.sync();let appended,selector;
+  const node={style:{},setAttribute(){},remove(){}};
+  const avatar={isConnected:true,closest(selector){assert.equal(selector,'[data-player-details]');return {dataset:{playerDetails:'a'}};},ownerDocument:{createElement(){return node;}},append(value){appended=value;}};
+  s.bubbles.mount({querySelectorAll(value){selector=value;return [avatar];}});
+  assert.equal(selector,'[data-player-details] .avatar');assert.equal(appended,node);assert.match(node.innerHTML,/\+20/);assert.equal(s.bubbles.nodes.get(avatar),node);
+});
