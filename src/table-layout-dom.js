@@ -1,6 +1,6 @@
 import { relativeSeat, seatPosition } from './hand-model.js';
 import { LEADING_CARD_SCALE, COMPACT_LEADING_CARD_SCALE } from './table-motion.js';
-import { tableLayoutMode, playedCardRect, playedCardLink, shortSeatName, tablePlaySlots } from './table-layout.js';
+import { tableLayoutMode, playedCardRect, playedCardLink, shortSeatName, adaptiveTablePlaySlots, tableLayoutFits, tableOverlayReserve } from './table-layout.js';
 
 const layouts = new WeakMap();
 // React replaces the table mount on authoritative view changes. Keep the
@@ -47,7 +47,7 @@ function sameInputs(a, b) {
  * Update the existing table's geometry, without altering game or motion time.
  * @returns {boolean} Whether table layout was recalculated.
  */
-export function updateTableLayout({ state, me, tableMotion, playOrigins, reducedMotion = false, drawHTMLCards, force = false }) {
+export function updateTableLayout({ state, me, tableMotion, playOrigins, reducedMotion = false, drawHTMLCards, feltBounds, force = false }) {
   const metrics = [$('#room-chat'), $('.action-panel'), $('.own-status')];
   const table = $('.table'), played = $('.played-cards');
   const input = table && state ? layoutInputs(table, state, me, reducedMotion, metrics) : null;
@@ -122,38 +122,52 @@ export function updateTableLayout({ state, me, tableMotion, playOrigins, reduced
     const seatBottoms = seatWrites.filter(({ node }) => node).map(({ node }) => node.getBoundingClientRect().bottom);
     area.top = Math.max(area.top, ...seatBottoms.map(bottom => bottom + 8));
   }
-  if (rect.width <= 850 && rect.height > rect.width && document.body.classList.contains('hand-expanded')) {
-    const expandedHand = $('.hand-section.expanded')?.getBoundingClientRect();
-    if (expandedHand?.height) {
-      // The portrait grid temporarily covers the public trick. Keep its
-      // anchors under that overlay, clear of the elevated status and button.
-      area.top = Math.max(area.top, expandedHand.top + 8);
-      area.bottom = expandedHand.bottom - 8;
-    }
-  }
   if (!foresight && trump && round) {
     css(trump, 'left', `${round.left - rect.left}px`); css(trump, 'top', `${round.bottom + 4 - rect.top}px`);
   }
   if (foresight) layoutForesight(table, rect, strip, side, rightSide);
 
+  // The rendered card area is bounded by the actual un-stretched tabletop.
+  // Query the current dimensions, not the preceding orientation's camera.
+  const physical = feltBounds?.(rect.width, rect.height, strip);
+  const adaptive = strip || rect.width < 600;
+  const handOverlay = document.body.classList.contains('hand-expanded');
+  if (adaptive) {
+    area.left = rect.left + side; area.right = rect.right - rightSide;
+    area.top = Math.max(rect.top + 8, ...seatWrites.filter(({node})=>node).map(({node})=>node.getBoundingClientRect().bottom+8),
+      ...all('.roundbar,.trump-display,.game-toolbar').filter(node=>node.offsetWidth&&node.offsetHeight).map(node=>node.getBoundingClientRect().bottom+8));
+    area.bottom = rect.bottom - Math.max(8,parseFloat(tableStyle.paddingBottom)||0);
+    // The user-opened expanded hand remains the existing temporary overlay.
+    // Keep a normal table lane beneath it, including fresh mounts/rotation;
+    // never let a failed search retain arbitrary CSS-default destinations.
+
+  }
+  if (handOverlay) area.bottom = rect.bottom - tableOverlayReserve(rect.width,rect.height);
+  if (physical) {
+    area.left = Math.max(area.left,rect.left+physical.left+8);
+    area.right = Math.min(area.right,rect.left+physical.right-8);
+    area.top = Math.max(area.top,rect.top+physical.top+8);
+    area.bottom = Math.min(area.bottom,rect.top+physical.bottom-8);
+  }
+
   const avatarRects = new Map([...avatars].map(([id, avatar]) => [id, avatar?.getBoundingClientRect()]));
   if (played && avatars.size) {
-    const obstacles = all('.opponents .player,.trump-display,.foresight-hands,.lifecycle-banner,.play-confirm')
-      .filter(node => node.offsetWidth && node.offsetHeight && getComputedStyle(node).visibility !== 'hidden').map(node => node.getBoundingClientRect());
+    const obstacles = all('.opponents .player,.seat-details,.trump-display,.foresight-hands,.lifecycle-banner,.play-confirm,.own-status,.hand-section,.concealed-hand,.action-panel,.hand-tools,.table-result,.game-toolbar,.roundbar')
+      .filter(node => node.offsetWidth && node.offsetHeight && getComputedStyle(node).visibility !== 'hidden' &&
+        !(handOverlay && node.matches('.hand-section.expanded,.own-status,.own-status *,.play-confirm'))).map(node => node.getBoundingClientRect());
     const center = { x: (area.left + area.right) / 2, y: (area.top + area.bottom) / 2 };
     const seats = ordered.map(player => {
       const avatar = avatarRects.get(player.id);
       return { id: player.id, self: player.id === me, x: player.seat === 0 ? center.x : avatar ? avatar.left + avatar.width / 2 : center.x,
         y: player.seat === 0 ? area.bottom + 80 : avatar ? avatar.top + avatar.height / 2 : center.y };
     });
-    const preferredWidth = strip ? low ? 62 : 86 : rect.width < 600 ? 86 : 112;
     const done = ['trickEnd','roundEnd','finished'].includes(state.phase);
     const scope = `${state.round}:${state.completedTricks + (done ? 0 : 1)}`;
     const geometry = [rect.left,rect.top,rect.width,rect.height,mode,!!state.foresightActive,
       document.body.classList.contains('hand-expanded'),document.body.classList.contains('hand-collapsed'),...ordered.map(p=>p.id)].join(':');
     const previous = trickLayout;
-    const layout = previous?.scope === scope && previous.geometry === geometry ? previous.layout
-      : tablePlaySlots(area, seats, preferredWidth, strip, obstacles);
+    const layout = previous?.scope === scope && previous.geometry === geometry && tableLayoutFits(previous.layout,area,obstacles) ? previous.layout
+      : adaptiveTablePlaySlots(area,seats,obstacles,adaptive?Infinity:112);
     if (layout && state.trick.length) trickLayout = {scope,geometry,layout};
     data(played, 'layout', layout ? mode : 'unavailable');
     let links = played.querySelector('.played-links');
@@ -165,6 +179,8 @@ export function updateTableLayout({ state, me, tableMotion, playOrigins, reduced
     const linkTargets = [];
     if (layout) {
       css(played, '--played-width', `${layout.width}px`);
+      css(played, '--played-slot-width', `${layout.slotWidth || layout.width*1.14}px`);
+      css(played, '--played-slot-height', `${layout.slotHeight || layout.width*1.5+34}px`);
       for (const node of played.querySelectorAll('.played')) {
         const slot = layout.slots.get(node.dataset.player), player = ordered.find(player => player.id === node.dataset.player);
         if (!slot) continue;

@@ -24,7 +24,12 @@ export function createWizardLighting({THREE,scene,renderer,candles,orb=null,lant
   prior.forEach(({light})=>{light.visible=false;});
   const group=new THREE.Group();group.name='WizardLightingV4';scene.add(group);
   const hemisphere=new THREE.HemisphereLight('#acbfd5','#2c2017',0);group.add(hemisphere);
-  const fill=new THREE.DirectionalLight('#c2d4eb',0);fill.position.set(0,6,2);group.add(fill);
+  // A bounded overhead lamp cone gives the left/centre felt readable texture
+  // without raising global ambient light or bleaching the cool crystal accent.
+  const fill=new THREE.SpotLight('#ffe0ae',0,24,Math.PI/3,.85,2);
+  fill.name='TableReadingLight';fill.position.set(-3.4,5,1.4);
+  fill.target.position.set(-.6,.36,0);fill.castShadow=false;
+  group.add(fill,fill.target);
   const rim=new THREE.DirectionalLight('#90acc8',0);rim.position.set(3,4,-5);group.add(rim);
   const points=candles.map((c,i)=>{const p=new THREE.PointLight('#ffb665',0,7,2);p.name=`CandleSource_${i}`;p.castShadow=false;p.shadow.mapSize.set(256,256);p.shadow.bias=-.0003;p.shadow.normalBias=.025;group.add(p);return p;});
   const warmth=createTableWarmth({THREE,scene,candles,lantern});
@@ -50,14 +55,13 @@ export function createWizardLighting({THREE,scene,renderer,candles,orb=null,lant
     if(disposed)return;
     const profile=chooseProfile({mode,width,height,compact}),config=LIGHT_PROFILES[profile];
     const small=lowPower;
-    hemisphere.intensity=config.hemisphere;fill.intensity=config.fill;rim.intensity=small?0:config.rim;rim.visible=rim.intensity>0;
+    hemisphere.intensity=config.hemisphere;fill.intensity=config.fill*110;rim.intensity=small?0:config.rim;rim.visible=rim.intensity>0;
     hemisphere.visible=hemisphere.intensity>0;fill.visible=fill.intensity>0;
     renderer.toneMappingExposure=config.exposure;
     group.updateWorldMatrix(true,false);
     const count=small?2:config.count;
-    // Keep the existing four-point budget at every high-quality viewport.
-    // The four visible flames remain, with the main left/right candles lighting them.
-    // Only the player's low-power choice removes the orb and lantern point lights.
+    // Every main candle now contributes a local pool. Accent lights no longer
+    // consume candle slots; low-power still uses just the main left/right pair.
     const orbActive=Boolean(orb&&!small&&effectivelyVisible(orb));
     const lanternActive=Boolean(lantern&&!small&&effectivelyVisible(lantern.root.parent));
     if(lantern){
@@ -68,7 +72,7 @@ export function createWizardLighting({THREE,scene,renderer,candles,orb=null,lant
         lantern.root.updateWorldMatrix(true,true);
       }
     }
-    const candleCount=count-Number(orbActive)-Number(lanternActive);
+    const candleCount=count;
     candles.forEach((c,i)=>{
       // Wrapper X/Z placement and responsive scale remain owned by the game.
       // visualRoot contains only the GLB, with a ground pivot. Keep its bottom Y=.36

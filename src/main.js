@@ -527,7 +527,7 @@ function drawHTMLCards(sample = tableMotion.snapshot()) {
   }
 }
 function updateLayoutMetrics(force = false) {
-  const changed=updateTableLayout({state,me,tableMotion,playOrigins:handPlayOrigins,reducedMotion:motionMedia.matches,drawHTMLCards:() => htmlFrame.request(),force});
+  const changed=updateTableLayout({state,me,tableMotion,playOrigins:handPlayOrigins,reducedMotion:motionMedia.matches,drawHTMLCards:() => htmlFrame.request(),feltBounds:(width,height,compact)=>tableScene?.feltScreenBounds(width,height,compact),force});
   // Reuse the existing layout scheduler/observer. Details must fit above the
   // actual result dock after rotation, wrapping names or browser chrome changes.
   const protectedNodes = document.querySelectorAll('.own-status,.hand-section,.concealed-hand,.action-panel:not(.settlement-panel),.settlement-actions');
@@ -1007,6 +1007,11 @@ window.addEventListener('resize', () => {
   trumpReveal.finish();
   refreshHandOnLayout = true;
   layoutSchedule.request(); htmlFrame.request();
+});
+// Keyboard/pinch changes may resize only the visual viewport. Settle the
+// presentation instead of leaving a formerly full-height card clipped.
+for (const event of ['resize','scroll']) window.visualViewport?.addEventListener(event, () => {
+  trumpReveal.finish(); htmlFrame.request();
 });
 for (const query of ['(max-width:380px)','(max-width:850px)']) matchMedia(query).addEventListener('change', () => layoutSchedule.request());
 document.addEventListener('visibilitychange', () => {

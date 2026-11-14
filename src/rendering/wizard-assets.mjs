@@ -142,6 +142,15 @@ export class WizardTableAssets {
     const candles = CANDLES.map(([name, flameName], i) => {
       const visualRoot = clone(name), flame = visualRoot.getObjectByName(flameName);
       if (!flame?.isMesh) throw new Error(`Missing flame mesh: ${flameName}`);
+      // A small companion votive makes each lower cluster visibly richer without
+      // another download or light. It shares the nearby candle's warm pool.
+      if (i >= 2) {
+        const votive = clone('wizard_candle_070');
+        votive.name = `WizardCompanionCandle_${i}`;
+        votive.scale.setScalar(.6);
+        votive.position.set(i === 2 ? .62 : -.62, 0, .26);
+        visualRoot.add(votive);
+      }
       return { wrapper: table.candles[i], visualRoot, flame };
     });
     const lantern = clone('wizard_rune_lantern');
