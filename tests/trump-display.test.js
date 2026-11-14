@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { trumpPresentation, TrumpReveal, TRUMP_REVEAL_MS } from '../src/trump-display.js';
+import { trumpPresentation, TrumpReveal, TRUMP_REVEAL_MS, trumpRevealGeometry } from '../src/trump-display.js';
 
 test('trump display uses the actual turned card, including a wizard after its suit is chosen', () => {
   const reveal = { id: 'blue-9', kind: 'number', suit: 'blue', rank: 9 };
@@ -123,4 +123,22 @@ test('readable reveal hold sleeps until returning, then settles without further 
   assert.equal(s.reveal.nextUpdateDelay(), 0); // confirmed icon pulse
   s.advance(321); s.reveal.draw();
   assert.equal(s.reveal.nextUpdateDelay(), null);
+});
+
+
+test('round reveal fills the safe display without clipping portrait, landscape, notch or keyboard viewport', () => {
+  for (const [width,height,insets,left,top] of [
+    [320,568,{},0,0],[390,844,{top:47,bottom:34},0,0],[430,932,{top:59,bottom:34},0,0],
+    [568,320,{},0,0],[844,390,{left:47,right:47,bottom:21},0,0],[667,275,{},0,0],
+    [1440,900,{},0,0],[390,360,{bottom:8},0,44],[260,440,{top:4},32,64],
+  ]) {
+    const g=trumpRevealGeometry({width,height,left,top},insets), {bounds:b,center:c}=g;
+    assert.ok(c.x-g.width/2>=b.left-.001 && c.x+g.width/2<=b.right+.001);
+    assert.ok(c.y-g.width*.75>=b.top-.001);
+    assert.ok(g.labelTop+40<=b.bottom+.001);
+    const availableWidth=b.right-b.left,availableHeight=b.bottom-b.top-48;
+    assert.ok(Math.abs(g.width-availableWidth)<.001 || Math.abs(g.width*1.5-availableHeight)<.001,
+      `card must fill one safe dimension: ${width}×${height}`);
+    assert.ok(g.width>100, `no former 120px/center-lane cap: ${width}×${height}`);
+  }
 });

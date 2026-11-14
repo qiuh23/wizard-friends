@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { openCardSlot, playedCardSlots, playedCardLink, tableLayoutMode, stripCardSlots, compactCardSlots, shortSeatName, tablePlaySlots } from '../src/table-layout.js';
+import { openCardSlot, playedCardSlots, playedCardLink, tableLayoutMode, stripCardSlots, compactCardSlots, shortSeatName, tablePlaySlots, adaptiveTablePlaySlots, availableTableRegions, tableLayoutFits } from '../src/table-layout.js';
 
 test('central trick reserves readable, nonoverlapping destinations for every supported seat before any play', () => {
   for (const [width,height,strip,preferred,minimum] of [[1440,900,false,112,100],[390,844,false,86,74],[360,640,false,80,56],[844,390,true,86,62],[568,320,true,62,44]]) {
@@ -151,4 +151,42 @@ test('a leading card can grow on a small portrait table without changing ownersh
       assert.ok(slot.rect.right<=rect.left||slot.rect.left>=rect.right||slot.rect.bottom<=rect.top||slot.rect.top>=rect.bottom);
     }
   }
+});
+
+
+test('mobile cards use the measured free region and seat count, not the old 86px cap', () => {
+  for (const [width,height] of [[300,300],[370,350],[410,430],[700,180],[824,210]]) {
+    const area={left:0,right:width,top:0,bottom:height};
+    for(let count=3;count<=6;count++) {
+      const seats=Array.from({length:count},(_,i)=>({id:`p${i}`}));
+      const layout=adaptiveTablePlaySlots(area,seats);
+      assert.ok(layout,`${width}×${height}/${count}`);
+      assert.equal(layout.slots.size,count);assert.ok(tableLayoutFits(layout,area));
+      const boxes=[...layout.slots.values()].map(s=>s.rect);
+      for(const [i,r]of boxes.entries())for(const b of boxes.slice(i+1))
+        assert.ok(r.right+4<=b.left||r.left-4>=b.right||r.bottom+4<=b.top||r.top-4>=b.bottom);
+      assert.deepEqual(layout,adaptiveTablePlaySlots(area,seats),'play count/leader never enters geometry');
+    }
+  }
+  const area={left:10,right:380,top:180,bottom:540};
+  const seats=Array.from({length:4},(_,i)=>({id:`p${i}`}));
+  assert.ok(adaptiveTablePlaySlots(area,seats).width>=98,'four-person portrait uses two columns instead of a cramped three-card row');
+  assert.ok(adaptiveTablePlaySlots(area,seats.slice(0,3)).width>86,'three players fill more of available felt');
+});
+
+test('hand, enlarged seat hit targets, forecasts, controls and other cards remain unobscured', () => {
+  const area={left:8,right:836,top:70,bottom:382};
+  const obstacles=[{left:8,right:153,top:225,bottom:382}, // own status
+    {left:164,right:650,top:286,bottom:382}, // hand
+    {left:650,right:836,top:238,bottom:382}, // confirmation/tools
+    {left:200,right:280,top:70,bottom:128}]; // actual seat button
+  for(let count=3;count<=6;count++) {
+    const seats=Array.from({length:count},(_,i)=>({id:`p${i}`}));
+    const layout=adaptiveTablePlaySlots(area,seats,obstacles);
+    assert.ok(layout);assert.ok(tableLayoutFits(layout,area,obstacles));
+    assert.ok(layout.width>=55);
+    assert.equal(tableLayoutFits(layout,area,[...obstacles,[...layout.slots.values()][0].rect]),false);
+  }
+  assert.deepEqual(availableTableRegions(area,[area]),[]);
+  assert.equal(adaptiveTablePlaySlots(area,[{id:'a'},{id:'b'},{id:'c'}],[area]),null);
 });

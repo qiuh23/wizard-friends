@@ -20,7 +20,11 @@ body[data-screen="game"][data-table-layout="strip"]:is([data-phase="bid"],[data-
 }
 body[data-screen="game"][data-table-layout="strip"] .action-panel:has(.trump-options) .trump-options { display:flex;flex-wrap:wrap;justify-content:center;gap:4px; }
 body[data-screen="game"][data-table-layout="strip"] .action-panel:has(.trump-options) button { padding:7px 10px;min-height:36px; }
-.trump-reveal { position:fixed;inset:0;z-index:11;pointer-events:none; }
+.trump-reveal {
+  position:fixed;inset:0;z-index:11;pointer-events:none;
+  --reveal-safe-left:env(safe-area-inset-left,0px);--reveal-safe-right:env(safe-area-inset-right,0px);
+  --reveal-safe-top:env(safe-area-inset-top,0px);--reveal-safe-bottom:env(safe-area-inset-bottom,0px);
+}
 .trump-reveal * { pointer-events:none; }
 .trump-reveal-card { position:absolute;left:0;top:0;transform-origin:center;perspective:900px;will-change:transform,opacity; }
 .trump-reveal-rotor { width:100%;height:100%;position:relative;transform-style:preserve-3d; }
@@ -34,8 +38,8 @@ body[data-screen="game"][data-table-layout="strip"] .action-panel:has(.trump-opt
   border:4px double #c7b27c;background:repeating-linear-gradient(45deg,#213c3b 0 7px,#294a47 7px 14px);
   color:#e3cc92;font-size:38px;text-shadow:0 1px 6px #00150e;
 }
-.trump-reveal .trump-card-face > .corner:not(.bottom) { font-size:clamp(23px,3.2vh,32px); }
-.trump-reveal .trump-card-face > .corner small { font-size:12px; }
+.trump-reveal .trump-card-face > .corner:not(.bottom) { font-size:clamp(23px,calc(var(--reveal-card-width) * .16),76px); }
+.trump-reveal .trump-card-face > .corner small { font-size:clamp(12px,calc(var(--reveal-card-width) * .07),32px); }
 .trump-reveal-sheen {
   position:absolute;inset:-1px;padding:2px;border-radius:6px;opacity:0;
   background:linear-gradient(110deg,transparent 35%,#fff1b9 50%,transparent 65%) 100% 0 / 300% 100%;

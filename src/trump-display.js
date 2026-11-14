@@ -85,6 +85,22 @@ export const TRUMP_REVEAL_MS = RETURN_AT + RETURN_MS;
 const clamp = n => Math.max(0, Math.min(1, n));
 const smooth = n => { const t = clamp(n); return t * t * (3 - 2 * t); };
 
+// The brief round reveal may use the whole visible display, unlike public
+// played cards. Keep the complete face, its label and safe-area padding inside
+// the visual viewport; the actual 2:3 card ratio is never stretched.
+export function trumpRevealGeometry(viewport, insets = {}) {
+  const edge = 12;
+  const left = viewport.left + edge + (insets.left || 0);
+  const right = viewport.left + viewport.width - edge - (insets.right || 0);
+  const top = viewport.top + edge + (insets.top || 0);
+  const bottom = viewport.top + viewport.height - edge - (insets.bottom || 0);
+  const labelHeight = 40, labelGap = 8;
+  const width = Math.max(1, Math.min(right - left, (bottom - top - labelHeight - labelGap) / 1.5));
+  const height = width * 1.5;
+  const center = { x: (left + right) / 2, y: (top + bottom - labelHeight - labelGap) / 2 };
+  return { width, center, bounds: { left, right, top, bottom }, labelTop: center.y + height / 2 + labelGap };
+}
+
 // A presentation-only clock. Existing round events identify real deals in both
 // authority snapshots and practice. No state mutation, timers or random draws.
 export class TrumpReveal {
@@ -140,19 +156,24 @@ export class TrumpReveal {
     label.textContent = `${symbol(this.effect.display)} ${this.effect.display.label}`;
     root.append(card,label); document.body.append(root);
     this.root = root; this.card = card; this.rotor = rotor; this.label = label; this.sheen = sheen;
-    const box = table.getBoundingClientRect();
-    const shown = node => node.offsetWidth && node.offsetHeight && getComputedStyle(node).visibility !== 'hidden';
-    const players = [...table.querySelectorAll('.opponents .player')].filter(shown).map(n => n.getBoundingClientRect());
-    const centerX = box.left + box.width / 2;
-    const gap = table.dataset.layoutMode === 'strip' ? 6 : 12;
-    const top = Math.max(box.top + box.height * .19, ...players.filter(r => r.left < centerX+70 && r.right > centerX-70).map(r => r.bottom + gap));
-    const docks = [...document.querySelectorAll('.own-status,.action-panel,.hand-section')].filter(shown).map(n => n.getBoundingClientRect());
-    const bottom = Math.min(box.bottom - 24, ...docks.filter(r => r.top > top && r.left < centerX+110 && r.right > centerX-110).map(r => r.top-8));
-    const width = Math.max(44, Math.min(120, (bottom - top - 38) / 1.5));
-    const center = { x:centerX, y:top + width * .75 };
-    this.geometry = { width, center, origin: deckRect ? { x:deckRect.left + deckRect.width/2, y:deckRect.top + deckRect.height/2 } : { x:center.x, y:center.y + 32 } };
+    const visual = window.visualViewport;
+    const safe = getComputedStyle(root);
+    const geometry = trumpRevealGeometry({ left: visual?.offsetLeft || 0, top: visual?.offsetTop || 0,
+      width: visual?.width || window.innerWidth, height: visual?.height || window.innerHeight },
+    Object.fromEntries(['left','right','top','bottom'].map(side => [side, parseFloat(safe.getPropertyValue(`--reveal-safe-${side}`)) || 0])));
+    const { width, center, bounds, labelTop } = geometry;
+    // Begin with a genuinely deck-sized back. Clamp the origin because an edge
+    // prop can be partly offscreen after rotation or browser-chrome changes.
+    const initialScale = Math.min(.65, 58 / width);
+    const source = deckRect ? { x:deckRect.left + deckRect.width/2, y:deckRect.top + deckRect.height/2 }
+      : { x:center.x, y:center.y + Math.min(32, width*.25) };
+    const origin = { x:Math.max(bounds.left+width*initialScale*.65, Math.min(bounds.right-width*initialScale*.65, source.x)),
+      y:Math.max(bounds.top+width*initialScale*.85, Math.min(bounds.bottom-width*initialScale*.85, source.y)) };
+    this.geometry = { ...geometry, origin, initialScale };
     card.style.width = `${width}px`; card.style.height = `${width * 1.5}px`;
-    label.style.left = `${center.x}px`; label.style.top = `${center.y + width * .75 + 8}px`;
+    card.style.setProperty('--reveal-card-width', `${width}px`);
+    label.style.left = `${center.x}px`; label.style.top = `${labelTop}px`;
+    label.style.maxWidth = `${bounds.right-bounds.left}px`;
     this.draw();
   }
   nextUpdateDelay(now = this.clock()) {
@@ -171,13 +192,13 @@ export class TrumpReveal {
         else if (this.badge) this.badge.style.opacity = String(.45 + .55 * smooth(elapsed / 220));
       } else if (elapsed >= TRUMP_REVEAL_MS) this.finish(true);
       else if (this.root && this.geometry && this.icon?.isConnected) {
-        const { width, center, origin } = this.geometry;
+        const { width, center, origin, initialScale } = this.geometry;
         const extract = smooth(elapsed / EXTRACT_MS), returning = smooth((elapsed - RETURN_AT) / RETURN_MS);
         const target = returning ? this.icon.getBoundingClientRect() : {left:center.x,top:center.y,width};
         const end = { x:target.left + target.width/2, y:target.top + target.height/2 };
         const x = returning ? (1-returning)**2*center.x + 2*(1-returning)*returning*(center.x+(end.x-center.x)*.45) + returning**2*end.x : origin.x + (center.x-origin.x)*extract;
-        const y = returning ? (1-returning)**2*center.y + 2*(1-returning)*returning*(Math.min(center.y,end.y)-24) + returning**2*end.y : origin.y + (center.y-origin.y)*extract;
-        const scale = returning ? 1-(1-target.width/width)*returning : .65+.35*extract;
+        const y = returning ? (1-returning)**2*center.y + 2*(1-returning)*returning*(center.y+(end.y-center.y)*.45) + returning**2*end.y : origin.y + (center.y-origin.y)*extract;
+        const scale = returning ? 1-(1-target.width/width)*returning : initialScale+(1-initialScale)*extract;
         const phase = elapsed < EXTRACT_MS ? 'extract' : elapsed < HOLD_AT ? 'flip' : elapsed < RETURN_AT ? 'hold' : 'return';
         if (this.root.dataset.phase !== phase) this.root.dataset.phase = phase;
         style(this.card,'transform',`translate3d(${x-width/2}px,${y-width*.75}px,0) scale(${scale}) rotate(${(1-extract)*-10}deg)`);

@@ -1,11 +1,11 @@
 /* Public cards lie on the same felt plane as the home-page sample cards.
    These DOM boxes reserve readable faces and small owner labels in both modes. */
 body[data-screen="game"][data-table-layout] .table .played-cards .played {
-  width:calc(var(--played-width,72px) * 1.14);
-  height:calc(var(--played-width,72px) * 1.5 + 34px);
+  width:var(--played-slot-width,calc(var(--played-width,72px) * 1.14));
+  height:var(--played-slot-height,calc(var(--played-width,72px) * 1.5 + 34px));
 }
 body[data-screen="game"][data-table-layout] .table .played-cards .played .card {
-  top:12px;
+  top:calc(4px - var(--played-width,72px) * .08);
   transform-origin:50% 50%;
   transform:perspective(900px) rotateX(32deg) rotateZ(var(--table-angle,0deg));
   border:0;
@@ -34,7 +34,7 @@ body[data-screen="game"][data-table-layout] .table .played-cards .played-state::
 body[data-screen="game"][data-table-layout].has-webgl .table .played-cards .played .card-contact-shadow { display:none; }
 
 /* Status sits below the face, leaving its upper edge free for special-card figures. */
-body[data-screen="game"][data-table-layout] .table .played-cards .played.winner > small { bottom:-10px;overflow:visible;width:100%; }
-body[data-screen="game"][data-table-layout] .table .played-cards .played.winner .played-name { position:absolute;left:0;right:0;bottom:22px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:13px; }
+body[data-screen="game"][data-table-layout] .table .played-cards .played.winner > small { bottom:1px;overflow:visible;width:100%; }
+body[data-screen="game"][data-table-layout] .table .played-cards .played.winner .played-name { position:absolute;left:0;right:0;bottom:20px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:13px; }
 body[data-screen="game"][data-table-layout] .table .played-cards .played.winner .played-state::before { content:'◆';color:#8eeeff;font-size:9px; }
 body[data-screen="game"][data-table-layout]:is([data-phase="trickEnd"],[data-phase="roundEnd"],[data-phase="finished"]) .table .played-cards .played.winner .played-state::before { content:'✓'; }

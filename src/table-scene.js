@@ -9,6 +9,7 @@ import { readLowGraphics, saveLowGraphics, SlowFrameAdviser } from './graphics-q
 import { WizardTableAssets } from './rendering/wizard-assets.mjs';
 import { SpecialFigurines, SPECIAL_FIGURINE_SCALE } from './rendering/special-figurines.mjs';
 import { decorationViewport } from './rendering/decoration-viewport.mjs';
+import { frameTableCamera, tableFrameBounds } from './rendering/table-framing.mjs';
 
 const motionMedia = matchMedia('(prefers-reduced-motion: reduce)');
 export const TABLE_CARD_Y = .382;
@@ -123,7 +124,7 @@ export class TableScene {
       this.mesh(new THREE.BoxGeometry(12.4,.12,8.2),wood,0,.26,0),
       this.mesh(new THREE.BoxGeometry(10.35,.025,6.5),this.material('#082b20',{roughness:.97}),0,.335,0),
     ];
-    const lineMat = new THREE.MeshBasicMaterial({color:'#ae8f51', transparent:true, opacity:.35, side:THREE.DoubleSide});
+    const lineMat = new THREE.MeshBasicMaterial({color:'#d4b76c', transparent:true, opacity:.35, depthWrite:false, toneMapped:false, side:THREE.DoubleSide});
     this.trumpRingMaterial = lineMat;
     this.tableInlay = new THREE.Group(); this.scene.add(this.tableInlay);
     for (const radius of [2.25,2.38,2.8]) {
@@ -344,17 +345,9 @@ export class TableScene {
 
     if (this.mode === 'game') {
       const mobile = width <= 600;
-      this.camera.fov = compact ? 32 : 43;
-      const distance = THREE.MathUtils.clamp((mobile ? 9.6 : 11.8) / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * this.camera.aspect), height <= 540 && width >= 600 ? 7.7 : 9, 34);
-      const angle = THREE.MathUtils.degToRad(TABLE_VIEW_ANGLE);
-      this.camera.position.set(0, distance * Math.sin(angle), distance * Math.cos(angle));
-      // Fit the original timber rim to each screen. The camera only changes on
-      // viewport/layout changes, never in response to a played or leading card.
-      const portrait = height > width;
-      const scaleX = portrait ? .82 : compact ? .95 : .88;
-      const scaleZ = portrait ? 2.3 : compact ? .78 : .95;
-      for (const surface of this.tableSurface) surface.scale.set(scaleX,1,scaleZ);
-      this.tableInlay.scale.set(portrait ? 1.1 : compact ? 1.15 : 1.05,1,portrait ? 2 : compact ? .75 : 1.1);
+      frameTableCamera(this.camera,width,height,{compact});
+      for (const surface of this.tableSurface) surface.scale.set(1,1,1);
+      this.tableInlay.scale.set(1,1,1);
       // Actual game cards are positioned only from their persistent DOM slots
       // in alignCardSeats(); resize must not requeue them by cards played so far.
       this.trump.scale.setScalar(mobile ? 1.4 : height <= 520 ? .65 : .95);
@@ -373,7 +366,8 @@ export class TableScene {
       this.trump.position.set(0, 1.9, 0);
     }
     this.trump.userData.baseHeight = this.trump.position.y;
-    this.camera.lookAt(0,0,0);this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld();
+    if (this.mode !== 'game') this.camera.lookAt(0,0,0);
+    this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld();
     this.layoutDecorations(width, height);
     }
     this.updateAssetLighting();
@@ -417,11 +411,14 @@ export class TableScene {
     return right > left && bottom > top ? { left,top,width:right-left,height:bottom-top } : null;
   }
   alignTrump() { this.trump.visible = false; }
+  feltScreenBounds(width=this.width,height=this.height,compact=false) { return tableFrameBounds(width,height,{compact}); }
   layoutDecorations(width, height) {
     for (const { group, position, scale } of this.tableProps) { group.position.copy(position); group.scale.copy(scale); group.visible = true; }
     if (this.mode !== 'game') return;
     const compact = this.host.closest('.table')?.dataset.layoutMode === 'strip';
-    this.trumpRingMaterial.opacity = compact ? .1 : .22;
+    // A single circular inlay follows the table plane; the camera supplies its
+    // ellipse. Do not squash it again for short landscape or stretch portrait.
+    this.trumpRingMaterial.opacity = compact ? .28 : .34;
     if (width > 850 && !compact) {
       for (const { group } of this.tableProps) group.scale.multiplyScalar(this.candles.includes(group) ? .55 : .68);
       return;
@@ -436,7 +433,7 @@ export class TableScene {
       if (!point) return;
       // Reuse desktop props at the outer rim, at a bounded screen size. The
       // central card anchors and camera stay unchanged, including six seats.
-      group.position.set(point.x, group === this.book ? .5 : 0, point.z);
+      group.position.set(THREE.MathUtils.clamp(point.x,-6,6), group === this.book ? .5 : 0, THREE.MathUtils.clamp(point.z,-3.9,3.9));
       const origin=point.clone().project(this.camera), edge=point.clone().add(new THREE.Vector3(size,0,0)).project(this.camera);
       group.scale.setScalar(pixels / Math.max(1,Math.abs(edge.x-origin.x)*width/2));
     };
@@ -481,7 +478,7 @@ export class TableScene {
       const origin=new THREE.Vector3(group.position.x,.36,group.position.z).project(this.camera);
       ray.setFromCamera(new THREE.Vector2(origin.x+dx*2/width,origin.y-dy*2/height),this.camera);
       const target=ray.ray.intersectPlane(plane,new THREE.Vector3());
-      if(target) { group.position.x=target.x;group.position.z=target.z; }
+      if(target) { group.position.x=THREE.MathUtils.clamp(target.x,-6,6);group.position.z=THREE.MathUtils.clamp(target.z,-3.9,3.9); }
     }
   }
   // Keep Three.js faces and their accessible DOM labels at the same stable seat.

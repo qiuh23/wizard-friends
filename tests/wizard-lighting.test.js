@@ -29,7 +29,7 @@ test('flame world positions and inverse-square scale compensation follow transfo
   }); rig.dispose();
 });
 
-test('high quality keeps seven-light budget on phones, compact and hero; only low power reduces it', () => {
+test('four-candle rig without optional accents keeps seven lights; low power reduces it', () => {
   const { rig } = setup();
   for (const options of [{ width: 1000, height: 700 }, { width: 390, height: 844 }, { mode: 'hero', width: 390, height: 844 }, { compact: true }]) {
     assert.equal(rig.update(options).pointLights, 4); assert.equal(rig.rim.visible, true);
@@ -67,4 +67,28 @@ test('default no shadows, existing global shadow state retained; optional one sh
   const a = setup(true); a.rig.update({ lowPower: true }); assert.equal(a.renderer.shadowMap.enabled, true); a.rig.dispose();
   const b = setup(false, true); assert.equal(b.rig.update({ width: 1000, height: 700 }).shadowPointLights, 1);
   assert.equal(b.rig.update({ lowPower: true }).shadowPointLights, 0); assert.equal(b.renderer.shadowMap.enabled, false); b.rig.dispose();
+});
+
+test('reading light aims a bounded warm cone onto centre-left without lifting ambient or exposure', () => {
+  const { rig, renderer } = setup();
+  for (const options of [{width:1440,height:900},{width:390,height:844},{width:667,height:275,compact:true}]) {
+    rig.update({...options,reducedMotion:true});
+    assert.equal(rig.fill.isSpotLight,true);
+    assert.equal(rig.fill.castShadow,false);
+    assert.ok(rig.fill.penumbra >= .8);
+    assert.ok(rig.fill.color.r > rig.fill.color.b);
+    assert.equal(renderer.toneMappingExposure,1.25);
+    const origin=rig.fill.getWorldPosition(new THREE.Vector3());
+    const target=rig.fill.target.getWorldPosition(new THREE.Vector3());
+    const direction=target.clone().sub(origin).normalize();
+    for(const x of [-2,0,2]) {
+      const ray=new THREE.Vector3(x,.36,0).sub(origin),distance=ray.length();
+      assert.ok(ray.normalize().dot(direction)>Math.cos(rig.fill.angle),`felt x=${x} in cone`);
+      // Three's inverse-square attenuation, before material/exposure, gives a
+      // useful local contribution; this is geometry QA, not a pixel-luminance claim.
+      const falloff=Math.pow(Math.max(1-Math.pow(distance/rig.fill.distance,4),0),2);
+      assert.ok(rig.fill.intensity*falloff/(distance*distance)>.35);
+    }
+  }
+  rig.dispose();
 });

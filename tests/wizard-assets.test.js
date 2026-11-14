@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import crypto from 'node:crypto';
 import * as THREE from 'three';
+import { frameTableCamera } from '../src/rendering/table-framing.mjs';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { TABLE_ASSETS, WizardAssetLibrary, WizardTableAssets, disposeObjectResources } from '../src/rendering/wizard-assets.mjs';
 
@@ -80,11 +81,16 @@ test('atomic install retains wrappers, card-height clearance, eight exact old li
   assert.equal(table.tableSurface.length, 2); assert.equal(table.legacyLights.every(light => !light.visible), true);
   assert.equal(table.scene.children.filter(object => object.name === 'WizardLightingV4').length, 1);
   assert.equal(table.orb.name, 'Orb');
+  for (const i of [2, 3]) {
+    const companion = table.scene.getObjectByName(`WizardCompanionCandle_${i}`);
+    assert.ok(companion); assert.equal(companion.parent, assets.candles[i].visualRoot);
+    assert.equal(companion.scale.x, .6);
+  }
   const felt = new THREE.Box3().setFromObject(table.tableSurface[1]);
   assert.ok(felt.max.y < .382); assert.ok(Math.abs(felt.max.y - .35) < .001);
   table.tableInlay.traverse(mesh => { if (mesh.isMesh) assert.equal(mesh.material, table.trumpRingMaterial); });
   const state = assets.update({ mode: 'game', width: 1440, height: 900, reducedMotion: true });
-  assert.equal(state.pointLights, 4); assert.equal(state.shadowPointLights, 0);
+  assert.equal(state.pointLights, 6); assert.equal(state.shadowPointLights, 0);
   assert.equal(assets.corners.visible, true);
   for (const [i, candle] of assets.candles.entries()) {
     assert.ok(Math.abs(candle.visualRoot.getWorldPosition(new THREE.Vector3()).y - .36) < 1e-8);
@@ -146,14 +152,14 @@ test('shared texture bitmaps, geometry and materials are released only once', ()
   disposeObjectResources([root], [map, normalMap], released); assert.equal(closed, 1);
 });
 
-test('installed crystal, lantern and warm candles share the existing light budget', async () => {
+test('installed crystal and lantern retain their accents beside four working candle lights', async () => {
   const table = fakeTable(), assets = new WizardTableAssets(table, { loader: clonedLoader() });
   assert.equal(await assets.load(), true);
   const rig = table.assetLighting;
   const originalExposure = 1.25;
   let state = assets.update({ width: 1440, height: 900 });
-  assert.equal(state.pointLights, 4); assert.equal(state.exposure, originalExposure);
-  assert.deepEqual(rig.points.map(p => p.visible), [true, true, false, false]);
+  assert.equal(state.pointLights, 6); assert.equal(state.exposure, originalExposure);
+  assert.deepEqual(rig.points.map(p => p.visible), [true, true, true, true]);
   assert.equal(rig.orbPoint.visible, true); assert.equal(rig.lanternPoint.visible, true);
   assert.equal(table.orb.material.name, 'CrystalShell');
   assert.equal(table.orb.material.transparent, true); assert.equal(table.orb.material.depthWrite, false);
@@ -169,7 +175,7 @@ test('installed crystal, lantern and warm candles share the existing light budge
   assert.ok(Math.abs(lantern.getWorldPosition(new THREE.Vector3()).y - .36) < 1e-8);
   for (const options of [{ width: 390, height: 844 }, { compact: true }]) {
     state = assets.update(options);
-    assert.equal(state.pointLights, 4);
+    assert.equal(state.pointLights, 6);
     assert.equal(rig.orbPoint.visible, true); assert.equal(rig.lanternPoint.visible, true);
     assert.equal(lantern.visible, true); assert.equal(assets.corners.visible, true);
     state = assets.update({ ...options, lowPower: true });
@@ -180,7 +186,7 @@ test('installed crystal, lantern and warm candles share the existing light budge
   assets.update({ width: 1440, height: 900 });
   assert.equal(lantern.visible, true); assert.equal(rig.orbPoint.visible, true);
   table.orbStand.visible = false;
-  assert.equal(assets.update({}).pointLights, 4);
+  assert.equal(assets.update({}).pointLights, 5);
   assert.equal(rig.crystal.pool.visible, false); assert.equal(rig.orbPoint.visible, false);
   table.candles[2].visible = false;
   assert.equal(assets.update({}).pointLights, 3); assert.equal(rig.lanternPoint.visible, false);
@@ -199,19 +205,21 @@ test('actual GLB flames remain in mobile portrait/landscape viewport with player
   table.tableProps=[table.book,table.orbStand,table.coins,table.deck,...table.candles]
     .map(group=>({group,position:group.position.clone(),scale:group.scale.clone()}));
   const assets=new WizardTableAssets(table,{loader:clonedLoader()});table.assets=assets;await assets.load();
-  for(const [width,height] of [[320,568],[390,844],[430,932],[667,275],[740,320],[844,390],[932,430]]) {
+  for(const [width,height] of [[320,568],[390,844],[430,932],[568,320],[667,275],[740,320],[844,390],[932,430]]) {
     const compact=width>height, fov=compact?32:43;
     padding=compact?{paddingLeft:'47px',paddingRight:'21px'}:{paddingTop:'44px',paddingBottom:'34px'};
-    const distance=THREE.MathUtils.clamp((width<=600?9.6:11.8)/(2*Math.tan(THREE.MathUtils.degToRad(fov/2))*width/height),height<=540&&width>=600?7.7:9,34);
     table.host={closest:()=>({dataset:{layoutMode:compact?'strip':'ring'}})};
     table.camera=new THREE.PerspectiveCamera(fov,width/height,.1,80);
-    const angle=THREE.MathUtils.degToRad(58);table.camera.position.set(0,distance*Math.sin(angle),distance*Math.cos(angle));
-    table.camera.lookAt(0,0,0);table.camera.updateProjectionMatrix();table.camera.updateMatrixWorld();
+    frameTableCamera(table.camera,width,height,{compact});
     for(const lowPower of [false,true,false]) {
       table.low=lowPower;
       TableScene.prototype.layoutDecorations.call(table,width,height);
       const summary=assets.update({width,height,compact,lowPower,reducedMotion:true});
-      assert.equal(summary.pointLights,lowPower?2:4);assert.equal(summary.shadowPointLights,0);
+      for (const {group} of table.tableProps) {
+        assert.ok(Math.abs(group.position.x)<=6 && Math.abs(group.position.z)<=3.9,
+          `${width}x${height} prop remains on physical tabletop`);
+      }
+      assert.equal(summary.pointLights,lowPower?2:6);assert.equal(summary.shadowPointLights,0);
       assert.equal(table.assetLighting.orbPoint.visible,!lowPower);
       assert.equal(table.assetLighting.lanternPoint.visible,!lowPower);
       if (!lowPower) for (const root of [table.orbStand, table.scene.getObjectByName('WizardLantern')]) {
@@ -236,7 +244,7 @@ test('actual GLB flames remain in mobile portrait/landscape viewport with player
         assert.ok(Math.abs(c.visualRoot.getWorldPosition(new THREE.Vector3()).y-.36)<1e-7);
         const point=table.assetLighting.points[i];
         assert.ok(position.distanceTo(point.getWorldPosition(new THREE.Vector3()))<1e-7);
-        assert.equal(point.visible,i<2);assert.equal(point.intensity>0,i<2);
+        assert.equal(point.visible,!lowPower||i<2);assert.equal(point.intensity>0,!lowPower||i<2);
         const bounds=new THREE.Box3().setFromObject(c.visualRoot);
         for(const x of [bounds.min.x,bounds.max.x])for(const y of [bounds.min.y,bounds.max.y])for(const z of [bounds.min.z,bounds.max.z]) {
           const p=new THREE.Vector3(x,y,z).project(table.camera),px=(p.x+1)*width/2,py=(1-p.y)*height/2;

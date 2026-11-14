@@ -36,6 +36,13 @@ export function tableLayoutMode(width, height) {
   return width >= 480 && width > height && height <= 540 ? 'strip' : width < 600 && height <= 700 ? 'portrait-grid' : 'ring';
 }
 
+// The expanded hand is an explicit, temporary overlay. Its underlying card
+// lane must be recoverable even on a fresh mount or an orientation change.
+export function tableOverlayReserve(width,height) {
+  const mode=tableLayoutMode(width,height);
+  return mode==='strip' ? height<=340 ? 88 : 104 : mode==='portrait-grid' ? 210 : width<600 ? 260 : 280;
+}
+
 export function compactCardSlots(area, seats, preferredWidth, emphasis = 1.22) {
   let best;
   for (let columns=1;columns<=seats.length;columns++) {
@@ -100,6 +107,87 @@ export function tablePlaySlots(area, seats, preferredWidth, strip = false, obsta
     }
   }
   return null;
+}
+
+// Reserve the final trick before its first card: a small trick does not grow
+// and then jump when the remaining players act. Search the real free rectangles
+// instead of imposing a phone-wide 62/86px cap or a permanent left-side gutter.
+export function tableLayoutFits(layout, area, obstacles = []) {
+  return !!layout && [...layout.slots.values()].every(({rect:r}) =>
+    r.left >= area.left && r.right <= area.right && r.top >= area.top && r.bottom <= area.bottom &&
+    !obstacles.some(o => intersects(r,o)));
+}
+
+export function availableTableRegions(area, obstacles = [], gap = 6) {
+  let regions = [area];
+  for (const o of obstacles) {
+    const next = [];
+    for (const r of regions) {
+      if (!intersects(r,o,gap)) { next.push(r); continue; }
+      for (const candidate of [
+        {...r,right:Math.min(r.right,o.left-gap)}, {...r,left:Math.max(r.left,o.right+gap)},
+        {...r,bottom:Math.min(r.bottom,o.top-gap)}, {...r,top:Math.max(r.top,o.bottom+gap)},
+      ]) if (candidate.right-candidate.left >= 40 && candidate.bottom-candidate.top >= 70) next.push(candidate);
+    }
+    regions = next.filter((r,i) => !next.some((other,j) => j!==i &&
+      other.left<=r.left && other.right>=r.right && other.top<=r.top && other.bottom>=r.bottom &&
+      (j<i || other.left<r.left || other.right>r.right || other.top<r.top || other.bottom>r.bottom)));
+  }
+  return regions;
+}
+
+// Full CSS-projected corners, including the leader rim and 3° table turn.
+// Keep two text rows below the face. World cards are separately checked against
+// these same slots by the offline Three.js projection regression.
+export function playedCardFootprint(width) {
+  const pitch=32*Math.PI/180,scale=1.025;
+  let extentX=0,maxY=0;
+  for(const angle of [-3,0,3].map(n=>n*Math.PI/180))for(const x of [-width/2,width/2])for(const y of [-width*.75,width*.75]) {
+    const rx=(x*Math.cos(angle)-y*Math.sin(angle))*scale,ry=(x*Math.sin(angle)+y*Math.cos(angle))*scale;
+    const perspective=900/(900-ry*Math.sin(pitch));
+    extentX=Math.max(extentX,Math.abs(rx*perspective));
+    maxY=Math.max(maxY,ry*Math.cos(pitch)*perspective);
+  }
+  return {slotWidth:Math.max(40,Math.ceil(extentX*2)+4),slotHeight:Math.ceil(width*.67+4+maxY+32)};
+}
+
+export function adaptiveTablePlaySlots(area, seats, obstacles = [], maximum = Infinity) {
+  if (seats.length < 3 || seats.length > 6 || area.bottom <= area.top || area.right <= area.left) return null;
+  let best = null;
+  for (const region of availableTableRegions(area,obstacles)) {
+    const availableWidth=region.right-region.left, availableHeight=region.bottom-region.top;
+    for (let columns=1; columns<=seats.length; columns++) {
+      const rows=Math.ceil(seats.length/columns), gap=6;
+      let low=0,high=Math.floor(Math.min(maximum,availableWidth,availableHeight));
+      while(low<high) {
+        const mid=Math.ceil((low+high)/2),size=playedCardFootprint(mid);
+        if(columns*size.slotWidth+gap*(columns-1)<=availableWidth && rows*size.slotHeight+gap*(rows-1)<=availableHeight)low=mid;
+        else high=mid-1;
+      }
+      const width=low;
+      if (width<28 || (best && width<=best.width)) continue;
+      const {slotWidth,slotHeight}=playedCardFootprint(width);
+      const positions=[];
+      for (let row=0;row<rows;row++) {
+        const rowCount=Math.min(columns,seats.length-row*columns);
+        for(let column=0;column<rowCount;column++) positions.push({
+          x:(column-(rowCount-1)/2)*(slotWidth+gap),
+          y:(row-(rows-1)/2)*(slotHeight+gap),
+        });
+      }
+      // Keep clockwise ownership, with the viewer at the foot of the table.
+      const angle=p=>(Math.atan2(-p.x,p.y)+Math.PI*2)%(Math.PI*2);
+      positions.sort((a,b)=>angle(a)-angle(b));
+      const center={x:(region.left+region.right)/2,y:(region.top+region.bottom)/2};
+      const slots=new Map(seats.map((seat,index)=>{
+        const p=positions[index],x=center.x+p.x,y=center.y+p.y;
+        return [seat.id,{x,y,angle:[-2,3,-3,2,-2,3][index],rect:{left:x-slotWidth/2,right:x+slotWidth/2,top:y-slotHeight/2,bottom:y+slotHeight/2}}];
+      }));
+      const candidate={width,slotWidth,slotHeight,slots};
+      if(tableLayoutFits(candidate,area,obstacles))best=candidate;
+    }
+  }
+  return best;
 }
 
 // Include a seat number so identical initials and truncated long names remain
