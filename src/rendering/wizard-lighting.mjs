@@ -85,7 +85,8 @@ export function createWizardLighting({THREE,scene,renderer,candles,orb=null,lant
       const wobble=reducedMotion?0:paused?wobbleState[i]:Math.sin(time*.001*1.7+i*1.3)*.022;
       wobbleState[i]=wobble;
       c.flame.scale.y*=1+wobble;
-      c.flame.updateWorldMatrix(true,false);c.flame.getWorldPosition(p);
+      // World-space getters already refresh this node and its ancestors.
+      c.flame.getWorldPosition(p);
       // Lights belong to a scene-level group: convert, do not copy flame.local position.
       group.worldToLocal(p);points[i].position.copy(p);
       c.visualRoot.getWorldScale(scale);
@@ -102,7 +103,7 @@ export function createWizardLighting({THREE,scene,renderer,candles,orb=null,lant
       [lanternPoint,lantern?.root,lanternActive,3.5,3.2,.39],
     ]){
       if(!source)continue;
-      node.updateWorldMatrix(true,false);node.getWorldScale(scale);
+      node.getWorldScale(scale);
       p.set(0,offset,0);node.localToWorld(p);group.worldToLocal(p);source.position.copy(p);
       const s=Math.max(.08,Math.abs(scale.y));
       source.visible=active;source.intensity=active?intensity*s*s:0;source.distance=range*Math.max(.35,s);

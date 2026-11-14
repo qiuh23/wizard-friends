@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readLowGraphics, saveLowGraphics, SlowFrameAdviser, QualityHintOnce, QUALITY_HINT_SEEN_KEY } from '../src/graphics-quality.js';
 import { GraphicsQualityHint, qualityHintPosition } from '../src/graphics-quality-hint.js';
+import * as THREE from 'three';
 import { FrameScheduler } from '../src/frame-scheduler.js';
 const storage = () => { const data = new Map(); return { data, getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) }; };
 const blocked = { getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); } };
@@ -114,12 +115,14 @@ test('TableScene setter is the only quality transition, persists across scenes a
     if(originalStorage)globalThis.localStorage=originalStorage;else delete globalThis.localStorage;});
   const {TableScene}=await import('../src/table-scene.js');
   let layouts=0,lighting=0;const material={};
-  const scene={low:readLowGraphics(),renderer:{shadowMap:{enabled:false}},scene:{traverse:cb=>cb({material})},
+  const texture=new THREE.Texture();
+  const scene={low:readLowGraphics(),phoneQuality:true,maximumAnisotropy:16,textures:new Map([['face',texture]]),renderer:{shadowMap:{enabled:false}},scene:{traverse:cb=>cb({material})},
     resize(){layouts++;},updateAssetLighting(){lighting++;},qualityAdviser:new SlowFrameAdviser()};
   assert.equal(scene.low,false);
   for(const low of [true,false,true]) {
     TableScene.prototype.setLow.call(scene,low);assert.equal(scene.low,low);assert.equal(readLowGraphics(),low);
     assert.equal(scene.renderer.shadowMap.enabled,false);assert.equal(material.needsUpdate,true);
+    assert.equal(texture.anisotropy,low?4:8);
   }
   assert.equal(layouts,3);assert.equal(lighting,3);
   globalThis.localStorage=blocked;

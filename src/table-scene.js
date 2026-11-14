@@ -10,6 +10,7 @@ import { WizardTableAssets } from './rendering/wizard-assets.mjs';
 import { SpecialFigurines, SPECIAL_FIGURINE_SCALE } from './rendering/special-figurines.mjs';
 import { decorationViewport } from './rendering/decoration-viewport.mjs';
 import { frameTableCamera, tableFrameBounds } from './rendering/table-framing.mjs';
+import { isPhoneRenderTarget, updateDrawingBuffer, configureCardSampling } from './rendering/render-quality.mjs';
 
 const motionMedia = matchMedia('(prefers-reduced-motion: reduce)');
 export const TABLE_CARD_Y = .382;
@@ -18,6 +19,8 @@ export class TableScene {
   constructor({ onInvalidate, onQualitySuggestion } = {}) {
     this.onInvalidate = onInvalidate;
     this.low = readLowGraphics();
+    this.phoneQuality = isPhoneRenderTarget({coarse:matchMedia('(pointer: coarse)').matches,
+      width:globalThis.screen?.width,height:globalThis.screen?.height});
     this.qualityAdviser = new SlowFrameAdviser();
     this.qualityAdviser.reset(performance.now(), 5000);
     this.onQualitySuggestion = onQualitySuggestion;
@@ -25,7 +28,6 @@ export class TableScene {
     this.scene.fog = new THREE.FogExp2('#100e13', .033);
     this.camera = new THREE.PerspectiveCamera(43, 1, .1, 80);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = false;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -33,6 +35,7 @@ export class TableScene {
     this.renderer.toneMappingExposure = 1.4;
     this.renderer.domElement.setAttribute('aria-hidden', 'true');
     this.textures = new Map(); this.cards = new Map(); this.flames = []; this.candles = [];
+    this.refreshRenderCapabilities();
     this.mode = 'hero'; this.key = ''; this.frame = 0;
     this.figurines = new SpecialFigurines();
     this.trumpMotion = !motionMedia.matches;
@@ -77,6 +80,9 @@ export class TableScene {
     this.buildTrump();
     this.assets = new WizardTableAssets(this);
     this.assetLoad = this.assets.load();
+    // A DPR/zoom/monitor change can leave the CSS content rectangle unchanged.
+    this.onViewportResize = () => this.requestResize();
+    globalThis.addEventListener('resize', this.onViewportResize);
     this.onFocusChange = () => this.qualityAdviser.reset(performance.now(), 2000);
     globalThis.addEventListener('blur', this.onFocusChange);
     globalThis.addEventListener('focus', this.onFocusChange);
@@ -88,6 +94,7 @@ export class TableScene {
       this.onInvalidate?.();
     };
     this.onContextRestored = () => {
+      this.refreshRenderCapabilities();
       this.lost = false;
       if (this.assets.status === 'fallback') this.assetLoad = this.assets.load();
       this.requestResize();
@@ -97,6 +104,13 @@ export class TableScene {
     this.renderer.domElement.addEventListener('webglcontextrestored', this.onContextRestored);
     this.onMotionChange = () => { this.cardsDirty = true; this.requestDraw(); };
     motionMedia.addEventListener?.('change', this.onMotionChange);
+  }
+  refreshRenderCapabilities() {
+    const context=this.renderer.getContext();
+    this.maxDrawingBufferDimension=Math.min(this.renderer.capabilities.maxTextureSize,context.getParameter(context.MAX_RENDERBUFFER_SIZE));
+    this.maximumAnisotropy=this.renderer.capabilities.getMaxAnisotropy();
+    for(const texture of this.textures.values())configureCardSampling(texture,
+      {low:this.low,phone:this.phoneQuality,maxAnisotropy:this.maximumAnisotropy});
   }
   material(color, options = {}) { return new THREE.MeshStandardMaterial({ color, roughness: .7, ...options }); }
   mesh(geometry, material, x, y, z, parent = this.scene) {
@@ -204,7 +218,7 @@ export class TableScene {
         texture.addEventListener('dispose', unsubscribe);
       }
       texture.colorSpace=THREE.SRGBColorSpace;
-      texture.anisotropy=Math.min(4,this.renderer.capabilities.getMaxAnisotropy());
+      configureCardSampling(texture,{low:this.low,phone:this.phoneQuality,maxAnisotropy:this.maximumAnisotropy ?? this.renderer.capabilities.getMaxAnisotropy()});
       this.textures.set(key,texture);
     }
     const texture = this.textures.get(key);
@@ -331,10 +345,9 @@ export class TableScene {
     const layoutKey = [width,height,compact,this.mode,this.foresight,this.lobby,this.low].join(':');
     const changed = layoutKey !== this.layoutKey;
     this.layoutKey = layoutKey;
-    if (width !== this.width || height !== this.height) {
-      this.width = width; this.height = height;
-      this.renderer.setSize(width,height,false);
-    }
+    updateDrawingBuffer(this.renderer,{width,height,devicePixelRatio:globalThis.devicePixelRatio,
+      low:this.low,phone:this.phoneQuality,maxDimension:this.maxDrawingBufferDimension});
+    this.width = width; this.height = height;
     if (changed) {
     this.qualityAdviser?.reset(performance.now());
     this.camera.aspect=width/height;
@@ -390,6 +403,7 @@ export class TableScene {
     this.renderer.domElement.removeEventListener('webglcontextlost', this.onContextLost);
     this.renderer.domElement.removeEventListener('webglcontextrestored', this.onContextRestored);
     motionMedia.removeEventListener?.('change', this.onMotionChange);
+    globalThis.removeEventListener('resize', this.onViewportResize);
     globalThis.removeEventListener('blur', this.onFocusChange);
     globalThis.removeEventListener('focus', this.onFocusChange);
     document.removeEventListener('visibilitychange', this.onFocusChange);
@@ -593,6 +607,8 @@ export class TableScene {
   setLow(value) {
     this.low=Boolean(value);saveLowGraphics(this.low);
     this.qualityAdviser?.reset(performance.now());
+    for(const texture of this.textures.values())configureCardSampling(texture,
+      {low:this.low,phone:this.phoneQuality,maxAnisotropy:this.maximumAnisotropy ?? this.renderer.capabilities.getMaxAnisotropy()});
     this.renderer.shadowMap.enabled=false;
     // Refresh cached shaders too, or the previous shadow map remains visible.
     this.scene.traverse(object => {
