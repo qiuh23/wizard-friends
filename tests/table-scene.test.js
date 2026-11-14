@@ -85,20 +85,22 @@ test('background face retry updates every existing GPU texture without another f
   const second = TableScene.prototype.face.call(secondScene,card);
   const disposed = TableScene.prototype.face.call(disposedScene,card); disposed.dispose();
   assert.equal(first.image, second.image); assert.equal(images.length, 1);
+  const initialVersion = first.version;
+  assert.ok(initialVersion > 0); assert.equal(second.version, initialVersion); assert.equal(disposed.version, initialVersion);
   const failed = loadCardFace(card); images[0].onerror();
   await assert.rejects(failed, /加载失败/);
-  assert.equal(first.userData.faceReady, false); assert.equal(first.version, 1);
-  assert.equal(second.userData.faceReady, false); assert.equal(second.version, 1);
+  assert.equal(first.userData.faceReady, false); assert.equal(first.version, initialVersion);
+  assert.equal(second.userData.faceReady, false); assert.equal(second.version, initialVersion);
 
   // A waiting-stage preload is the only action after failure: no scene.face()
   // call, render-loop scan or unconditional texture upload can hide the bug.
   await preloadCardFaces();
-  assert.equal(first.userData.faceReady, true); assert.equal(first.version, 2);
-  assert.equal(second.userData.faceReady, true); assert.equal(second.version, 2);
-  assert.equal(disposed.userData.faceReady, false); assert.equal(disposed.version, 1);
+  assert.equal(first.userData.faceReady, true); assert.equal(first.version, initialVersion + 1);
+  assert.equal(second.userData.faceReady, true); assert.equal(second.version, initialVersion + 1);
+  assert.equal(disposed.userData.faceReady, false); assert.equal(disposed.version, initialVersion);
   assert.equal(firstScene.draws, 1); assert.equal(secondScene.draws, 1); assert.equal(disposedScene.draws, 0);
   await preloadCardFaces(); await loadCardFace(card);
-  assert.equal(first.version, 2); assert.equal(second.version, 2);
+  assert.equal(first.version, initialVersion + 1); assert.equal(second.version, initialVersion + 1);
 });
 
 test('mobile candle footprints retain their 21/24 px budget instead of shrinking twice', async t => {
