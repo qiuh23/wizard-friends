@@ -341,6 +341,9 @@ function render() {
   const updatedLedger = $('.score-ledger .history-scroll');
   if (updatedLedger) { updatedLedger.scrollLeft = scoreScroll.left; updatedLedger.scrollTop = scoreScroll.row; }
   handMotion.attach($('.hand'),previousHand,selectedCard);
+  $('#copy-room-code')?.addEventListener('click', async () => {
+    if (await copyInvitation(uiModel().publicCode, {kind:'room-code'})) notify('房间码已复制。');
+  });
   $('#invite')?.addEventListener('click', async () => {
     if (await copyInvitation(invitation)) notify('邀请链接已复制，发给朋友吧。');
   });
