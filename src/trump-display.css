@@ -5,12 +5,12 @@ body[data-screen="game"] .table .trump-display {
 body[data-screen="game"] .table .trump-display .table-trump {
   display:flex;align-items:center;gap:6px;position:static;transform:none;
   width:max-content;max-width:210px;min-height:32px;padding:4px 8px;margin:0;
-  border:1px solid #e6cf8c44;border-radius:6px;background:#10251ee8;
-  color:var(--trump-color);font-family:inherit;font-size:13px;font-weight:500;line-height:1.45;white-space:nowrap;
-  text-shadow:0 1px 4px #000;pointer-events:auto;
+  border:1px solid var(--ui-border);border-radius:var(--radius-sm);background:var(--ui-surface);
+  color:var(--trump-color);font-family:inherit;font-size:var(--font-size-13);font-weight:500;line-height:1.45;white-space:nowrap;
+  text-shadow:0 1px 4px var(--ui-text-shadow-color);pointer-events:auto;
 }
 body[data-screen="game"] .table .trump-display .table-trump::before { display:none; }
-.trump-suit-icon { display:inline-grid;place-items:center;width:22px;height:22px;flex-shrink:0;font-size:19px;line-height:1;transform:translateY(-2px); }
+.trump-suit-icon { display:inline-grid;place-items:center;width:22px;height:22px;flex-shrink:0;font-size:var(--font-size-20);line-height:1;transform:translateY(-2px); }
 /* Prediction/choice remains usable beside the reveal, including when motion
    is disabled. Public card slots and settlement keep their existing layout. */
 body[data-screen="game"][data-table-layout="strip"]:is([data-phase="bid"],[data-phase="trump"]) .action-panel:not(.settlement-panel) {
@@ -29,32 +29,32 @@ body[data-screen="game"][data-table-layout="strip"] .action-panel:has(.trump-opt
 .trump-reveal-rotor { width:100%;height:100%;position:relative;transform-style:preserve-3d; }
 .trump-reveal .trump-card-face,.trump-reveal-back {
   position:absolute;inset:0;width:100%;height:100%;margin:0;border-radius:6px;
-  backface-visibility:hidden;box-shadow:0 6px 20px #00130d66;opacity:1;
+  backface-visibility:hidden;box-shadow:var(--effect-trump-display-trump-reveal-trump-card-face-trump-reveal-back-59);opacity:1;
 }
 .trump-reveal .trump-reveal-front { transform:translateZ(1px);background-size:cover; }
 .trump-reveal-back {
   display:grid;place-items:center;transform:rotateY(180deg) translateZ(1px);
   border:4px double #c7b27c;background:repeating-linear-gradient(45deg,#213c3b 0 7px,#294a47 7px 14px);
-  color:#e3cc92;font-size:38px;text-shadow:0 1px 6px #00150e;
+  color:#e3cc92;font-size:var(--font-size-32);text-shadow:0 1px 6px #00150e;
 }
-.trump-reveal .trump-card-face > .corner:not(.bottom) { font-size:clamp(23px,calc(var(--reveal-card-width) * .16),76px); }
-.trump-reveal .trump-card-face > .corner small { font-size:clamp(12px,calc(var(--reveal-card-width) * .07),32px); }
+.trump-reveal .trump-card-face > .corner:not(.bottom) { font-size:var(--font-size-32); }
+.trump-reveal .trump-card-face > .corner small { font-size:var(--font-size-24); }
 .trump-reveal-sheen {
-  position:absolute;inset:-1px;padding:2px;border-radius:6px;opacity:0;
+  position:absolute;inset:-1px;padding:2px;border-radius:var(--radius-sm);opacity:0;
   background:linear-gradient(110deg,transparent 35%,#fff1b9 50%,transparent 65%) 100% 0 / 300% 100%;
   mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;
 }
 .trump-reveal-label {
   position:absolute;transform:translateX(-50%);width:max-content;max-width:90vw;
   padding:5px 12px;border:1px solid color-mix(in srgb,var(--trump-color) 45%,transparent);
-  border-radius:6px;background:#10251ef2;color:var(--trump-color);font-size:14px;
-  line-height:1.5;text-align:center;opacity:0;box-shadow:0 3px 12px #00150d55;
+  border-radius:var(--radius-sm);background:var(--ui-surface);color:var(--trump-color);font-size:var(--font-size-14);
+  line-height:1.5;text-align:center;opacity:0;box-shadow:var(--shadow-1);
 }
-body[data-screen="game"] .trump-preview { border:1px solid #d8c58d;border-radius:12px;background:#102b23;color:#f3ead6;padding:20px;text-align:center;pointer-events:auto;max-height:90dvh;overflow:auto; }
-.trump-preview::backdrop { background:#00100bba; }
+body[data-screen="game"] .trump-preview { border:1px solid var(--ui-border);border-radius:var(--radius-md);background:var(--ui-surface);color:var(--ui-text);padding:20px;text-align:center;pointer-events:auto;max-height:90dvh;overflow:auto; }
+.trump-preview::backdrop { background:var(--ui-backdrop); }
 body[data-screen="game"] .trump-preview .trump-preview-face { display:block;width:128px;height:192px;margin:10px auto 18px;visibility:visible;background-size:cover; }
 body[data-screen="game"] .trump-preview .corner { visibility:visible; }
 @media(max-width:600px),(max-height:540px) {
-  body[data-screen="game"] .table .trump-display .table-trump { font-size:12px;min-height:30px;padding:3px 6px;gap:4px; }
-  .trump-reveal-label { font-size:13px;padding:4px 9px; }
+  body[data-screen="game"] .table .trump-display .table-trump { font-size:var(--font-size-12);min-height:30px;padding:3px 6px;gap:4px; }
+  .trump-reveal-label { font-size:var(--font-size-13);padding:4px 9px; }
 }

@@ -1,6 +1,6 @@
 .landscape-control{display:inline-flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0;max-width:100%}
 .landscape-control>[hidden]{display:none!important}
-.landscape-help{max-width:24em;font:12px/1.5 var(--ui-font);color:inherit;white-space:normal;overflow-wrap:anywhere}
+.landscape-help{max-width:24em;font:var(--font-size-12)/1.5 var(--ui-font);color:inherit;white-space:normal;overflow-wrap:anywhere}
 .landscape-control button{min-height:44px}
 .table-menu-panel>.landscape-control{display:flex;align-items:stretch}
 @media(hover:hover) and (pointer:fine){.landscape-control{display:none!important}}

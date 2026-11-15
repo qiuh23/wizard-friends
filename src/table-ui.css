@@ -23,15 +23,15 @@ body[data-screen="game"] button, .room-operations button {
 .room-operations button {
   margin: 0;
   padding: 9px 17px;
-  background: #10231fec;
-  border: 1px solid #b7a27691;
-  color: #f7ebd3;
-  font-size: 14px;
+  background: var(--ui-control);
+  border: 1px solid var(--ui-control-border);
+  color: var(--ui-text);
+  font-size: var(--font-size-14);
 }
 .room-operations .danger {
-  color: #ffb5a5;
-  border-color: #af5f50;
-  background: #391b1af2;
+  color: var(--score-minus);
+  border-color: var(--score-minus);
+  background: var(--ui-negative-surface);
 }
 body[data-screen="game"] .game-toolbar {
   top: 68px;
@@ -60,7 +60,7 @@ body[data-screen="game"] .player {
   text-align: left;
   padding: 9px;
   gap: 3px 8px;
-  border: 1px solid #bba37066;
+  border: 1px solid var(--ui-border);
   pointer-events: auto;
 }
 body[data-screen="game"] .player .avatar {
@@ -68,38 +68,38 @@ body[data-screen="game"] .player .avatar {
   width: 36px;
   height: 36px;
   grid-row: 1 / 3;
-  font-size: 19px;
+  font-size: var(--font-size-20);
   border: 1px solid #a9986e;
   border-radius: 50%;
   background: linear-gradient(135deg,#344a3c,#182a27);
 }
 body[data-screen="game"] .player b {
   text-align: left;
-  font-size: 14px;
+  font-size: var(--font-size-14);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 body[data-screen="game"] .player > small {
   display: block;
-  font-size: 11px;
-  color: #c3cebe;
+  font-size: var(--font-size-11);
+  color: var(--ui-text-muted);
 }
 body[data-screen="game"] .player .prediction {
   grid-column: 1 / 3;
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--font-size-13);
 }
 body[data-screen="game"] .player.active {
-  border: 2px solid #f0d293;
-  background: #3b3924f7;
-  box-shadow: 0 0 22px #e9cb6650;
+  border: 2px solid var(--gold);
+  background: var(--ui-surface);
+  box-shadow: var(--effect-table-ui-player-active-48);
 }
 body[data-screen="game"] .player .turn-label {
   grid-column: 1/3;
-  font-size: 11px;
+  font-size: var(--font-size-11);
 }
 body[data-screen="game"] .played-cards,body[data-screen="game"].has-webgl .played-cards,body[data-screen="game"]:not(.has-webgl) .played-cards {
   position: absolute;
@@ -129,22 +129,22 @@ body[data-screen="game"] .played .card,body[data-screen="game"].has-webgl .playe
 }
 body[data-screen="game"] .played > small,body[data-screen="game"].has-webgl .played > small {
   max-width: 135px;
-  font-size: 12px;
+  font-size: var(--font-size-12);
   white-space: nowrap;
   margin-top: 5px;
   padding: 4px 8px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
 }
 body[data-screen="game"] .played .played-value {
   display: none;
 }
 body[data-screen="game"] .played .corner {
-  font-size: 22px;
+  font-size: var(--font-size-24);
 }
 body[data-screen="game"] .played.winner > small {
   background: var(--gold);
-  color: #251c0c;
-  border: 1px solid #fff0b5;
+  color: var(--gold-ink);
+  border: 1px solid var(--gold);
 }
 body[data-screen="game"] .own-status {
   position: fixed;
@@ -156,10 +156,10 @@ body[data-screen="game"] .own-status {
   display: grid;
   grid-template-columns: 48px 1fr;
   gap: 8px 12px;
-  background: #0c221cfa;
-  border: 1px solid #bfa16b96;
-  border-radius: 10px;
-  box-shadow: 0 8px 24px #0004;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
 }
 .own-status .avatar {
   display: flex;
@@ -174,15 +174,15 @@ body[data-screen="game"] .own-status {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #fff2d5;
-  font-size: 17px;
+  color: var(--ui-text);
+  font-size: var(--font-size-18);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .own-status > strong small {
-  color: #d7c899;
-  font-size: 12px;
+  color: var(--ui-text-muted);
+  font-size: var(--font-size-12);
 }
 .own-metrics {
   display: flex;
@@ -193,23 +193,23 @@ body[data-screen="game"] .own-status {
 .own-metrics > span {
   display: flex;
   flex-direction: column;
-  color: #d3d9c8;
-  font-size: 13px;
+  color: var(--ui-text);
+  font-size: var(--font-size-13);
 }
 .own-metrics b {
   font-family: var(--ui-font);
-  font-size: 28px;
+  font-size: var(--font-size-32);
   line-height: 1.2;
-  color: #ffdf99;
+  color: var(--gold);
 }
 .own-metrics b small {
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--font-size-11);
   margin-left: 2px;
 }
 body[data-screen="game"] .own-status.active {
-  border-color: #f2d28c;
-  box-shadow: 0 0 19px #dcb76230;
+  border-color: var(--gold);
+  box-shadow: var(--effect-table-ui-own-status-active-49);
 }
 body[data-screen="game"] .action-panel {
   position: fixed;
@@ -222,8 +222,8 @@ body[data-screen="game"] .action-panel {
   align-items: center;
   padding: 10px 18px;
   gap: 12px;
-  background: #0b211cf7;
-  border: 1px solid #9c9a7666;
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
   z-index: 8;
 }
 body[data-screen="game"] .action-title {
@@ -231,17 +231,17 @@ body[data-screen="game"] .action-title {
   min-width: 0;
 }
 body[data-screen="game"] .action-title h3 {
-  font-size: 17px;
+  font-size: var(--font-size-18);
   margin: 0;
 }
 body[data-screen="game"] .action-title small {
   display: block;
   margin-top: 3px;
-  font-size: 13px;
-  color: #aecfce;
+  font-size: var(--font-size-13);
+  color: var(--ui-text-muted);
 }
 body[data-screen="game"] .action-panel.your-action {
-  border: 2px solid #e8c78b;
+  border: 2px solid var(--ui-border);
 }
 body[data-screen="game"] .hand-section {
   position: fixed;
@@ -252,8 +252,8 @@ body[data-screen="game"] .hand-section {
   width: auto;
   height: var(--hand-height);
   padding: 0 10px;
-  border: 1px solid #a4936370;
-  border-radius: 10px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--radius-md);
   background: linear-gradient(#10291ff5,#071c17fc);
   pointer-events: auto;
   overflow: hidden;
@@ -265,21 +265,21 @@ body[data-screen="game"] .hand-section {
   gap: 8px;
   padding: 4px 6px;
   height: 42px;
-  color: #efdfbb;
+  color: var(--ui-text);
 }
 .hand-heading > b {
-  font-size: 14px;
+  font-size: var(--font-size-14);
   white-space: nowrap;
 }
 .hand-heading > span {
-  color: #becbb8;
-  font-size: 11px;
+  color: var(--ui-text);
+  font-size: var(--font-size-11);
   margin-right: auto;
 }
 .hand-heading button {
   min-height: 36px!important;
   padding: 5px 9px;
-  font-size: 12px;
+  font-size: var(--font-size-12);
   white-space: nowrap;
 }
 body[data-screen="game"] .hand,body[data-screen="game"] .hand.large-hand {
@@ -296,7 +296,7 @@ body[data-screen="game"] .hand,body[data-screen="game"] .hand.large-hand {
   overscroll-behavior: contain;
   touch-action: pan-x;
   scrollbar-width: thin;
-  scrollbar-color: #b3995d66 transparent;
+  scrollbar-color: var(--ui-control-border) transparent;
 }
 body[data-screen="game"] .hand .card,
 body[data-screen="game"] .hand.large-hand .card {
@@ -322,30 +322,30 @@ body[data-screen="game"] .hand .card > .corner:not(.bottom) {
   left: 2px;
   top: 2px;
   padding: 3px;
-  font-size: 20px;
+  font-size: var(--font-size-20);
   min-width: 27px;
   line-height: 1;
 }
 body[data-screen="game"] .hand .card > .corner small {
-  font-size: 13px;
+  font-size: var(--font-size-13);
 }
 body[data-screen="game"] .hand .card.playable {
-  box-shadow: inset 0 0 0 1px var(--gold),0 0 0 1px var(--gold);
+  box-shadow: var(--effect-table-ui-hand-card-playable-50);
 }
 body[data-screen="game"] .hand .card.selected {
   translate: 0 -12px;
   z-index: 2;
-  box-shadow: 0 0 0 3px #8ce1ed,0 0 16px #85deee77;
+  box-shadow: var(--effect-table-ui-hand-card-selected-51);
 }
 .legal-tag {
   position: absolute;
   bottom: 2px;
   right: 2px;
   padding: 2px 4px;
-  border-radius: 3px;
-  background: #e6cf94;
-  color: #30270e;
-  font-size: 10px;
+  border-radius: var(--radius-sm);
+  background: var(--gold);
+  color: var(--gold-ink);
+  font-size: var(--font-size-11);
 }
 body[data-screen="game"] .play-confirm {
   position: fixed;
@@ -357,21 +357,21 @@ body[data-screen="game"] .play-confirm {
   gap: 8px;
 }
 .play-confirm .selection-name {
-  color: #e0d3ac;
-  font-size: 13px;
+  color: var(--ui-text);
+  font-size: var(--font-size-13);
 }
 #confirm-play {
   min-width: 145px;
   min-height: 48px;
-  font-size: 18px;
-  background: #e7c586;
-  color: #211d10;
-  border: 1px solid #fff0c1;
+  font-size: var(--font-size-18);
+  background: var(--gold);
+  color: var(--gold-ink);
+  border: 1px solid var(--gold);
 }
 #confirm-play:disabled {
-  background: #3d453b;
-  color: #b5beb0;
-  border-color: #687762;
+  background: var(--ui-control);
+  color: var(--ui-text-muted);
+  border-color: var(--gold);
   opacity: 1;
 }
 #cancel-card:disabled {
@@ -394,18 +394,18 @@ body[data-screen="game"] .play-confirm {
   filter: none;
   width: 108px;
   height: 162px;
-  box-shadow: 0 0 0 2px #98e4ed,0 8px 30px #0008;
+  box-shadow: var(--effect-table-ui-selected-preview-card-52);
 }
 .selected-preview > span,.selected-preview > small {
   padding: 5px 8px;
-  border-radius: 4px;
-  background: #0b211bf2;
-  font-size: 13px;
+  border-radius: var(--radius-sm);
+  background: var(--ui-surface);
+  font-size: var(--font-size-13);
   line-height: 1.4;
   text-align: center;
 }
 .selected-preview > small {
-  color: #f2c9a6;
+  color: var(--table-selection);
 }
 body[data-screen="game"].hand-expanded {
   --hand-height: min(46dvh,400px);
@@ -440,12 +440,12 @@ body[data-screen="game"].hand-expanded .selected-preview {
   align-items: center;
   gap: 12px;
   padding: 8px 12px;
-  border-left: 1px solid #e6ca85;
-  color: #e9ddbd;
+  border-left: 1px solid var(--ui-border);
+  color: var(--ui-text);
   flex-wrap: wrap;
 }
 .personal-result > strong {
-  font-size: 25px;
+  font-size: var(--font-size-24);
   color: var(--gold);
 }
 .lifecycle-banner {
@@ -456,18 +456,18 @@ body[data-screen="game"].hand-expanded .selected-preview {
   z-index: 14;
   max-width: 70vw;
   padding: 9px 14px;
-  color: #ffdf9e;
-  background: #2d3019f2;
-  border: 1px solid #c4a66e;
-  border-radius: 6px;
-  font-size: 14px;
+  color: var(--ui-text);
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-14);
   text-align: center;
 }
 .lifecycle-banner small {
   display: block;
   margin-top: 4px;
-  color: #e7e0c5;
-  font-size: 12px;
+  color: var(--ui-text-muted);
+  font-size: var(--font-size-12);
 }
 .continuation-panel {
   position: fixed;
@@ -477,17 +477,17 @@ body[data-screen="game"].hand-expanded .selected-preview {
   transform: translate(-50%,-50%);
   width: min(450px,calc(100vw - 28px));
   padding: 25px;
-  background: #10261ffd;
-  border: 2px solid #d8bd7d;
-  border-radius: 12px;
-  box-shadow: 0 0 0 100vmax #00130bd9;
+  background: var(--ui-surface);
+  border: 2px solid var(--ui-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--effect-table-ui-continuation-panel-53);
 }
 .continuation-panel h2 {
-  font-size: 22px;
-  color: #ffe4ae;
+  font-size: var(--font-size-24);
+  color: var(--ui-text);
 }
 .continuation-panel p {
-  font-size: 15px;
+  font-size: var(--font-size-16);
   line-height: 1.8;
 }
 .continuation-panel button {
@@ -523,14 +523,14 @@ body.turn-arrival .action-panel.your-action {
 }
 @keyframes action-arrival {
   20%,65% {
-    box-shadow: 0 0 30px #eed29488;
+    box-shadow: var(--effect-table-ui-effect-54);
   }
 }
 body[data-screen="game"] .trump-display {
   top: 27%;
 }
 .trump-display .table-trump {
-  font-size: 13px;
+  font-size: var(--font-size-13);
 }
 body[data-screen="lobby"] .room-operations {
   top: 14px;
@@ -555,7 +555,7 @@ body[data-screen="game"] .notice {
     gap: 5px;
   }
   .room-operations button {
-    font-size: 12px;
+    font-size: var(--font-size-12);
     padding: 8px 10px;
   }
   body[data-screen="game"] .game-toolbar {
@@ -565,7 +565,7 @@ body[data-screen="game"] .notice {
   }
   body[data-screen="game"] .game-toolbar button {
     padding: 8px 10px;
-    font-size: 12px;
+    font-size: var(--font-size-12);
     min-height: 44px;
   }
   body[data-screen="game"] .opponents {
@@ -582,20 +582,20 @@ body[data-screen="game"] .notice {
   body[data-screen="game"] .player .avatar {
     width: 25px;
     height: 25px;
-    font-size: 14px;
+    font-size: var(--font-size-14);
   }
   body[data-screen="game"] .player b {
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
   body[data-screen="game"] .player > small {
-    font-size: 9px;
+    font-size: var(--font-size-11);
   }
   body[data-screen="game"] .player .prediction {
-    font-size: 11px;
+    font-size: var(--font-size-11);
     gap: 3px;
   }
   body[data-screen="game"] .player .turn-label {
-    font-size: 9px;
+    font-size: var(--font-size-11);
   }
   body[data-screen="game"] .played-cards,body[data-screen="game"].has-webgl .played-cards,body[data-screen="game"]:not(.has-webgl) .played-cards {
     inset: 115px 0 calc(var(--hand-height) + 185px);
@@ -605,12 +605,12 @@ body[data-screen="game"] .notice {
     height: 80px;
   }
   body[data-screen="game"] .played > small,body[data-screen="game"].has-webgl .played > small {
-    font-size: 10px;
+    font-size: var(--font-size-11);
     max-width: 104px;
     padding: 3px 5px;
   }
   body[data-screen="game"] .played .corner {
-    font-size: 18px;
+    font-size: var(--font-size-18);
   }
   body[data-screen="game"] .own-status {
     left: 10px;
@@ -626,26 +626,26 @@ body[data-screen="game"] .notice {
     width: 30px;
     height: 30px;
     grid-row: auto;
-    font-size: 16px;
+    font-size: var(--font-size-16);
   }
   .own-status > strong {
     display: block;
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
   .own-status > strong small {
     display: block;
-    font-size: 9px;
+    font-size: var(--font-size-11);
   }
   .own-metrics {
     grid-column: auto;
     gap: 6px;
   }
   .own-metrics > span {
-    font-size: 10px;
+    font-size: var(--font-size-11);
     white-space: nowrap;
   }
   .own-metrics b {
-    font-size: 22px;
+    font-size: var(--font-size-24);
   }
   body[data-screen="game"] .action-panel {
     bottom: calc(var(--hand-height) + 62px);
@@ -657,24 +657,24 @@ body[data-screen="game"] .notice {
     min-height: 47px;
     padding: 6px 10px;
     gap: 7px;
-    border-radius: 7px;
+    border-radius: var(--radius-sm);
   }
   body[data-screen="game"] .action-title {
     flex: 1;
   }
   body[data-screen="game"] .action-title h3 {
-    font-size: 13px;
+    font-size: var(--font-size-13);
     line-height: 1.4;
   }
   body[data-screen="game"] .action-title small {
-    font-size: 11px;
+    font-size: var(--font-size-11);
   }
   #turn-countdown {
-    font-size: 16px;
+    font-size: var(--font-size-16);
     padding: 5px 7px;
   }
   body[data-screen="game"] .action-panel .primary {
-    font-size: 13px;
+    font-size: var(--font-size-13);
     padding: 6px 10px;
   }
   body[data-screen="game"] .hand-section,body[data-screen="game"] .hand-section.expanded {
@@ -687,15 +687,15 @@ body[data-screen="game"] .notice {
     gap: 4px;
   }
   .hand-heading > b {
-    font-size: 13px;
+    font-size: var(--font-size-13);
   }
   .hand-heading > span {
-    font-size: 10px;
+    font-size: var(--font-size-11);
   }
   .hand-heading button {
     padding: 4px 6px;
     min-height: 44px!important;
-    font-size: 11px;
+    font-size: var(--font-size-11);
   }
   body[data-screen="game"] .hand,body[data-screen="game"] .hand.large-hand {
     height: calc(100% - 44px);
@@ -706,7 +706,7 @@ body[data-screen="game"] .hand.large-hand .card {
     margin-left: -24px;
   }
   body[data-screen="game"] .hand .card > .corner:not(.bottom) {
-    font-size: 18px;
+    font-size: var(--font-size-18);
     min-width: 25px;
   }
   body[data-screen="game"] .play-confirm {
@@ -718,14 +718,14 @@ body[data-screen="game"] .hand.large-hand .card {
   }
   .play-confirm .selection-name {
     flex: 1;
-    font-size: 11px;
+    font-size: var(--font-size-11);
   }
   #cancel-card {
     padding: 9px;
   }
   #confirm-play {
     min-width: 118px;
-    font-size: 17px;
+    font-size: var(--font-size-18);
   }
   .selected-preview {
     right: calc(50% - 57px);
@@ -738,7 +738,7 @@ body[data-screen="game"] .hand.large-hand .card {
     height: 120px;
   }
   .selected-preview > span,.selected-preview > small {
-    font-size: 11px;
+    font-size: var(--font-size-11);
     padding: 3px 5px;
   }
   body[data-screen="game"].hand-expanded {
@@ -756,20 +756,20 @@ body[data-screen="game"] .hand.hand-grid.large-hand .card {
     padding: 3px 0;
     border: 0;
     gap: 5px;
-    font-size: 11px;
+    font-size: var(--font-size-11);
   }
   .personal-result > strong {
-    font-size: 18px;
+    font-size: var(--font-size-18);
   }
   .lifecycle-banner {
     top: 112px;
     max-width: 95vw;
     width: max-content;
-    font-size: 11px;
+    font-size: var(--font-size-11);
     padding: 6px 10px;
   }
   .lifecycle-banner small {
-    font-size: 10px;
+    font-size: var(--font-size-11);
   }
   body[data-screen="game"] .trump-display {
     top: 24%;
@@ -778,7 +778,7 @@ body[data-screen="game"] .hand.hand-grid.large-hand .card {
     top: 35px;
     left: 0;
     max-width: 180px;
-    font-size: 11px;
+    font-size: var(--font-size-11);
     padding: 4px 7px;
   }
   body[data-screen="game"] .trump-card {
@@ -803,7 +803,7 @@ body[data-screen="game"] .hand.hand-grid.large-hand .card {
     gap: 5px;
   }
   .own-metrics b {
-    font-size: 21px;
+    font-size: var(--font-size-20);
   }
   body[data-screen="game"] .player {
     width: 95px;
@@ -823,7 +823,7 @@ body[data-screen="game"] .hand.hand-grid.large-hand .card {
     right: 8px;
   }
   .room-operations button {
-    font-size: 11px;
+    font-size: var(--font-size-11);
     padding: 5px 8px;
   }
   .game-toolbar {
@@ -841,7 +841,7 @@ body[data-screen="game"] .hand.hand-grid.large-hand .card {
     padding: 4px;
   }
   .player .prediction {
-    font-size: 10px!important;
+    font-size: var(--font-size-11)!important;
   }
   body[data-screen="game"] .own-status {
     left: 8px;
@@ -859,7 +859,7 @@ body[data-screen="game"] .hand.hand-grid.large-hand .card {
     grid-column: 1 / 3;
   }
   .own-metrics b {
-    font-size: 20px;
+    font-size: var(--font-size-20);
   }
   body[data-screen="game"] .hand-section,body[data-screen="game"] .hand-section.expanded {
     left: 246px;
@@ -882,10 +882,10 @@ body[data-screen="game"] .hand.large-hand .card {
     height: 35px;
   }
   .hand-heading button {
-    min-height: 35px!important;
+    min-height: var(--ui-touch-size)!important;
   }
   body[data-screen="game"] .hand .card > .corner:not(.bottom) {
-    font-size: 14px;
+    font-size: var(--font-size-14);
   }
   .selected-preview {
     display: none;
@@ -929,7 +929,7 @@ body[data-screen="game"] .hand.hand-grid.large-hand .card {
     height: 81px;
   }
   body[data-screen="game"] .selected-preview > span,body[data-screen="game"] .selected-preview > small {
-    font-size: 9px;
+    font-size: var(--font-size-11);
     padding: 2px;
   }
 }
@@ -969,53 +969,53 @@ body[data-screen="game"] .table {
 }
 body[data-screen="game"] .own-status {
   background: var(--table-panel);
-  color: var(--table-parchment);
+  color: var(--ui-text);
   border-color: var(--table-brass);
-  border-radius: 12px 4px;
+  border-radius: var(--radius-md) var(--radius-sm);
 }
 .own-status:before {
   content: '';
   position: absolute;
   inset: 3px;
   border: 1px solid #c4a66e44;
-  border-radius: 8px 2px;
+  border-radius: var(--radius-sm) var(--radius-sm);
   pointer-events: none;
 }
 #confirm-play {
   position: relative;
-  background: #e4c38a;
+  background: var(--gold);
   border-color: var(--table-brass);
-  border-radius: 9px 3px;
+  border-radius: var(--radius-sm) var(--radius-sm);
 }
 #confirm-play:after {
   content: '';
   position: absolute;
   inset: 3px;
   border: 1px solid #fff1c466;
-  border-radius: 5px 1px;
+  border-radius: var(--radius-sm) var(--radius-sm);
   pointer-events: none;
 }
 body[data-screen="game"] .player > small {
-  font-size: 12px;
+  font-size: var(--font-size-12);
   grid-column: 1 / 3;
   line-height: 1.35;
 }
 body[data-screen="game"] .player .prediction {
-  font-size: 12px;
+  font-size: var(--font-size-12);
 }
 body[data-screen="game"] .player .turn-label {
-  font-size: 12px;
+  font-size: var(--font-size-12);
 }
 body[data-screen="game"] .hand-heading > span {
-  font-size: 12px;
+  font-size: var(--font-size-12);
 }
 body[data-screen="game"] .hand-heading button {
   min-height: 44px!important;
   min-width: 44px;
-  font-size: 12px;
+  font-size: var(--font-size-12);
 }
 body[data-screen="game"] .hand .card.selected {
-  box-shadow: 0 0 0 3px var(--table-selection),0 0 16px #85deee55;
+  box-shadow: var(--effect-table-ui-hand-card-selected-55);
 }
 @media(max-width:850px) {
   body[data-screen="game"] .player {
@@ -1023,16 +1023,16 @@ body[data-screen="game"] .hand .card.selected {
     max-width: 110px;
   }
   body[data-screen="game"] .player > small {
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
   .own-metrics > span {
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
   .own-status > strong small {
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
   .play-confirm .selection-name,.selected-preview > span,.selected-preview > small {
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
   .hand-heading > span {
     display: none;
@@ -1044,7 +1044,7 @@ body[data-screen="game"] .hand .card.selected {
     height: calc(100% - 48px);
   }
   body[data-screen="game"] .action-title small {
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
 }
 @media(max-height:540px) and (min-width:600px) {
@@ -1058,10 +1058,10 @@ body[data-screen="game"] .hand .card.selected {
     height: calc(100% - 44px);
   }
   body[data-screen="game"] .player .prediction {
-    font-size: 12px!important;
+    font-size: var(--font-size-12)!important;
   }
   body[data-screen="game"] .selected-preview > span,body[data-screen="game"] .selected-preview > small {
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
 }
 .room-operations,.game-toolbar {
@@ -1106,10 +1106,10 @@ body[data-screen="game"] .hand.desktop-fan.large-hand .card {
     transition: translate .17s ease-out,box-shadow .17s ease-out;
   }
   body[data-screen="game"] .hand.desktop-fan .card.hovered {
-    box-shadow: 0 0 0 2px #f0e6ca,0 8px 20px #0008;
+    box-shadow: var(--effect-table-ui-desktop-fan-card-hovered-56);
   }
   body[data-screen="game"] .hand.desktop-fan .card.selected {
-    box-shadow: 0 0 0 3px var(--table-selection),0 0 18px #8ce1ed55;
+    box-shadow: var(--effect-table-ui-desktop-fan-card-selected-57);
   }
 }
 .hover-preview {
@@ -1129,25 +1129,25 @@ body[data-screen="game"] .hand.desktop-fan.large-hand .card {
   filter: none;
   width: 108px;
   height: 162px;
-  box-shadow: 0 0 0 1px var(--table-parchment),0 8px 30px #0008;
+  box-shadow: var(--effect-table-ui-hover-preview-card-58);
 }
 .hover-preview > span,.hover-preview > small {
   padding: 5px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--table-panel);
-  font-size: 13px;
+  font-size: var(--font-size-13);
   line-height: 1.4;
   text-align: center;
 }
 .hover-preview > small {
-  color: #c5d2c1;
+  color: var(--ui-text-muted);
 }
 .hover-preview[hidden],.selected-preview[hidden] {
   display: none!important;
 }
 .play-confirm[data-submitting="true"] #confirm-play {
-  background: #41564a;
-  color: #f3ead6;
+  background: var(--gold);
+  color: var(--gold-ink);
 }
 @media(max-width:850px),(hover:none),(pointer:coarse) {
   .hover-preview {
@@ -1171,29 +1171,29 @@ body[data-screen="game"] .player .prediction > span {
 body[data-screen="game"] .player .prediction small {
   display: block;
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-size-12);
   line-height: 1.3;
   font-family: inherit;
-  color: #c7d4c7;
+  color: var(--ui-text-muted);
 }
 body[data-screen="game"] .player .prediction b {
-  font: 600 18px/1.25 var(--ui-font);
-  color: var(--table-parchment);
+  font: 600 var(--font-size-18)/1.25 var(--ui-font);
+  color: var(--ui-text);
   white-space: nowrap;
 }
 body[data-screen="game"] .player .prediction .target-secret b {
-  font-size: 12px;
+  font-size: var(--font-size-12);
   font-weight: 500;
   line-height: 1.8;
   font-family: inherit;
-  color: #c7d4c7;
+  color: var(--ui-text);
 }
 @media(max-width:850px) {
   body[data-screen="game"] .player .prediction b {
-    font-size: 16px;
+    font-size: var(--font-size-16);
   }
   body[data-screen="game"] .player .prediction .target-secret b {
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
 }
 /* Compact public metrics stay on one line; unknown targets use neutral text. */
@@ -1242,7 +1242,7 @@ body[data-screen="game"] .played > small {
     justify-content: space-between;
     gap: 8px;
     padding-top: 5px;
-    border-top: 1px solid #c4a66e55;
+    border-top: 1px solid var(--ui-border);
     min-height: 30px;
   }
   .own-action > span:first-child {
@@ -1252,22 +1252,22 @@ body[data-screen="game"] .played > small {
     min-width: 0;
   }
   .own-action b {
-    font-size: 14px;
-    color: #fff0cd;
+    font-size: var(--font-size-14);
+    color: var(--ui-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .own-action small {
-    font-size: 12px;
-    color: #b8d5c8;
+    font-size: var(--font-size-12);
+    color: var(--ui-text-muted);
     white-space: nowrap;
   }
   .own-action #turn-countdown {
-    font-size: 15px;
+    font-size: var(--font-size-16);
     padding: 3px 8px;
-    border-radius: 20px;
-    background: #304b38;
+    border-radius: 999px;
+    background: var(--ui-surface);
     white-space: nowrap;
   }
   body[data-screen="game"]:has(.own-action) .action-panel {
@@ -1282,12 +1282,12 @@ body[data-screen="game"] .played > small {
   body[data-screen="game"] .played > small,body[data-screen="game"].has-webgl .played > small {
     width: clamp(56px,calc(20vw - 6px),80px);
     max-width: none;
-    font-size: 12px;
+    font-size: var(--font-size-12);
     padding: 3px 2px;
     white-space: nowrap;
   }
   .played-name,.played-state {
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
   body[data-screen="game"].hand-expanded:has(.own-action) .opponents,body[data-screen="game"].hand-expanded:has(.own-action) .played-cards,body[data-screen="game"].hand-expanded.has-webgl:has(.own-action) .played-cards {
     bottom: 313px;
@@ -1301,7 +1301,7 @@ body[data-screen="game"] .played > small {
     display: block;
   }
   .own-action b,.own-action small {
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
   body[data-screen="game"]:has(.own-action) .opponents,body[data-screen="game"]:has(.own-action) .played-cards,body[data-screen="game"].has-webgl:has(.own-action) .played-cards,body[data-screen="game"]:not(.has-webgl):has(.own-action) .played-cards {
     bottom: 175px;
@@ -1327,11 +1327,11 @@ body[data-screen="game"] .played > small {
     gap: 3px;
   }
   body[data-screen="game"] .hand-heading > b {
-    font-size: 12px;
+    font-size: var(--font-size-12);
     margin-right: auto;
   }
   body[data-screen="game"] .hand-heading button {
-    font-size: 12px;
+    font-size: var(--font-size-12);
     padding: 3px 5px;
   }
   body[data-screen="game"] .hand-heading #hand-sort {
@@ -1376,13 +1376,13 @@ body[data-screen="game"] .played > small {
     margin-top: 1px;
     padding: 0 2px;
     border-width: 1px;
-    font-size: 12px;
+    font-size: var(--font-size-12);
     line-height: 13px;
   }
   .compact-trick .played-name {
     flex: 1;
     min-width: 0;
-    font-size: 12px;
+    font-size: var(--font-size-12);
     line-height: 13px;
   }
   .compact-trick .played-state {
@@ -1393,7 +1393,7 @@ body[data-screen="game"] .played > small {
   }
   .compact-trick .played-state:after {
     content: attr(data-compact);
-    font-size: 12px;
+    font-size: var(--font-size-12);
     line-height: 13px;
   }
 }
@@ -1426,16 +1426,16 @@ body[data-screen="game"] .played > small {
     grid-row: 1;
     width: 20px;
     height: 20px;
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
   body[data-screen="game"] .player b {
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
   body[data-screen="game"] .player > small {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 12px;
+    font-size: var(--font-size-12);
     line-height: 14px;
   }
   body[data-screen="game"] .player .prediction {
@@ -1449,10 +1449,10 @@ body[data-screen="game"] .played > small {
     gap: 2px;
   }
   body[data-screen="game"] .player .prediction b {
-    font-size: 16px;
+    font-size: var(--font-size-16);
   }
   body[data-screen="game"] .player .prediction .target-secret b {
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
   body[data-screen="game"] .player .turn-label {
     display: none;
@@ -1466,7 +1466,7 @@ body[data-screen="game"] .played > small {
     height: 66px;
   }
   body[data-screen="game"] .played > small,body[data-screen="game"].has-webgl .played > small {
-    font-size: 12px;
+    font-size: var(--font-size-12);
     line-height: 13px;
     margin-top: 1px;
     padding: 0 2px;
@@ -1485,7 +1485,7 @@ body[data-screen="game"] .played > small {
   }
   .played-state:after {
     content: attr(data-compact);
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
   body[data-screen="game"] .hand.desktop-fan,body[data-screen="game"] .hand.desktop-fan.large-hand {
     position: relative;
@@ -1548,8 +1548,8 @@ body[data-screen="game"] .hand.desktop-fan.large-hand .card {
     max-width: 140px;
     min-height: 44px;
     padding: 4px 7px;
-    font-size: 12px;
-    border-radius: 7px;
+    font-size: var(--font-size-12);
+    border-radius: var(--radius-sm);
   }
   body[data-screen="game"] .trump-neutral-sigil {
     display: none;
@@ -1565,7 +1565,7 @@ body[data-screen="game"] .hand.desktop-fan.large-hand .card {
     padding: 6px 9px;
   }
   body[data-screen="game"][data-phase="trickEnd"] .action-panel .action-title h3 {
-    font-size: 13px;
+    font-size: var(--font-size-13);
   }
   body[data-screen="game"][data-phase="trickEnd"] .action-panel .action-title small {
     display: none;
@@ -1596,47 +1596,47 @@ body[data-screen="game"] .game-layout aside {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--font-size-12);
   border: 1px solid var(--ui-border);
   border-bottom: 0;
 }
 .roundbar b {
   font-family: var(--ui-font);
-  font-size: 21px;
+  font-size: var(--font-size-20);
   margin: 0 4px;
 }
 .roundbar {
   position: relative;
   z-index: 2;
   background: linear-gradient(90deg,#28241feb,#1b2020eb);
-  border-color: #b698633d;
-  color: #b7aa92;
-  border-radius: 5px 5px 0 0;
+  border-color: var(--ui-border);
+  color: var(--ui-text);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   padding: 13px 21px;
-  box-shadow: 0 4px 12px #0004;
+  box-shadow: var(--shadow-1);
 }
 .roundbar span:nth-child(2) {
   letter-spacing: 2px;
-  font-size: 11px;
+  font-size: var(--font-size-11);
 }
 .roundbar b {
-  color: #e8c27d;
+  color: var(--gold);
 }
 @media (max-width:580px) {
   .roundbar {
     padding: 11px 12px;
-    font-size: 10px;
+    font-size: var(--font-size-11);
   }
 }
 @media (max-width:580px) {
   .roundbar span:nth-child(2) {
-    font-size: 9px;
+    font-size: var(--font-size-11);
     letter-spacing: 1px;
   }
 }
 @media (max-width:580px) {
   .roundbar b {
-    font-size: 19px;
+    font-size: var(--font-size-20);
   }
 }
 body[data-screen="game"] .roundbar {
@@ -1651,11 +1651,11 @@ body[data-screen="game"] .roundbar {
     left: 10px;
     padding: 6px 10px;
     gap: 10px;
-    font-size: 9px;
+    font-size: var(--font-size-11);
   }
 }
 body[data-screen="game"] .roundbar {
-  color: #eee6d5;
+  color: var(--ui-text);
 }
 body[data-screen="game"] .roundbar .trump-marker {
   display: none;
@@ -1665,30 +1665,30 @@ body[data-screen="game"] .roundbar .trump-marker {
     left: 10px;
     top: 10px;
     padding: 7px 10px;
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
 }
 @media (max-width:700px) {
   body[data-screen="game"] .roundbar b {
-    font-size: 18px;
+    font-size: var(--font-size-18);
   }
 }
 body[data-screen="game"] .roundbar span:nth-child(2) {
   display: block;
-  color: #c9d7ca;
+  color: var(--ui-text);
 }
 @media (max-width:850px) {
   body[data-screen="game"] .roundbar {
     left: 10px;
     top: 61px;
     padding: 2px 8px;
-    font-size: 12px;
+    font-size: var(--font-size-12);
     min-height: 44px;
   }
 }
 @media (max-width:850px) {
   body[data-screen="game"] .roundbar b {
-    font-size: 16px;
+    font-size: var(--font-size-16);
   }
 }
 @media (max-height:540px) and (min-width:600px) {
@@ -1703,14 +1703,14 @@ body[data-screen="game"] .roundbar .lead-order {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #a8e6ea;
-  font-size: 13px;
+  color: var(--table-selection);
+  font-size: var(--font-size-13);
   letter-spacing: 0;
 }
 body[data-screen="game"] .roundbar span:nth-child(2) {
   white-space: nowrap;
   letter-spacing: 0;
-  font-size: 12px;
+  font-size: var(--font-size-12);
 }
 @media (max-width:850px) {
   body[data-screen="game"] .roundbar {
@@ -1719,7 +1719,7 @@ body[data-screen="game"] .roundbar span:nth-child(2) {
 }
 @media (max-width:850px) {
   body[data-screen="game"] .roundbar .lead-order {
-    font-size: 12px;
+    font-size: var(--font-size-12);
     max-width: 100%;
   }
 }
@@ -1739,12 +1739,12 @@ body[data-screen="game"] .roundbar {
     max-width: none;
     min-height: 0;
     padding: 0;
-    font-size: 11px;
+    font-size: var(--font-size-11);
   }
 }
 @media (orientation:landscape) and (min-width:600px) and (max-height:540px) {
   body[data-screen="game"] .roundbar b {
-    font-size: 14px;
+    font-size: var(--font-size-14);
   }
 }
 body[data-screen="game"] .roundbar {
@@ -1757,7 +1757,7 @@ body[data-screen="game"] .roundbar {
   box-shadow: none;
 }
 body[data-screen="game"] .roundbar b {
-  font-size: 16px;
+  font-size: var(--font-size-16);
 }
 body[data-screen="game"] .roundbar {
   display: flex;
@@ -1765,17 +1765,17 @@ body[data-screen="game"] .roundbar {
   align-items: baseline;
   gap: 10px;
   max-width: calc(100% - 216px);
-  font-size: 12px;
+  font-size: var(--font-size-12);
   line-height: 20px;
 }
 body[data-screen="game"] .roundbar > .trick-progress:nth-child(2) {
   display: inline;
   white-space: nowrap;
-  font-size: 11px;
-  color: #c0cdbf;
+  font-size: var(--font-size-11);
+  color: var(--ui-text);
 }
 body[data-screen="game"] .roundbar b {
-  font: 600 16px/20px var(--ui-font);
+  font: 600 var(--font-size-16)/20px var(--ui-font);
 }
 @media (max-width:850px) and (orientation:portrait) {
   body[data-screen="game"] .roundbar {
@@ -1786,7 +1786,7 @@ body[data-screen="game"] .roundbar b {
 }
 @media (max-width:850px) and (orientation:portrait) {
   body[data-screen="game"] .roundbar .trick-progress {
-    font-size: 10px;
+    font-size: var(--font-size-11);
     line-height: 14px;
   }
 }
@@ -1795,15 +1795,15 @@ body[data-screen="game"][data-table-layout="strip"] .roundbar {
   right: auto;
 }
 body[data-game-theme="wizard"][data-screen="game"] .roundbar {
-  font-size: 14px;
+  font-size: var(--font-size-14);
   line-height: 22px;
   gap: var(--ui-space-3);
 }
 body[data-game-theme="wizard"][data-screen="game"] .roundbar b {
-  font: 700 18px/22px var(--ui-font);
+  font: 700 var(--font-size-18)/22px var(--ui-font);
 }
 body[data-game-theme="wizard"][data-screen="game"] .roundbar > .trick-progress:nth-child(2) {
-  font-size: 14px;
+  font-size: var(--font-size-14);
 }
 @media (max-width: 850px) and (orientation: portrait) {
   body[data-game-theme="wizard"][data-screen="game"] .roundbar {
@@ -1813,7 +1813,7 @@ body[data-game-theme="wizard"][data-screen="game"] .roundbar > .trick-progress:n
 }
 @media (max-width: 850px) and (orientation: portrait) {
   body[data-game-theme="wizard"][data-screen="game"] .roundbar .trick-progress {
-    font-size: 14px;
+    font-size: var(--font-size-14);
     line-height: 20px;
   }
 }
@@ -1837,10 +1837,10 @@ body[data-screen="game"] .hand.desktop-fan {
   --hand-card-width: clamp(40px, calc((var(--hand-height) - 15px) / 1.5), var(--fan-card-width, var(--hand-card-max)));
 }
 body[data-screen="game"] .hand .card {
-  width: var(--hand-card-width);
-  min-width: var(--hand-card-width);
-  height: calc(var(--hand-card-width) * 1.5);
-  flex-basis: var(--hand-card-width);
+  width: max(var(--ui-touch-size), var(--hand-card-width));
+  min-width: max(var(--ui-touch-size), var(--hand-card-width));
+  height: calc(max(var(--ui-touch-size), var(--hand-card-width)) * 1.5);
+  flex-basis: max(var(--ui-touch-size), var(--hand-card-width));
   aspect-ratio: 2 / 3;
 }
 body[data-screen="game"] .hand.hand-grid .card {
