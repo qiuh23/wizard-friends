@@ -25,7 +25,7 @@ export class TableScene {
     this.qualityAdviser.reset(performance.now(), 5000);
     this.onQualitySuggestion = onQualitySuggestion;
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2('#100e13', .033);
+    this.scene.fog = new THREE.FogExp2('#101a1e', .033);
     this.camera = new THREE.PerspectiveCamera(43, 1, .1, 80);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' });
     this.renderer.shadowMap.enabled = false;

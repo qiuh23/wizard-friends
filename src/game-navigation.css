@@ -5,7 +5,7 @@
   font-size: 13px; text-decoration: none; border-radius: 4px;
 }
 .entry-context a:hover, .room-lobby-link:hover { color: #f2dab0; text-decoration: underline; }
-.entry-context a:focus-visible, .room-lobby-link:focus-visible { outline: 2px solid #ffe0a1; outline-offset: 3px; }
+.entry-context a:focus-visible, .room-lobby-link:focus-visible { outline: 2px solid var(--cream); outline-offset: 3px; }
 .entry-context a[aria-disabled="true"] { opacity: .45; cursor: wait; }
 .lobby-navigation { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #b5a27740; margin-top: 4px; padding-top: 12px; }
 .server-entry-choices { display: flex; flex-direction: column; gap: 8px; }

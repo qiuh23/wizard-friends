@@ -14,7 +14,7 @@ body[data-screen="game"] .settlement-summary .action-title h3 { font-size:16px;l
 body[data-screen="game"] .settlement-summary .action-title small { display:block;font-size:12px;line-height:1.4;color:#b7e4e3;margin-top:3px; }
 body[data-screen="game"] .settlement-panel .personal-result { display:flex;flex-direction:column;align-items:flex-start;flex:0 0 auto;gap:3px;padding:0;border:0;font-size:12px;line-height:1.4; }
 body[data-screen="game"] .settlement-panel .personal-result > div { display:flex;align-items:baseline;gap:10px; }
-body[data-screen="game"] .settlement-panel .personal-result strong { font-size:24px;color:#f0d292;white-space:nowrap; }
+body[data-screen="game"] .settlement-panel .personal-result strong { font-size:24px;color:var(--gold);white-space:nowrap; }
 body[data-screen="game"] .settlement-actions { display:flex;align-items:center;justify-content:flex-end;min-width:0;gap:8px; }
 body[data-screen="game"] #finished-dissolve { min-height:44px;padding:8px 14px;font-size:14px;white-space:nowrap; }
 body[data-screen="game"] .settlement-actions .primary { margin:0;min-height:44px;padding:8px 14px;font-size:15px;line-height:1.25;white-space:normal;max-width:190px; }
@@ -33,12 +33,12 @@ body[data-screen="game"] .settlement-actions .primary { margin:0;min-height:44px
 .settlement-history thead { color:#c4d3be; }
 .settlement-self { background:#d4bb7314; }
 .final-results { grid-column:1 / -1;max-height:min(38dvh,320px);overflow:auto;overscroll-behavior:contain;border-bottom:1px solid #c4a66e66;padding-bottom:8px; }
-.final-results h4 { margin:0 0 6px;font-size:15px;color:#f0d292; }
+.final-results h4 { margin:0 0 6px;font-size:15px;color:var(--gold); }
 .final-results table { width:100%;border-collapse:collapse;font-size:12px; }
 .final-results th,.final-results td { padding:6px 8px;border-bottom:1px solid #a99e6c44;text-align:right; }
 .final-results thead { color:#c4d3be; }
 .final-results .final-player { text-align:left;white-space:normal;overflow-wrap:anywhere; }
-.final-results .final-total { font-weight:700;color:#f0d292; }
+.final-results .final-total { font-weight:700;color:var(--gold); }
 body[data-screen="game"][data-phase="finished"] .played-cards { opacity:1; }
 body[data-screen="game"]:has(.settlement-panel) .hand-section,
 body[data-screen="game"]:has(.settlement-panel) .play-confirm,

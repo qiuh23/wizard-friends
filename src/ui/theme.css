@@ -2,35 +2,68 @@
    The existing felt, illustration, seat geometry and hand motion remain owners
    of the game scene. These tokens describe interface chrome only. */
 :root {
-  --ui-font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --ui-font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  --font-display: "Noto Serif SC", "Songti SC", serif;
   --ui-text: #f7f4ec;
-  --ui-text-muted: #d2d8d3;
-  --ui-surface: rgba(20, 28, 31, .9);
-  --ui-control: rgba(20, 43, 36, .86);
-  --ui-control-hover: #31503e;
-  --ui-control-active: #2a4a3d;
-  --ui-border: rgba(255, 255, 255, .2);
-  --ui-control-border: #dfd8bf4d;
-  --ui-accent: #c6b3e8;
-  --ui-gold: #ead098;
+  --ui-text-muted: #b9c4bb;
+  --felt-1: #254d49;
+  --felt-2: #183933;
+  --night: #111c25;
+  --ui-surface: rgba(18, 30, 28, .92);
+  --ui-control: rgba(24, 43, 38, .88);
+  --ui-control-hover: #2c4a41;
+  --ui-control-active: #33544a;
+  --ui-border: rgba(255, 255, 255, .16);
+  --ui-control-border: rgba(223, 216, 191, .30);
+  --gold: #e6c486;
+  --gold-ink: #221b10;
+  --cream: #fff0cb;
+  --accent: #c9b7ed;
+  --card-paper: #e8deca;
   --ui-focus: #fff4b8;
-  --ui-radius: 14px;
-  --ui-space: 4px;
-  --ui-space-2: calc(var(--ui-space) * 2);
-  --ui-space-3: calc(var(--ui-space) * 3);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --shadow-1: 0 2px 8px rgba(0, 0, 0, .18);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, .28);
+  --shadow-3: 0 18px 54px rgba(0, 0, 0, .42);
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-dock: 20;
+  --z-banner: 30;
+  --z-menu: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+  --duration-1: 120ms;
+  --duration-2: 180ms;
+  --duration-3: 240ms;
+  --ui-easing: cubic-bezier(.2, .7, .3, 1);
   --ui-touch-size: 44px;
-  --ui-shadow: 0 8px 24px rgba(0, 0, 0, .24);
-  --ui-duration: 150ms;
+  --font-size-11: 11px;
+  --font-size-12: 12px;
+  --font-size-13: 13px;
+  --font-size-14: 14px;
+  --font-size-16: 16px;
+  --font-size-18: 18px;
+  --font-size-20: 20px;
+  --font-size-24: 24px;
+  --font-size-32: 32px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  /* Existing chrome aliases resolve to the shared scales during migration. */
+  --ui-radius: var(--radius-lg);
+  --ui-space: var(--space-1);
+  --ui-space-2: var(--space-2);
+  --ui-space-3: var(--space-3);
+  --ui-shadow: var(--shadow-2);
+  --ui-duration: var(--duration-2);
 }
 
 [data-game-theme="wizard"] {
-  --ui-surface: rgba(20, 24, 40, .94);
-  --ui-control: rgba(28, 33, 51, .88);
-  --ui-control-hover: #34364f;
-  --ui-control-active: #3a3c59;
-  --ui-accent: #c9b7ed;
-  --ui-gold: #ead098;
-  --gold: var(--ui-gold);
   font-family: var(--ui-font);
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
@@ -43,7 +76,7 @@
 [data-game-theme="wizard"] button {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  transition: background-color var(--ui-duration) ease, border-color var(--ui-duration) ease, box-shadow var(--ui-duration) ease;
+  transition: background-color var(--ui-duration) var(--ui-easing), border-color var(--ui-duration) var(--ui-easing), box-shadow var(--ui-duration) var(--ui-easing);
 }
 body[data-game-theme="wizard"][data-screen] :is(button, a, input, select, summary):focus-visible {
   outline: 3px solid var(--ui-focus);
@@ -94,9 +127,9 @@ body[data-game-theme="wizard"][data-screen="game"] #chat-toggle.table-icon-butto
   line-height: 1;
 }
 body[data-game-theme="wizard"][data-screen="game"] .table-icon-button[aria-expanded="true"],
-body[data-game-theme="wizard"][data-screen="game"] #chat-toggle.table-icon-button[aria-expanded="true"] { background: var(--ui-control-active); border-color: var(--ui-gold); }
+body[data-game-theme="wizard"][data-screen="game"] #chat-toggle.table-icon-button[aria-expanded="true"] { background: var(--ui-control-active); border-color: var(--gold); }
 body[data-game-theme="wizard"][data-screen="game"] :is(.game-toolbar, .hand-tools) .table-icon-button:hover:not(:disabled),
-body[data-game-theme="wizard"][data-screen="game"] #chat-toggle.table-icon-button:hover:not(:disabled) { background: var(--ui-control-hover); border-color: #ead09899; transform: none; }
+body[data-game-theme="wizard"][data-screen="game"] #chat-toggle.table-icon-button:hover:not(:disabled) { background: var(--ui-control-hover); border-color: color-mix(in srgb, var(--gold) 60%, transparent); transform: none; }
 body[data-game-theme="wizard"][data-screen="game"] #confirm-play { border-radius: var(--ui-radius); font-family: var(--ui-font); font-weight: 650; min-height: var(--ui-touch-size); box-shadow: 0 3px 12px #04130f55; }
 body[data-game-theme="wizard"][data-screen="game"] .hand-count { font: 600 14px/20px var(--ui-font); }
 body[data-game-theme="wizard"][data-screen="game"] :is(.table-menu-panel, .table-score-panel, #room-chat) { border: 1px solid var(--ui-border); border-radius: var(--ui-radius); box-shadow: var(--ui-shadow); }
@@ -114,7 +147,9 @@ body[data-game-theme="wizard"][data-screen="game"] .table-menu-panel button { mi
   body[data-game-theme="wizard"][data-screen="game"] .own-action #turn-countdown { grid-column: 2; grid-row: 1; }
   body[data-game-theme="wizard"][data-screen="game"] .own-action :is(.follow-requirement, .play-block-reason) { grid-column: 1 / -1; grid-row: 2; }
 }
-@media (prefers-reduced-motion: reduce) { :root { --ui-duration: 0ms; } }
+@media (prefers-reduced-motion: reduce) {
+  :root { --duration-1: 0ms; --duration-2: 0ms; --duration-3: 0ms; }
+}
 
 /* Popovers scroll within the free felt, above the live hand and decision dock. */
 body[data-game-theme="wizard"][data-screen="game"] .game-layout > aside,
