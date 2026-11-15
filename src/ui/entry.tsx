@@ -4,10 +4,11 @@ import { RULE_LABELS, ruleSummary } from '../rule-ui.js';
 import { RULE_CHOICES } from '../rules-options.js';
 import type { UIModel, RoomModel } from './types';
 import { Card, Icon } from './primitives';
+import { ModalFrame } from './modal';
 
 /** The existing home composition, with imperative directory/presence islands. */
 export function HomeScreen({ model }: { model: UIModel }) {
-  const { domestic, busy, nickname, joinOpen, joinDraft, roomInput, returnRooms, practiceSaved } = model;
+  const { domestic, busy, nickname, joinOpen, returnRooms, practiceSaved } = model;
   return <main className="home-screen">
     <section className="hero home-scene" aria-label="烛光牌桌">
       <div className="hero-cards">
@@ -25,16 +26,11 @@ export function HomeScreen({ model }: { model: UIModel }) {
         </> : <input id="nickname" maxLength={16} placeholder="请输入昵称" required autoComplete="nickname" defaultValue={nickname} />}
       </div>
       <nav className="menu-options" aria-label="开始游戏">
-        <button id="create" className="menu-choice menu-primary" disabled={busy}>{busy ? '正在连接…' : '创建房间'}<span className="menu-choice-icon"><Icon name="cards" /></span></button>
-        <button id="join-menu" className="menu-choice" aria-expanded={joinOpen} aria-controls="join-form" disabled={busy}>加入房间<span className="menu-choice-icon"><Icon name="enter" /></span></button>
-        <form id="join-form" className="menu-join" hidden={!joinOpen}>
-          <label className="sr-only" htmlFor="room-input">房间码</label>
-          <input id="room-input" placeholder="输入房间码" maxLength={24} autoComplete="off" defaultValue={joinDraft ?? roomInput} />
-          <button id="join" type="submit" disabled={busy}>加入</button>
-        </form>
-        <button id="practice" className="menu-choice" disabled={busy}>单人练习<span className="menu-choice-icon"><Icon name="target" /></span></button>
-        {busy && <button id="cancel-connect" className="text-button">取消连接</button>}
+        <button id="create" className="menu-tile menu-primary" disabled={busy}><Icon name="cards" /><span>创建房间</span></button>
+        <button id="join-menu" className="menu-tile" aria-haspopup="dialog" aria-expanded={joinOpen} aria-controls={joinOpen ? 'join-title' : undefined} disabled={busy}><Icon name="enter" /><span>加入房间</span></button>
+        <button id="practice" className="menu-tile" disabled={busy}><Icon name="target" /><span>单人练习</span></button>
       </nav>
+      {busy && !joinOpen && <button id="cancel-connect" className="text-button">取消连接</button>}
       {(returnRooms.length > 0 || practiceSaved) && <nav className="home-recovery" aria-label="恢复牌局">
         {returnRooms.map((recovery, index) => <button type="button" key={`${recovery.room}:${index}`} id={index === 0 ? 'resume-room' : undefined} data-return-room={index} className="text-button" disabled={busy}>
           返回 {recovery.room} · {recovery.role === 'host' ? '房主' : recovery.role === 'spectator' ? '观战' : '玩家'}
@@ -47,6 +43,21 @@ export function HomeScreen({ model }: { model: UIModel }) {
       </details>
     </section>
   </main>;
+}
+
+/** Standalone entry dialog; protocol and draft ownership remain in the controller. */
+export function JoinRoomModal({ model }: { model: UIModel }) {
+  return <ModalFrame titleId="join-title">
+    <button type="button" id="close-join" className="close" aria-label="关闭加入房间">×</button>
+    <h2 id="join-title">加入房间</h2>
+    <form id="join-form" className="join-room-form">
+      <label htmlFor="room-input">房间码</label>
+      <input id="room-input" placeholder="输入房间码" maxLength={24} autoComplete="off" autoCapitalize="characters" spellCheck={false} defaultValue={model.joinDraft ?? model.roomInput} disabled={model.busy} />
+      <p id="join-status" role="status" aria-live="polite">{model.status}</p>
+      <button id="join" type="submit" className="primary" disabled={model.busy}>{model.busy ? '正在连接…' : '加入'}</button>
+      {model.busy && <button id="cancel-connect" type="button" className="text-button">取消连接</button>}
+    </form>
+  </ModalFrame>;
 }
 
 /** Waiting-room heading; persistent room controls are supplied by the shell. */

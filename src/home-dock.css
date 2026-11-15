@@ -18,7 +18,7 @@ body[data-game-theme="wizard"][data-screen="game"][data-table-layout] .roundbar 
 body[data-screen="home"] { min-height:100dvh; }
 body[data-screen="home"] .page { display:flex; flex-direction:column; min-height:100dvh; }
 body[data-screen="home"] .home-tools {
-  position:relative; inset:auto; z-index:5; display:flex; align-items:center; justify-content:space-between;
+  position:absolute; inset:0 0 auto; z-index:5; display:flex; align-items:center; justify-content:space-between;
   height:auto; min-height:64px; padding:var(--lobby-return-top) max(14px,env(safe-area-inset-right)) 10px calc(var(--lobby-return-left) + 54px); border:0;
 }
 .home-brand { display:flex; align-items:baseline; gap:8px; min-width:0; }
@@ -27,19 +27,17 @@ body[data-screen="home"] .home-tools {
 body[data-screen="home"] .home-tools .top-actions { flex-wrap:nowrap; gap:6px; }
 body[data-screen="home"] .home-tools .visual-icon-button { padding:10px; background:var(--ui-control); border:1px solid var(--ui-control-border); }
 body[data-screen="home"] .settings-content { top:54px; bottom:auto; }
-body[data-screen="home"] .home-screen { display:flex; flex:1; flex-direction:column; justify-content:flex-end; min-height:calc(100dvh - var(--home-header-height)); }
+body[data-screen="home"] .home-screen { display:flex; flex:1; flex-direction:column; justify-content:flex-end; min-height:100dvh; }
 body[data-screen="home"] .home-screen .home-scene { inset:0; height:auto; }
 body[data-screen="home"] .home-menu {
-  width:min(390px,calc(100% - 48px)); margin:0 0 0 clamp(24px,6.5vw,112px); padding:16px 0 max(16px,env(safe-area-inset-bottom));
+  width:min(420px,calc(100% - 48px)); margin:0 auto; padding:12px 0 max(12px,env(safe-area-inset-bottom));
 }
-body[data-screen="home"] .home-menu .menu-identity { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:8px; margin-bottom:12px; }
+body[data-screen="home"] .home-menu .menu-identity { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:8px; margin-bottom:8px; }
 body[data-screen="home"] .home-menu .menu-identity:has(output) { grid-template-columns:auto minmax(0,1fr) 44px; }
 body[data-screen="home"] .home-menu .menu-identity > label { grid-column:auto; font-size:var(--font-size-13); }
 body[data-screen="home"] .home-menu .menu-identity output { min-width:0; min-height:44px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 body[data-screen="home"] .home-menu input { min-height:44px; height:44px; padding:10px 12px; }
 body[data-screen="home"] .home-menu .menu-options { gap:8px; }
-body[data-screen="home"] .home-menu .menu-choice { min-height:48px; padding:10px 14px; }
-body[data-screen="home"] .home-menu .menu-join button { min-height:44px; height:44px; padding:8px 14px; }
 body[data-screen="home"] .home-recovery { display:flex; align-items:center; gap:12px; overflow-x:auto; white-space:nowrap; scrollbar-width:thin; margin-top:6px; }
 body[data-screen="home"] .home-recovery .text-button { flex:none; min-height:44px; padding:8px 0; color:var(--ui-text-muted); background:transparent; border:0; font-size:var(--font-size-12); text-decoration:underline; text-underline-offset:3px; }
 body[data-screen="home"] .home-directory { margin-top:4px; position:relative; }
@@ -53,11 +51,10 @@ body[data-screen="home"] .home-directory #online-count:before { display:none; }
 body[data-screen="home"] .home-directory .home-room-list { position:absolute; bottom:100%; width:100%; z-index:6; }
 body[data-screen="home"] .home-directory .room-directory { max-height:min(300px,50dvh); }
 @media(max-width:700px) and (orientation:portrait) {
-  body[data-screen="home"] .home-screen { min-height:calc(100dvh - var(--home-header-height)); }
+  body[data-screen="home"] .home-screen { min-height:100dvh; }
   body[data-screen="home"] .home-menu { width:calc(100% - 32px); max-width:420px; margin:0 auto; padding-top:12px; padding-bottom:max(12px,env(safe-area-inset-bottom)); }
-  body[data-screen="home"] .home-screen .home-scene { inset:0 0 auto; height:clamp(170px,calc(100dvh - 350px),420px); }
-  body[data-screen="home"] .home-screen .hero-cards { top:38%; right:20%; transform:rotate(-12deg); }
-  body[data-screen="home"] .home-menu .menu-choice { font-size:var(--font-size-16); }
+  body[data-screen="home"] .home-screen .home-scene { inset:0 0 auto; height:calc(100dvh - 200px); }
+  body[data-screen="home"] .home-screen .hero-cards { top:48%; right:20%; transform:rotate(-12deg); }
 }
 @media(max-width:359px) {
   .home-brand { flex-direction:column; align-items:flex-start; gap:1px; }
@@ -65,9 +62,9 @@ body[data-screen="home"] .home-directory .room-directory { max-height:min(300px,
   body[data-screen="home"] .home-tools .top-actions { gap:4px; }
 }
 @media(orientation:landscape) and (max-height:540px) {
-  body[data-screen="home"] .home-screen { min-height:calc(100dvh - var(--home-header-height)); }
+  body[data-screen="home"] .home-screen { min-height:100dvh; }
   body[data-screen="home"] .home-menu { padding-top:8px; padding-bottom:max(8px,env(safe-area-inset-bottom)); }
   body[data-screen="home"] .home-menu .menu-identity { margin-bottom:8px; }
   body[data-screen="home"] .home-menu .menu-options { gap:6px; }
-  body[data-screen="home"] .home-menu .menu-choice { min-height:44px; padding-block:8px; font-size:var(--font-size-16); }
+  body[data-screen="home"] .home-menu .menu-tile { min-height:64px; gap:4px; padding-block:8px; }
 }

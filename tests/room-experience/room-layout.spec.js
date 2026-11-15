@@ -14,11 +14,11 @@ test.beforeEach(async({page})=>{await mockDirection(page);await page.addInitScri
 
 test('首页草稿与规则弹窗保留；房间沿用两个页签且旋转不重建连接',async({page,application},info)=>{
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.goto('/');await page.locator('#nickname').fill('旋转巫师');await page.locator('#join-menu').click();await page.locator('#room-input').fill('A-ABCD2345');
+  await page.goto('/');await page.locator('#nickname').fill('旋转巫师');await page.locator('#join-menu').click();await page.locator('#room-input').fill('A-ABCD2345');await page.locator('#close-join').click();
   await landscapeCycle(page,await openControls(page,false));await page.locator('#quick-settings > summary').tap();
   await page.locator('#rules').click();
   for(const [width,height] of sizes.slice(0,7)){await page.setViewportSize({width,height});await expect(page.locator('.modal')).toBeVisible();await fits(page);}
-  await page.locator('#close-rules').click();await expect(page.locator('#nickname')).toHaveValue('旋转巫师');await expect(page.locator('#room-input')).toHaveValue('A-ABCD2345');await expect(page.locator('#join-form')).toBeVisible();
+  await page.locator('#close-rules').click();await expect(page.locator('#nickname')).toHaveValue('旋转巫师');await page.locator('#join-menu').click();await expect(page.locator('#room-input')).toHaveValue('A-ABCD2345');await expect(page.locator('#join-form')).toBeVisible();await page.locator('#close-join').click();
   let sockets=0;page.on('websocket',()=>sockets++);
   await page.locator('#create').click();await expect(page.locator('.lobby-table')).toBeVisible();
   await expect(page.locator('[data-lobby-panel="rules"]')).toHaveAttribute('aria-selected','true');
