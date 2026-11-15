@@ -30,7 +30,7 @@ export class RoomDirectory {
       </header>
       <p id="room-directory-status" class="room-directory-status" role="status" aria-live="polite" aria-atomic="true"></p>
       <ul class="room-directory-list" aria-label="可加入或观战的房间"></ul>
-      <p class="room-directory-empty" role="status" hidden>暂无在线房间</p>`;
+      <p class="room-directory-empty" role="status" hidden>暂无公开房间</p>`;
     this.list = this.root.querySelector('.room-directory-list');
     this.message = this.root.querySelector('#room-directory-status');
     this.empty = this.root.querySelector('.room-directory-empty');

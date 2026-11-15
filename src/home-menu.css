@@ -49,6 +49,7 @@ body[data-screen="home"] .page { max-width: none; padding: 0; }
 .home-menu input:focus-visible { border-color: var(--gold); box-shadow: none; }
 .home-menu input:disabled { color: var(--ui-text-muted); background: var(--ui-control); border-color: var(--ui-control-border); opacity: 1; }
 .home-setup-hint { margin: 12px 0 16px; color: var(--ui-text-muted); font-size: var(--font-size-13); line-height: 1.65; }
+.home-recovery { margin-top: 12px; }
 .menu-options { display: flex; flex-direction: column; gap: 12px; }
 .menu-options .menu-choice {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 52px;

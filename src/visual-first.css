@@ -38,6 +38,7 @@ body[data-screen="home"] .room-directory-watch { width:auto; min-width:58px; ali
 body[data-screen="lobby"] .room-lobby-link { padding:10px; font-size:0; }
 body[data-screen="lobby"] .room-buttons .visual-icon-button,
 body[data-screen="lobby"] .room-operations .visual-icon-button { width:44px; min-width:44px; height:44px; padding:10px; }
+body[data-screen="lobby"] .room-buttons .room-entry-action { width:auto; gap:8px; }
 body[data-screen="lobby"] .lobby-current { display:flex; align-items:center; gap:10px; border:0; padding:0; background:transparent; font-size:var(--font-size-14); }
 .lobby-current .ui-icon { flex-shrink:0; width:20px; height:20px; }
 .rules-setup .rule-groups { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }

@@ -3,16 +3,17 @@ import { winnerReason } from '../table-summary.js';
 import { Icon, IconButton } from './primitives';
 import type { UIModel, RoomModel } from './types';
 
-function RoomOperations({model, toolbar = false}: {model: RoomModel; toolbar?: boolean}) {
+function RoomOperations({model, toolbar = false, heading = false}: {model: RoomModel; toolbar?: boolean; heading?: boolean}) {
   const {state, isHost, spectating} = model;
   if (toolbar) return isHost && !spectating ? <IconButton id="room-pause" name={state.lifecycle?.paused ? 'play' : 'pause'} label={state.lifecycle?.paused ? '恢复牌局' : '暂停牌局'}>{state.lifecycle?.paused ? '继续' : '暂停'}</IconButton> : null;
+  if (heading && (!isHost || spectating)) return null;
   return <nav className="room-operations" aria-label="房间操作">
     {state.phase === 'lobby' && isHost && !spectating && <button id="room-pause" className="visual-icon-button" aria-label={state.lifecycle?.paused ? '恢复牌局' : '暂停牌局'} title={state.lifecycle?.paused ? '恢复牌局' : '暂停牌局'}><Icon name={state.lifecycle?.paused ? 'play' : 'pause'}/></button>}
-    <button id="leave" className="text-button visual-icon-button" aria-label={spectating ? '退出观战' : '离开房间'} title={spectating ? '退出观战' : '离开房间'}><Icon name="back"/></button>
+    {!heading && <button id="leave" className="text-button visual-icon-button" aria-label={spectating ? '退出观战' : '离开房间'} title={spectating ? '退出观战' : '离开房间'}><Icon name="back"/></button>}
     {isHost && !spectating && <button id="room-dissolve" className="danger">解散房间</button>}
   </nav>;
 }
-export function LobbyOperations({model}: {model: RoomModel}) { return <RoomOperations model={model}/>; }
+export function LobbyOperations({model}: {model: RoomModel}) { return <RoomOperations model={model} heading/>; }
 function SettingsContents({model}: {model: UIModel}) {
   return <>
     <button id="graphics" className="text-button graphics-toggle">◇ 3D 质感</button>
@@ -23,7 +24,7 @@ function SettingsContents({model}: {model: UIModel}) {
     <div className="lobby-navigation"><button type="button" data-lobby-navigation="" disabled={model.busy && !model.state}>返回游戏大厅</button></div>
   </>;
 }
-export function RulesButton() { return <button className="text-button visual-icon-button" id="rules" aria-label="游戏规则" title="游戏规则"><Icon name="rules"/></button>; }
+export function RulesButton() { return <button className="text-button visual-icon-button" id="rules" aria-label="玩法规则" title="玩法规则"><Icon name="rules"/></button>; }
 export function QuickSettings({model}: {model: UIModel}) {
   return <details id="quick-settings" open={model.settingsOpen}>
     <summary aria-label="设置" title="设置"><Icon name="settings"/></summary>
