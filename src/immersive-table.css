@@ -1,21 +1,7 @@
 /* Small, labelled controls share a single SVG vocabulary on every table. */
 .ui-icon { display:inline-block;width:20px;height:20px;flex:none;vertical-align:middle; }
-.table-icon-button { position:relative;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px; }
 .control-label { font:500 10px/12px var(--ui-font);white-space:nowrap; }
 body[data-screen="game"] .game-toolbar { gap:4px; }
-body[data-screen="game"] .game-toolbar > .table-icon-button,
-body[data-screen="game"] .hand-tools > .table-icon-button,
-body[data-screen="game"] .foresight-heading > .table-icon-button {
-  width:44px;min-width:44px;height:44px;min-height:44px;padding:4px;border:1px solid #c4a66e38;border-radius:12px;
-  color:#e5ddcb;background:#10271eaa;box-shadow:none;line-height:1;
-}
-body[data-screen="game"] .table-icon-button[aria-expanded="true"] { border-color:#b9f3f4;color:#d4fcff;background:#193b32; }
-body[data-screen="game"] .table-icon-button:focus-visible { outline:2px solid #b9f3f4;outline-offset:3px; }
-body[data-screen="game"] .table-icon-button:hover:not(:disabled) { background:#25483a; }
-.chat-unread { position:absolute;right:-3px;top:-4px;min-width:17px;height:17px;padding:1px 4px;border-radius:10px;background:#e9c57c;color:#18251a;font:700 11px/15px var(--ui-font);border:1px solid #213b2c; }
-body[data-screen="game"] .roundbar { display:flex;flex-direction:row;align-items:baseline;gap:10px;max-width:calc(100% - 216px);font-size:12px;line-height:20px; }
-body[data-screen="game"] .roundbar > .trick-progress:nth-child(2) { display:inline;white-space:nowrap;font-size:11px;color:#c0cdbf; }
-body[data-screen="game"] .roundbar b { font:600 16px/20px var(--ui-font); }
 body[data-screen="game"] .table .trump-display .table-trump { border:0;background:none;padding:3px 0;font-size:12px;min-height:28px; }
 body[data-screen="game"] .trump-suit-icon { width:18px;height:18px;transform:none; }
 .trump-suit-icon .ui-icon { width:18px;height:18px; }
@@ -67,8 +53,6 @@ body[data-screen="game"] .lifecycle-banner .ui-icon { width:16px;height:16px;mar
   body[data-screen="game"]:has(.play-confirm) .own-action > span:first-child { display:block; }
   body[data-screen="game"]:is([data-table-layout="ring"],[data-table-layout="portrait-grid"]) .own-action { grid-column:1 / -1;grid-row:3;max-width:none;justify-content:space-between;flex-wrap:nowrap; }
   body[data-screen="game"] .own-status { column-gap:8px; }
-  body[data-screen="game"] .roundbar { flex-direction:column;gap:0;line-height:16px; }
-  body[data-screen="game"] .roundbar .trick-progress { font-size:10px;line-height:14px; }
   body[data-screen="game"] .table .trump-display .table-trump { min-height:24px;font-size:11px; }
   body[data-screen="game"] .table-result { width:max-content;bottom:72px;flex-wrap:wrap;justify-content:center; }
   body[data-screen="game"]:has(.table-result) .own-status { bottom:max(10px,env(safe-area-inset-bottom)); }
@@ -78,18 +62,14 @@ body[data-screen="game"][data-table-layout="strip"] .hand-tools .hand-count { di
 body[data-screen="game"][data-table-layout="strip"] .hand-section > .play-confirm { bottom:calc(60px + env(safe-area-inset-bottom)); }
 body[data-screen="game"][data-table-layout="strip"] .hand-section.expanded { right:calc(152px + env(safe-area-inset-right)); }
 body[data-screen="game"][data-table-layout="strip"] .hand-section.expanded .hand-grid { grid-template-columns:repeat(auto-fit,minmax(84px,1fr)); }
-body[data-screen="game"][data-table-layout="strip"] .hand-section.expanded .hand-grid .card { width:80px;min-width:80px;height:120px;margin:0; }
+body[data-screen="game"][data-table-layout="strip"] .hand-section.expanded .hand-grid .card {margin:0; }
 body[data-screen="game"][data-table-layout="strip"] .own-action b { display:flex;max-width:none; }
 body[data-screen="game"][data-table-layout="strip"] .own-action { flex-wrap:wrap; }
 body[data-screen="game"][data-table-layout="strip"] .table-result { left:calc(164px + env(safe-area-inset-left));right:10px;bottom:16px;transform:none;justify-content:flex-end; }
-body[data-screen="game"][data-table-layout="strip"] .roundbar { left:max(10px,env(safe-area-inset-left));right:auto; }
 body[data-screen="game"][data-table-layout="strip"] .game-toolbar { left:auto;right:max(10px,env(safe-area-inset-right)); }
 body[data-screen="game"][data-table-layout] .table .played-cards .played > small { width:max-content;max-width:100%;padding-inline:4px; }
 body[data-screen="game"][data-table-layout] .table .played-cards .played.winner::before { content:'领先'; }
 body[data-screen="game"][data-table-layout]:is([data-phase="trickEnd"],[data-phase="roundEnd"],[data-phase="finished"]) .table .played-cards .played.winner::before { content:'赢墩'; }
-@media(min-width:851px) and (min-height:541px) {
-  body[data-screen="game"] #room-chat { position:fixed;left:auto;right:max(10px,env(safe-area-inset-right));top:64px;bottom:auto;width:360px;height:min(420px,calc(100dvh - 90px)); }
-}
 body[data-screen="game"] .table .player .turn-label { line-height:14px; }
 body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .action-panel.settlement-panel { grid-template-columns:minmax(120px,1fr) 100px auto; }
 body[data-screen="game"][data-table-layout="strip"][data-phase="finished"] .final-results { grid-column:1;grid-row:1;max-height:70px; }

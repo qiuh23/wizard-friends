@@ -29,7 +29,6 @@ button {
 }
 button:hover:not(:disabled) {
   background: #354b50;
-  transform: translateY(-2px);
 }
 button:disabled {
   cursor: default;
@@ -144,13 +143,6 @@ b {
 .tiny-star {
   margin-right: 10px;
 }
-.landing {
-  display: grid;
-  grid-template-columns: 1.3fr 1fr;
-  gap: 90px;
-  align-items: center;
-  padding: 68px 40px 56px 20px;
-}
 .hero {
   position: relative;
   min-height: 560px;
@@ -196,35 +188,12 @@ h1 {
   transform: rotate(21deg) translateY(8px);
   z-index: 2;
 }
-.facts {
-  display: flex;
-  gap: 30px;
-  position: absolute;
-  bottom: 0;
-  color: #8ea3a3;
-  font-size: 10px;
-}
-.facts b {
-  display: block;
-  color: #e1e6df;
-  font-family: var(--ui-font);
-  font-size: 26px;
-  margin-bottom: 7px;
-}
 .panel {
   background: linear-gradient(130deg,#203139,#1a2b32);
   border: 1px solid #58746a3b;
   border-radius: 13px;
   padding: 29px;
   box-shadow: 0 12px 30px #06131918;
-}
-.entry {
-  padding: 37px;
-  max-width: 430px;
-  width: 100%;
-}
-.entry h2 {
-  margin-bottom: 13px;
 }
 .muted {
   color: var(--ui-text-muted);
@@ -242,12 +211,6 @@ h1 {
 }
 .primary:hover:not(:disabled) {
   background: #edca90;
-}
-.entry .primary {
-  margin-top: 16px;
-  display: flex;
-  justify-content: space-between;
-  padding: 15px 20px;
 }
 .divider {
   display: flex;
@@ -283,31 +246,6 @@ h1 {
   line-height: 1.9;
   text-align: center;
   margin: 19px 0 0;
-}
-.how {
-  display: grid;
-  grid-template-columns: repeat(3,1fr);
-  gap: 30px;
-  border-top: 1px solid var(--ui-border);
-  padding: 29px 20px;
-}
-.how>div {
-  border-right: 1px solid var(--ui-border);
-}
-.how>div:last-child {
-  border: 0;
-}
-.how span {
-  font-size: 11px;
-  letter-spacing: 2px;
-  color: var(--gold);
-}
-.how p {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 15px;
-  margin: 12px 0;
-  color: #bdc9c5;
 }
 footer {
   display: flex;
@@ -462,24 +400,6 @@ footer {
   display: grid;
   grid-template-columns: minmax(0,1fr) 280px;
   gap: 24px;
-}
-.roundbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 18px;
-  font-size: 12px;
-  border: 1px solid var(--ui-border);
-  border-bottom: 0;
-  background: #172931;
-  border-radius: 10px 10px 0 0;
-  color: #adbfbb;
-}
-.roundbar b {
-  font-family: var(--ui-font);
-  font-size: 21px;
-  color: #e6cf9e;
-  margin: 0 4px;
 }
 .trump-marker {
   color: var(--gold);
@@ -704,28 +624,6 @@ footer {
   background: #fff8df;
   transform: translateY(-9px);
 }
-.card.red {
-  color: #a44539;
-  background: #f0dfce;
-}
-.card.green {
-  color: #34755e;
-  background: #e4e8d5;
-}
-.card.yellow {
-  color: #aa7a2b;
-  background: #f0e6c9;
-}
-.card.wizard {
-  background: #293444;
-  color: #e1c282;
-  border-color: #766b51;
-}
-.card.jester {
-  background: #dbd1dd;
-  color: #6f4f7c;
-  border-color: #c1b1cb;
-}
 .corner {
   position: absolute;
   top: 8px;
@@ -913,10 +811,6 @@ td small {
   }
 }
 @media(min-width:1500px) {
-  .landing {
-    padding-top: 90px;
-    padding-bottom: 80px;
-  }
   .hero {
     min-height: 590px;
   }
@@ -924,10 +818,6 @@ td small {
 @media(max-width:1100px) {
   .page {
     padding: 0 28px;
-  }
-  .landing {
-    gap: 35px;
-    padding: 45px 0;
   }
   .hero-cards {
     right: 0;
@@ -959,13 +849,6 @@ td small {
   }
 }
 @media(max-width:800px) {
-  .landing {
-    grid-template-columns: 1fr 1fr;
-    gap: 25px;
-  }
-  .entry {
-    padding: 25px;
-  }
   .hero {
     min-height: 540px;
   }
@@ -978,12 +861,6 @@ td small {
   }
   .intro {
     font-size: 12px;
-  }
-  .facts {
-    gap: 19px;
-  }
-  .facts b {
-    font-size: 22px;
   }
   .top-actions .tag {
     display: none;
@@ -1034,11 +911,6 @@ td small {
   .top-actions .text-button {
     font-size: 11px;
   }
-  .landing {
-    grid-template-columns: 1fr;
-    padding: 33px 0;
-    gap: 28px;
-  }
   .hero {
     min-height: 370px;
   }
@@ -1062,28 +934,6 @@ td small {
     width: 88px;
     height: 133px;
     margin-left: -52px;
-  }
-  .facts {
-    position: absolute;
-    bottom: 0;
-    gap: 38px;
-  }
-  .entry {
-    max-width: none;
-    padding: 28px;
-  }
-  .entry h2 {
-    font-size: 27px;
-  }
-  .how {
-    padding: 22px 0;
-    gap: 10px;
-  }
-  .how span {
-    font-size: 9px;
-  }
-  .how p {
-    font-size: 11px;
   }
   footer {
     font-size: 8px;
@@ -1130,10 +980,6 @@ td small {
   }
   .check span {
     font-size: 9px;
-  }
-  .roundbar {
-    padding: 12px;
-    font-size: 10px;
   }
   .table {
     padding: 12px 5px;
@@ -1204,10 +1050,6 @@ td small {
   }
   .hand {
     gap: 7px;
-  }
-  .hand .card {
-    width: 70px;
-    height: 107px;
   }
   .hand .sigil {
     font-size: 33px;
