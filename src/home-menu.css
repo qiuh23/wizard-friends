@@ -2,7 +2,7 @@
 body[data-screen="home"] {
   background: #101516;
   color: var(--ui-text);
-  font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-family: var(--ui-font);
 }
 body[data-screen="home"] .page { max-width: none; padding: 0; }
 .home-screen { position: relative; min-height: calc(100dvh - 80px); isolation: isolate; }
@@ -34,7 +34,7 @@ body[data-screen="home"] .page { max-width: none; padding: 0; }
 .home-menu .current-route:before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #d9bd7e; }
 .home-title { margin: 0 0 24px; }
 .home-title h1 {
-  margin: 0 0 12px; font: 600 clamp(52px, 5.2vw, 76px)/1.2 "Noto Serif SC", "Songti SC", SimSun, serif;
+  margin: 0 0 12px; font: 800 clamp(52px, 5.2vw, 76px)/1.2 var(--font-display);
   letter-spacing: .08em; color: #fff0cf; text-shadow: 0 4px 24px #0006;
 }
 .home-tagline { margin: 0; color: #e0c791; font-size: 16px; line-height: 1.6; }

@@ -1,9 +1,26 @@
+@font-face {
+  font-family: "Noto Serif SC";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/noto-serif-sc-display-600.woff") format("woff");
+}
+
+@font-face {
+  font-family: "Noto Serif SC";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/fonts/noto-serif-sc-display-800.woff") format("woff");
+}
+
 /* Semantic foundation, following Astryx's separation of base and theme tokens.
    The existing felt, illustration, seat geometry and hand motion remain owners
    of the game scene. These tokens describe interface chrome only. */
 :root {
   --ui-font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   --font-display: "Noto Serif SC", "Songti SC", serif;
+  --font-card: Georgia, "Noto Serif SC", serif;
   --ui-text: #f7f4ec;
   --ui-text-muted: #b9c4bb;
   --felt-1: #254d49;

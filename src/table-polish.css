@@ -1,7 +1,7 @@
 /* One glyph per avatar; badges live outside the fixed-size glyph box. */
 .avatar { flex-shrink:0; }
 .avatar-glyph { display:block;max-width:100%;overflow:hidden;white-space:nowrap;line-height:1.25; }
-.bid-state-mark { position:absolute;left:-5px;top:-5px;display:grid;place-items:center;min-width:15px;height:15px;padding:0 2px;border-radius:9px;background:#eee3bc;color:#253c33;font:700 11px/1 sans-serif;box-shadow:0 1px 3px #06130f40; }
+.bid-state-mark { position:absolute;left:-5px;top:-5px;display:grid;place-items:center;min-width:15px;height:15px;padding:0 2px;border-radius:9px;background:#eee3bc;color:#253c33;font:700 11px/1 var(--ui-font);box-shadow:0 1px 3px #06130f40; }
 body[data-screen="game"] .avatar[data-bid-state="waiting"] { border-color:#f0d6a0;outline:1px solid #f0d6a0;outline-offset:2px;animation:bid-breathe 2.8s ease-in-out infinite; }
 body[data-screen="game"] .avatar[data-bid-state="held"] { outline:1px dashed #ead5a3;outline-offset:2px; }
 body[data-screen="game"] .avatar[data-bid-state="submitted"] .bid-state-mark { background:#d5e7d9;color:#1b4535; }

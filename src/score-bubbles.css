@@ -1,7 +1,7 @@
 .round-score-bubble {
   position:absolute;z-index:12;left:50%;bottom:calc(100% + 8px);width:max-content;
   padding:6px 10px;border:1px solid currentColor;border-radius:12px;background:#163b2ff5;
-  color:#c3f3c9;font:700 18px/1.2 Georgia,serif;white-space:nowrap;text-shadow:none;
+  color:#c3f3c9;font:700 18px/1.2 var(--ui-font);white-space:nowrap;text-shadow:none;
   box-shadow:0 4px 14px #0006;pointer-events:none;--bubble-x:-50%;
   transform:translate(var(--bubble-x),0);animation:round-score-rise ease-out both;
 }
