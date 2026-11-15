@@ -1,0 +1,243 @@
+[
+  {
+    "file": "src/cinematic.css",
+    "context": ".table",
+    "property": "background",
+    "nth": 0,
+    "value": "radial-gradient(ellipse at 50% 65%,#283a31,#171b1b)",
+    "reason": "gradient/image",
+    "stage5Value": "radial-gradient(ellipse at center, var(--felt-1), var(--felt-2) 80%)",
+    "stage5Reason": "Stage 5 explicitly unifies the gameplay felt gradient."
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".has-webgl .table",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(#141215,#181619)",
+    "reason": "gradient/image",
+    "stage5Value": "radial-gradient(ellipse at center, var(--felt-1), var(--felt-2) 80%)",
+    "stage5Reason": "Stage 5 explicitly unifies the gameplay felt gradient."
+  },
+  {
+    "file": "src/fullscreen.css",
+    "context": "body[data-screen=\"game\"] .table",
+    "property": "background",
+    "nth": 0,
+    "value": "radial-gradient(ellipse at center, #283831, #141719 85%)",
+    "reason": "gradient/image",
+    "stage5Value": "radial-gradient(ellipse at center, var(--felt-1), var(--felt-2) 80%)",
+    "stage5Reason": "Stage 5 explicitly unifies the gameplay felt gradient."
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-book",
+    "property": "border",
+    "nth": 0,
+    "value": "3px solid #7f573e",
+    "reason": "card/prop/scene/game-color",
+    "stage5Context": ".prop-book",
+    "stage5Reason": "Existing CSS fallback props now also serve desktop; only candle glow adopts the requested gold."
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-book",
+    "property": "border-left",
+    "nth": 0,
+    "value": "8px solid #402127",
+    "reason": "card/prop/scene/game-color",
+    "stage5Context": ".prop-book",
+    "stage5Reason": "Existing CSS fallback props now also serve desktop; only candle glow adopts the requested gold."
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-book",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(100deg,#622c37,#291c27)",
+    "reason": "gradient/image",
+    "stage5Context": ".prop-book",
+    "stage5Reason": "Existing CSS fallback props now also serve desktop; only candle glow adopts the requested gold."
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-book",
+    "property": "color",
+    "nth": 0,
+    "value": "#c4a66e",
+    "reason": "card/prop/scene/game-color",
+    "stage5Context": ".prop-book",
+    "stage5Reason": "Existing CSS fallback props now also serve desktop; only candle glow adopts the requested gold."
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-book",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "3px 5px 7px #0007",
+    "reason": "card/prop/scene/game-color",
+    "stage5Context": ".prop-book",
+    "stage5Reason": "Existing CSS fallback props now also serve desktop; only candle glow adopts the requested gold."
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-orb",
+    "property": "background",
+    "nth": 0,
+    "value": "radial-gradient(circle at 30% 25%,#b5e7df,#54838b 45%,#203b4c 80%)",
+    "reason": "gradient/image",
+    "stage5Context": ".prop-orb",
+    "stage5Reason": "Existing CSS fallback props now also serve desktop; only candle glow adopts the requested gold."
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-orb",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 11px 0 -3px #997c45,0 0 14px #7ad1cf44",
+    "reason": "card/prop/scene/game-color",
+    "stage5Context": ".prop-orb",
+    "stage5Reason": "Existing CSS fallback props now also serve desktop; only candle glow adopts the requested gold."
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-deck",
+    "property": "border",
+    "nth": 0,
+    "value": "3px double #b49c62",
+    "reason": "card/prop/scene/game-color",
+    "stage5Context": ".prop-deck",
+    "stage5Reason": "Existing CSS fallback props now also serve desktop; only candle glow adopts the requested gold."
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-deck",
+    "property": "background",
+    "nth": 0,
+    "value": "repeating-linear-gradient(45deg,#213c3b 0 6px,#294a47 6px 12px)",
+    "reason": "gradient/image",
+    "stage5Context": ".prop-deck",
+    "stage5Reason": "Existing CSS fallback props now also serve desktop; only candle glow adopts the requested gold."
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-deck",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "2px 2px 0 #d0c09a,4px 4px 0 #29413b,5px 6px 0 #c1ae88",
+    "reason": "card/prop/scene/game-color",
+    "stage5Context": ".prop-deck",
+    "stage5Reason": "Existing CSS fallback props now also serve desktop; only candle glow adopts the requested gold."
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-coins",
+    "property": "border",
+    "nth": 0,
+    "value": "2px solid #d3b96a",
+    "reason": "card/prop/scene/game-color",
+    "stage5Context": ".prop-coins",
+    "stage5Reason": "Existing CSS fallback props now also serve desktop; only candle glow adopts the requested gold."
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-coins",
+    "property": "background",
+    "nth": 0,
+    "value": "#987437",
+    "reason": "card/prop/scene/game-color",
+    "stage5Context": ".prop-coins",
+    "stage5Reason": "Existing CSS fallback props now also serve desktop; only candle glow adopts the requested gold."
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-coins",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "-7px 4px 0 #b28a48,-2px 8px 0 #73572d",
+    "reason": "card/prop/scene/game-color",
+    "stage5Context": ".prop-coins",
+    "stage5Reason": "Existing CSS fallback props now also serve desktop; only candle glow adopts the requested gold."
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-candle",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(90deg,#8a7552,#ead9a9,#a2926f)",
+    "reason": "gradient/image",
+    "stage5Context": ".prop-candle",
+    "stage5Reason": "Existing CSS fallback props now also serve desktop; only candle glow adopts the requested gold."
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-candle",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 7px 0 3px #9a7a40",
+    "reason": "card/prop/scene/game-color",
+    "stage5Context": ".prop-candle",
+    "stage5Reason": "Existing CSS fallback props now also serve desktop; only candle glow adopts the requested gold."
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-candle:before",
+    "property": "background",
+    "nth": 0,
+    "value": "#ffdda1",
+    "reason": "card/prop/scene/game-color",
+    "stage5Context": ".prop-candle:before",
+    "stage5Reason": "Existing CSS fallback props now also serve desktop; only candle glow adopts the requested gold."
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-candle:before",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 0 15px 8px #e9a45a30",
+    "reason": "card/prop/scene/game-color",
+    "stage5Context": ".prop-candle:before",
+    "stage5Value": "0 0 15px 8px color-mix(in srgb, var(--gold) 18.82353%, transparent)",
+    "stage5Reason": "Existing CSS fallback props now also serve desktop; only candle glow adopts the requested gold."
+  },
+  {
+    "file": "src/style.css",
+    "context": ".table",
+    "property": "background",
+    "nth": 0,
+    "value": "radial-gradient(ellipse,#254d49,#183933 80%)",
+    "reason": "gradient/image",
+    "stage5Value": "radial-gradient(ellipse at center, var(--felt-1), var(--felt-2) 80%)",
+    "stage5Reason": "Stage 5 explicitly unifies the gameplay felt gradient."
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"] .table",
+    "property": "background",
+    "nth": 0,
+    "value": "radial-gradient(ellipse at 50% 40%,#183d32,#08231c 78%)",
+    "reason": "gradient/image",
+    "stage5Value": "radial-gradient(ellipse at center, var(--felt-1), var(--felt-2) 80%)",
+    "stage5Reason": "Stage 5 explicitly unifies the gameplay felt gradient."
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"] .table",
+    "property": "background",
+    "nth": 1,
+    "value": "radial-gradient(ellipse at center,#173f32,#09261c)",
+    "reason": "gradient/image",
+    "stage5Value": "radial-gradient(ellipse at center, var(--felt-1), var(--felt-2) 80%)",
+    "stage5Reason": "Stage 5 explicitly unifies the gameplay felt gradient."
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"] .table",
+    "property": "background",
+    "nth": 2,
+    "value": "radial-gradient(ellipse at center,#173d30,var(--table-felt))",
+    "reason": "gradient/image",
+    "stage5Value": "radial-gradient(ellipse at center, var(--felt-1), var(--felt-2) 80%)",
+    "stage5Reason": "Stage 5 explicitly unifies the gameplay felt gradient."
+  }
+]

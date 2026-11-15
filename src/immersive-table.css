@@ -2,7 +2,7 @@
 .ui-icon { display:inline-block;width:20px;height:20px;flex:none;vertical-align:middle; }
 .control-label { font:500 var(--font-size-11)/12px var(--ui-font);white-space:nowrap; }
 body[data-screen="game"] .game-toolbar { gap:4px; }
-body[data-screen="game"] .table .trump-display .table-trump { border:0;background:none;padding:3px 0;font-size:var(--font-size-12);min-height:28px; }
+body[data-screen="game"] .table .trump-display .table-trump { border:1px solid var(--trump-aura-color);background:var(--ui-surface);padding:4px 8px;font-size:var(--font-size-12);min-height:28px; }
 body[data-screen="game"] .trump-suit-icon { width:18px;height:18px;transform:none; }
 .trump-suit-icon .ui-icon { width:18px;height:18px; }
 body[data-screen="game"] .suit-chip { display:flex;align-items:center;justify-content:center;gap:5px; }
@@ -43,6 +43,11 @@ body[data-screen="game"] .foresight-heading { min-height:48px;background:var(--u
 body[data-screen="game"] .foresight-heading > b { font-size:var(--font-size-13); }
 body[data-screen="game"] .close-scores { flex-direction:row;width:auto;margin-left:auto;margin-bottom:8px;padding:5px 8px; }
 body[data-screen="game"] .table-result { position:fixed;z-index:7;left:50%;bottom:max(24px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;gap:8px;max-width:calc(100vw - 28px);font-size:var(--font-size-13);color:var(--ui-text); }
+/* Outcome color is a quiet edge, not a solid banner. Neutral trick/spectator feedback stays uncolored. */
+body[data-screen="game"] .table-result:is(.result-hit,.result-miss) { padding:8px 12px;border-left:3px solid var(--score-plus);border-radius:var(--radius-sm);background:color-mix(in srgb, var(--score-plus) 10%, transparent); }
+body[data-screen="game"] .table-result.result-miss { border-left-color:var(--score-minus);background:color-mix(in srgb, var(--score-minus) 10%, transparent); }
+.table-result.result-hit strong { color:var(--score-plus); }
+.table-result.result-miss strong { color:var(--score-minus); }
 .table-result strong { font:600 var(--font-size-24)/1.2 var(--ui-font);color:var(--ui-text); }
 .table-result small { font-size:var(--font-size-12);color:var(--ui-text-muted); }
 .table-result .result-icon { color:var(--ui-text);display:flex;align-items:center;gap:4px;white-space:nowrap; }
@@ -80,11 +85,16 @@ body[data-screen="game"][data-phase="finished"] .action-panel.settlement-panel {
    the horizontal-scroll view on phones. No header relies on body-only classes. */
 body[data-screen="game"] .final-results table { table-layout:fixed;width:100%;min-width:400px;border-collapse:collapse; }
 .final-col-rank { width:36px; }
+.final-results tbody tr:nth-child(even) { background:var(--score-stripe); }
+.final-results .final-rank { color:var(--ui-text-muted); }
+.final-results .final-rank-first { color:var(--gold);font:800 var(--font-size-24)/1 var(--font-display); }
+.final-results .final-delta.positive { color:var(--score-plus); }
+.final-results .final-delta.negative { color:var(--score-minus); }
 .final-col-player { width:auto; }
 .final-col-bid { width:92px; }
 .final-col-delta { width:72px; }
 .final-col-total { width:64px; }
-body[data-screen="game"] .final-results :is(th,td) { padding:6px;text-align:right;font-variant-numeric:tabular-nums; }
+body[data-screen="game"] .final-results :is(th,td) { height:40px;padding:6px;text-align:right;font-variant-numeric:tabular-nums; }
 body[data-screen="game"] .final-results :is(th,td):nth-child(1) { text-align:center; }
 body[data-screen="game"] .final-results :is(th,td):nth-child(2) { text-align:left;white-space:normal;overflow-wrap:anywhere; }
 body[data-screen="game"] .final-results thead th { white-space:nowrap;font-size:var(--font-size-11); }

@@ -70,16 +70,22 @@ body[data-screen="game"] .game-layout aside { width:min(1080px,calc(100vw - 36px
 .rule-choices label:has(:disabled) { cursor:default; }
 .rule-choices label:has(:disabled:not(:checked)) { opacity:.55; }
 .table-props { display:none; }
+body[data-screen="game"]:not(.has-webgl) .table-props { display:block;position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.8; }
+.table-props i { position:absolute;display:block; }
+.prop-book { left:-6px;top:45%;width:42px;height:58px;border:3px solid #7f573e;border-left:8px solid #402127;border-radius:2px 6px 6px 2px;rotate:12deg;background:linear-gradient(100deg,#622c37,#291c27);color:#c4a66e;text-align:center;padding-top:12px;box-shadow:var(--effect-round-summary-prop-book-23); }
+.prop-orb { right:-5px;top:43%;width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#b5e7df,#54838b 45%,#203b4c 80%);box-shadow:var(--effect-round-summary-prop-orb-24); }
+.prop-deck { left:-8px;top:63%;width:32px;height:47px;border:3px double #b49c62;border-radius:3px;background:repeating-linear-gradient(45deg,#213c3b 0 6px,#294a47 6px 12px);box-shadow:var(--effect-round-summary-prop-deck-25);rotate:-13deg; }
+.prop-coins { right:3px;top:64%;width:19px;height:8px;border-radius:50%;border:2px solid #d3b96a;background:#987437;box-shadow:var(--effect-round-summary-prop-coins-26); }
+.prop-candle { top:27%;width:12px;height:35px;border-radius:3px;background:linear-gradient(90deg,#8a7552,#ead9a9,#a2926f);box-shadow:var(--effect-round-summary-prop-candle-27); }
+.prop-candle:before { content:'';position:absolute;left:3px;top:-15px;width:7px;height:15px;border-radius:65% 35% 60% 40%;background:#ffdda1;box-shadow:var(--glow-candle); }
+.candle-left { left:3px; }.candle-right { right:3px; }
+/* Warm pools behind fallback objects do not alter their painted materials. */
+body[data-screen="game"]:not(.has-webgl) .table-props :is(.prop-candle,.prop-book,.prop-orb)::after {
+  content:'';position:absolute;inset:-20px;z-index:-1;pointer-events:none;border-radius:50%;
+  background:radial-gradient(ellipse, color-mix(in srgb, var(--gold) 24%, transparent), transparent 70%);
+  box-shadow:var(--glow-candle);
+}
 @media(max-width:850px) {
-  body[data-screen="game"]:not(.has-webgl) .table-props { display:block;position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.8; }
-  .table-props i { position:absolute;display:block; }
-  .prop-book { left:-6px;top:45%;width:42px;height:58px;border:3px solid #7f573e;border-left:8px solid #402127;border-radius:2px 6px 6px 2px;rotate:12deg;background:linear-gradient(100deg,#622c37,#291c27);color:#c4a66e;text-align:center;padding-top:12px;box-shadow:var(--effect-round-summary-prop-book-23); }
-  .prop-orb { right:-5px;top:43%;width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#b5e7df,#54838b 45%,#203b4c 80%);box-shadow:var(--effect-round-summary-prop-orb-24); }
-  .prop-deck { left:-8px;top:63%;width:32px;height:47px;border:3px double #b49c62;border-radius:3px;background:repeating-linear-gradient(45deg,#213c3b 0 6px,#294a47 6px 12px);box-shadow:var(--effect-round-summary-prop-deck-25);rotate:-13deg; }
-  .prop-coins { right:3px;top:64%;width:19px;height:8px;border-radius:50%;border:2px solid #d3b96a;background:#987437;box-shadow:var(--effect-round-summary-prop-coins-26); }
-  .prop-candle { top:27%;width:12px;height:35px;border-radius:3px;background:linear-gradient(90deg,#8a7552,#ead9a9,#a2926f);box-shadow:var(--effect-round-summary-prop-candle-27); }
-  .prop-candle:before { content:'';position:absolute;left:3px;top:-15px;width:7px;height:15px;border-radius:65% 35% 60% 40%;background:#ffdda1;box-shadow:var(--glow-candle); }
-  .candle-left { left:3px; }.candle-right { right:3px; }
   body[data-screen="game"] .player { padding:5px;gap:1px 4px; }
   body[data-screen="game"] .player .avatar { grid-row:1;width:22px;height:22px;font-size:var(--font-size-13); }
   body[data-screen="game"] .player .player-total { white-space:nowrap; }
