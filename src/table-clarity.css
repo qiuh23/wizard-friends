@@ -34,7 +34,7 @@ body[data-screen="game"] #table-menu-panel .room-operations { position:static;di
 body[data-screen="game"] #table-menu-panel .room-operations button { flex:1 0 auto;width:auto;white-space:nowrap; }
 body[data-screen="game"] .table .scene-host:after { display:none; }
 body[data-screen="game"] .table-ring { opacity:.22; }
-body[data-screen="game"] .table-props { opacity:.3!important; }
+body[data-screen="game"] .table-props { opacity:.8; }
 
 /* The empty slots already reserve the full emphasized face, badge and owner. */
 .played-links { position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none; }

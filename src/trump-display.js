@@ -38,6 +38,7 @@ export function renderTrumpDisplay(table, state) {
   table.querySelector('.trump-display')?.remove();
   const root = document.createElement('div');
   root.className = 'trump-display';
+  root.style.setProperty('--trump-aura-color', ['wizard', 'jester'].includes(display.card?.kind) ? 'var(--accent)' : display.color);
   root.dataset.state = display.status;
   root.dataset.presentation = 'badge';
   root.dataset.occluded = 'true';
@@ -146,6 +147,7 @@ export class TrumpReveal {
     const root = document.createElement('div'); root.className = 'trump-reveal';
     root.dataset.key = this.effect.key; root.setAttribute('aria-hidden', 'true');
     root.style.setProperty('--trump-color', this.effect.display.color);
+    root.style.setProperty('--trump-aura-color', ['wizard', 'jester'].includes(this.effect.display.card?.kind) ? 'var(--accent)' : this.effect.display.color);
     const card = document.createElement('div'); card.className = 'trump-reveal-card';
     const rotor = document.createElement('div'); rotor.className = 'trump-reveal-rotor';
     const face = faceElement(this.effect.display.card); face.classList.add('trump-reveal-front');

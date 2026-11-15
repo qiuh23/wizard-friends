@@ -407,7 +407,7 @@ footer {
 .table {
   position: relative;
   border: 1px solid #507d6d55;
-  background: radial-gradient(ellipse,#254d49,#183933 80%);
+  background: radial-gradient(ellipse at center, var(--felt-1), var(--felt-2) 80%);
   min-height: 360px;
   border-radius: 0 0 20px 20px;
   padding: 20px 18px 15px;

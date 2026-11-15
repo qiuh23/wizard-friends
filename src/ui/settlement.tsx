@@ -17,7 +17,7 @@ export function Settlement({ model }: { model: RoomModel }) {
   if (!finished && !state.lifecycle?.closeAfterRound) {
     const wait = state.lifecycle?.paused ? '已暂停' : roundEnd && state.players.some(p => !p.online) ? '等待重连' : roundEnd ? '下轮自动发牌' : '下一墩';
     const label = roundEnd ? `第 ${state.round} 轮结算${own ? `，预测 ${own.bid}，实赢 ${own.won}，得分 ${signed(own.delta)}，累计 ${own.total}` : ''}` : `${lastWinner} 赢得本墩`;
-    return <div className="table-result" role="status" aria-label={label}>
+    return <div className={`table-result${roundEnd && own ? own.bid === own.won ? ' result-hit' : ' result-miss' : ''}`} role="status" aria-label={label}>
       {roundEnd ? own && <><span className="result-icon"><Icon name={own.bid === own.won ? 'check' : 'miss'} />{own.bid === own.won ? '命中' : '未中'}</span><strong>{signed(own.delta)}</strong></> : <span className="result-icon"><Icon name="trophy" />{lastWinner} · 赢墩</span>}
       <small id={roundEnd ? undefined : 'trick-review-timer'} role={roundEnd ? undefined : 'timer'}>{wait}</small>
     </div>;
@@ -32,8 +32,8 @@ export function Settlement({ model }: { model: RoomModel }) {
       <tbody>{ranking.map(p => {
         const result = finalRound?.result.find(r => r.id === p.id);
         return <tr key={p.id} className={`final-score-row${p.id === me ? ' settlement-self' : ''}`} data-player={p.id}>
-          <td className="final-rank">{ranking.findIndex(other => other.score === p.score) + 1}</td><th scope="row" className="final-player">{p.name}{p.id === me ? ' · 你' : ''}</th>
-          <td className="final-bid-won">{result ? `${result.bid} / ${result.won}` : '—'}</td><td className="final-delta">{result ? signed(result.delta) : '—'}</td><td className="final-total">{p.score}</td>
+          <td className={`final-rank${p.score === high ? ' final-rank-first' : ''}`}>{ranking.findIndex(other => other.score === p.score) + 1}</td><th scope="row" className="final-player">{p.name}{p.id === me ? ' · 你' : ''}</th>
+          <td className="final-bid-won">{result ? `${result.bid} / ${result.won}` : '—'}</td><td className={`final-delta${result ? result.delta >= 0 ? ' positive' : ' negative' : ''}`}>{result ? signed(result.delta) : '—'}</td><td className="final-total">{p.score}</td>
         </tr>;
       })}</tbody>
     </table></section>}

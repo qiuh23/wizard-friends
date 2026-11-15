@@ -9,6 +9,7 @@ theme.walkDecls(d => {
     if (d.parent.selector === ':root')
         tokens.set(d.prop, d.value);
 });
+const stage5 = JSON.parse(fs.readFileSync(new URL('fixtures/stage5-art-updates.json', import.meta.url), 'utf8'));
 const art = JSON.parse(fs.readFileSync(new URL('fixtures/stage4-art-preservation.json', import.meta.url), 'utf8'));
 function context(n) {
     const a = [];
@@ -41,11 +42,12 @@ const read = (file, selector, property) => {
     });
     return result;
 };
-test('stage4 preserves stage3 artwork colors, gradients and exact effect shadows', () => {
+test('stage4 preserves stage3 artwork except the explicit stage5 felt and fallback glow changes', () => {
     assert.equal(art.length, 180);
     for (const row of art) {
-        const current = lookup.get([row.file, row.context, row.property, row.nth].join('\n'));
-        assert.equal(originalValue(current), row.value, JSON.stringify(row));
+        const update = stage5.find(u => ['file', 'context', 'property', 'nth'].every(k => u[k] === row[k]));
+        const current = lookup.get([row.file, update?.stage5Context || row.context, row.property, row.nth].join('\n'));
+        assert.equal(originalValue(current), update?.stage5Value || row.value, JSON.stringify(row));
     }
 });
 test('semantic UI roles have one canonical definition, independent of raw color count', () => {
@@ -107,7 +109,10 @@ test('touch controls and hand CSS have 44px floors, choice glyphs keep their ori
     assert(labels);
 });
 test('all remaining literal UI color declarations are documented stage3 artwork', () => {
-    const protectedKeys = new Set(art.map(row => [row.file, row.context, row.property, row.nth].join('\n')));
+    const protectedKeys = new Set(art.map(row => {
+        const update = stage5.find(u => ['file', 'context', 'property', 'nth'].every(k => u[k] === row[k]));
+        return [row.file, update?.stage5Context || row.context, row.property, row.nth].join('\n');
+    }));
     for (const [key, value] of lookup) {
         const [file, ctx, property] = key.split('\n');
         if (property.startsWith('--') || !/^(?:color|background(?:-color)?|border(?:-[\w-]+)?|outline(?:-color)?|text-shadow|scrollbar-color|accent-color|fill|stroke)$/.test(property) || !/#[\da-f]{3,8}\b|rgba?\([^)]*\)|\b(?:white|black)\b/i.test(value) || /gradient\(|url\(/.test(value))

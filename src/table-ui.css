@@ -6,7 +6,7 @@ body[data-screen="game"] {
   background: #071d18;
 }
 body[data-screen="game"] .table {
-  background: radial-gradient(ellipse at 50% 40%,#183d32,#08231c 78%);
+  background: radial-gradient(ellipse at center, var(--felt-1), var(--felt-2) 80%);
 }
 body[data-screen="game"] button, .room-operations button {
   min-height: 44px;
@@ -958,14 +958,14 @@ body[data-screen="game"] .table .scene-host:after {
   background: linear-gradient(#08251c66,transparent 35%,#08251c33);
 }
 body[data-screen="game"] .table {
-  background: radial-gradient(ellipse at center,#173f32,#09261c);
+  background: radial-gradient(ellipse at center, var(--felt-1), var(--felt-2) 80%);
 }
 body[data-screen="game"] .table .scene-host canvas {
   filter: none;
 }
 /* Final hierarchy follows the supplied fantasy table: cards first, goals second. */
 body[data-screen="game"] .table {
-  background: radial-gradient(ellipse at center,#173d30,var(--table-felt));
+  background: radial-gradient(ellipse at center, var(--felt-1), var(--felt-2) 80%);
 }
 body[data-screen="game"] .own-status {
   background: var(--table-panel);
