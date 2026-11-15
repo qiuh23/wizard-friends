@@ -7,7 +7,7 @@ import { Card, Icon } from './primitives';
 
 /** The existing home composition, with imperative directory/presence islands. */
 export function HomeScreen({ model }: { model: UIModel }) {
-  const { domestic, busy, nickname, lobbyURL, joinOpen, joinDraft, roomInput, returnRooms, practiceSaved } = model;
+  const { domestic, busy, nickname, joinOpen, joinDraft, roomInput, returnRooms, practiceSaved } = model;
   return <main className="home-screen">
     <section className="hero home-scene" aria-label="烛光牌桌">
       <div className="hero-cards">
@@ -17,11 +17,6 @@ export function HomeScreen({ model }: { model: UIModel }) {
       </div>
     </section>
     <section className="home-menu" aria-label="主菜单">
-      <nav className="entry-context" aria-label="当前线路与游戏大厅">
-        <a href={lobbyURL} data-lobby-navigation="" aria-disabled={busy || undefined}><Icon name="back" />返回大厅</a>
-        <span className="current-route">{domestic ? '国内站' : '海外站'}</span>
-      </nav>
-      <div className="home-title"><h1>巫师牌</h1></div>
       <div className="menu-identity">
         <label htmlFor="nickname">昵称</label>
         {domestic ? <>
@@ -30,9 +25,6 @@ export function HomeScreen({ model }: { model: UIModel }) {
         </> : <input id="nickname" maxLength={16} placeholder="请输入昵称" required autoComplete="nickname" defaultValue={nickname} />}
       </div>
       <nav className="menu-options" aria-label="开始游戏">
-        {returnRooms.map((recovery, index) => <button key={`${recovery.room}:${index}`} id={index === 0 ? 'resume-room' : undefined} data-return-room={index} className="menu-choice">
-          返回 {recovery.room} · {recovery.role === 'host' ? '房主' : recovery.role === 'spectator' ? '观战' : '玩家'}
-        </button>)}
         <button id="create" className="menu-choice menu-primary" disabled={busy}>{busy ? '正在连接…' : '创建房间'}<span className="menu-choice-icon"><Icon name="cards" /></span></button>
         <button id="join-menu" className="menu-choice" aria-expanded={joinOpen} aria-controls="join-form" disabled={busy}>加入房间<span className="menu-choice-icon"><Icon name="enter" /></span></button>
         <form id="join-form" className="menu-join" hidden={!joinOpen}>
@@ -40,27 +32,31 @@ export function HomeScreen({ model }: { model: UIModel }) {
           <input id="room-input" placeholder="输入房间码" maxLength={24} autoComplete="off" defaultValue={joinDraft ?? roomInput} />
           <button id="join" type="submit" disabled={busy}>加入</button>
         </form>
-        {practiceSaved && <button id="resume-practice" className="menu-choice">恢复练习<span>↗</span></button>}
         <button id="practice" className="menu-choice" disabled={busy}>单人练习<span className="menu-choice-icon"><Icon name="target" /></span></button>
         {busy && <button id="cancel-connect" className="text-button">取消连接</button>}
       </nav>
-      <div className="home-presence">
-        <span id="online-count" role="status" title="当前网站已连接的浏览器数（含牌局中玩家），同一浏览器多个标签页合并。断网或手机后台挂起时，离线检测可能延迟。" />
-      </div>
-      <aside className="home-room-list" aria-label="在线房间" />
+      {(returnRooms.length > 0 || practiceSaved) && <nav className="home-recovery" aria-label="恢复牌局">
+        {returnRooms.map((recovery, index) => <button type="button" key={`${recovery.room}:${index}`} id={index === 0 ? 'resume-room' : undefined} data-return-room={index} className="text-button" disabled={busy}>
+          返回 {recovery.room} · {recovery.role === 'host' ? '房主' : recovery.role === 'spectator' ? '观战' : '玩家'}
+        </button>)}
+        {practiceSaved && <button type="button" id="resume-practice" className="text-button" disabled={busy}>恢复练习</button>}
+      </nav>}
+      <details className="home-directory">
+        <summary><span>在线房间 · <span id="home-room-count">—</span></span><span id="online-count" role="status" title="当前网站已连接的浏览器数（含牌局中玩家），同一浏览器多个标签页合并。断网或手机后台挂起时，离线检测可能延迟。" /><Icon name="down" /></summary>
+        <aside className="home-room-list" aria-label="在线房间" />
+      </details>
     </section>
   </main>;
 }
 
 /** Waiting-room heading; persistent room controls are supplied by the shell. */
 export function RoomHeading({ model, children }: { model: RoomModel; children?: ReactNode }) {
-  const { state, practice, spectating, publicCode, lobbyPanel, lobbyURL } = model;
+  const { state, practice, spectating, publicCode, lobbyPanel } = model;
   return <div className="room-heading">
     <div className="room-identity">
       <span>{practice ? '练习牌桌' : spectating ? '观战房间' : '房间'}</span>
       <span className="room-code">{practice ? '' : publicCode}</span>
       <span className="seat-count">{state.players.length} / 6{!practice && ` · ${state.spectatorCount || 0} 人观战`}</span>
-      <a className="room-lobby-link visual-icon-button" href={lobbyURL} data-lobby-navigation="" aria-label="返回游戏大厅" title="返回游戏大厅"><Icon name="back" /></a>
     </div>
     <div className="room-buttons">
       {!practice && <button id="invite" className="visual-icon-button" aria-label={spectating ? '复制观战邀请' : '复制邀请链接'} title={spectating ? '复制观战邀请' : '复制邀请链接'}><Icon name="invite" /></button>}

@@ -1,3 +1,4 @@
+import { ModalFrame } from './modal';
 import { ruleSummary } from '../rule-ui.js';
 import { winnerReason } from '../table-summary.js';
 import { Icon, IconButton } from './primitives';
@@ -15,12 +16,12 @@ function RoomOperations({model, toolbar = false}: {model: RoomModel; toolbar?: b
 export function LobbyOperations({model}: {model: RoomModel}) { return <RoomOperations model={model}/>; }
 function SettingsContents({model}: {model: UIModel}) {
   return <>
+    {!model.state && !model.domestic && <button type="button" className="text-button" data-safety-notice="">隐私 / 举报</button>}
     <button id="graphics" className="text-button graphics-toggle">◇ 3D 质感</button>
     <span className="control-host" data-music-host=""/>
     <button id="trump-motion" className="text-button">主牌动画</button>
     <button id="turn-sound">行动提示音：{model.turnSound ? '开' : '关'}</button>
     <span className="landscape-control" data-landscape-control=""><button type="button" data-screen-direction="" aria-pressed="false">横屏</button><small className="landscape-help" data-landscape-help="" role="status" aria-live="polite" hidden/></span>
-    <div className="lobby-navigation"><button type="button" data-lobby-navigation="" disabled={model.busy && !model.state}>返回游戏大厅</button></div>
   </>;
 }
 export function RulesButton() { return <button className="text-button visual-icon-button" id="rules" aria-label="游戏规则" title="游戏规则"><Icon name="rules"/></button>; }
@@ -63,4 +64,17 @@ export function Lifecycle({model}: {model: RoomModel}) {
       {vote.voters.includes(model.me) ? <><button id="continue-no">拒绝并关闭</button><button id="continue-yes" className="primary" disabled={vote.accepted.includes(model.me)}>{vote.accepted.includes(model.me) ? '已同意，等待其他人' : '同意完成本轮'}</button></> : <p>等待投票结果</p>}
     </div>}
   </>;
+}
+
+/** One shared return affordance; departure and recovery stay in the controller. */
+export function LobbyNavigation({model}: {model: UIModel}) {
+  return <header className="lobby-return-header" aria-label="游戏大厅导航"><a className="lobby-return-button visual-icon-button" href={model.lobbyURL} data-lobby-navigation="" aria-label="返回游戏大厅" title="返回游戏大厅" aria-disabled={model.busy && !model.state || undefined}><Icon name="back"/></a></header>;
+}
+export function LobbyReturnModal({message}: {message: string}) {
+  return <ModalFrame titleId="lobby-return-title">
+    <button className="close" id="close-lobby-return" aria-label="取消返回大厅">×</button>
+    <h2 id="lobby-return-title">返回游戏大厅？</h2>
+    <p>{message}</p><p>保留期间，可在原浏览器凭原链接回来。</p>
+    <div className="lobby-return-actions"><button type="button" id="cancel-lobby-return">留在这里</button><button type="button" id="confirm-lobby-return" className="primary">返回游戏大厅</button></div>
+  </ModalFrame>;
 }

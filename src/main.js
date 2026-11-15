@@ -68,6 +68,8 @@ const localStore = backendStorage(globalThis.localStorage);
 
 let onlinePresence = { count: null, status: 'connecting' };
 function updateOnlineCount() {
+  const rooms = document.querySelector('#home-room-count');
+  if (rooms) rooms.textContent = Array.isArray(onlinePresence.rooms) ? String(onlinePresence.rooms.length) : '—';
   const badge = document.querySelector('#online-count');
   if (!badge) return;
   badge.dataset.status = onlinePresence.status;
@@ -149,7 +151,7 @@ const escape = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<
 const app = $('#app');
 let transport, game, state, isHost = false, practice = false, room = '', me = '', identities = {};
 let spectating = false;
-let botTimer, status = '', busy = false, rulesOpen = false, networkReady = false;
+let botTimer, status = '', busy = false, rulesOpen = false, lobbyReturnOpen = false, networkReady = false;
 let preferredBotDifficulty = 'smart';
 let lobbyPanelRoom = '', lobbyPanel = 'players', lobbyPanelScroll = {players:0,rules:0};
 let roomEpoch = 0;
@@ -166,7 +168,7 @@ const scoreBubbles = new ScoreBubbles();
 const qualityHint = new GraphicsQualityHint({
   canShow: () => !!tableScene && !tableScene.low && !sceneFailed && !document.hidden && document.hasFocus()
     && state?.phase === 'play' && !state.lifecycle?.paused && !state.lifecycle?.reconnecting
-    && (practice || networkReady) && !menuOpen && !scoresOpen && !rulesOpen && !settingsOpen
+    && (practice || networkReady) && !menuOpen && !scoresOpen && !rulesOpen && !lobbyReturnOpen && !settingsOpen
     && !state.foresightActive && !tableMotion.isAnimating()
     && (spectating || state.players[state.turn]?.id !== me),
   lower: () => { if (tableScene) { tableScene.setLow(true); updateGraphicsButton(); } },
@@ -249,6 +251,7 @@ function uiModel(returnRooms = []) {
     lobbyPanel, preferredBotDifficulty, status, selectedCard, hoveredCard,
     handExpanded, handCollapsed, handSort, foresightSort, pendingPlay: !!pendingPlay,
     pendingSettlement: !!pendingSettlement, scoresOpen, menuOpen, scoreSource, settingsOpen, rulesOpen,
+    lobbyReturnText: lobbyReturnOpen && state ? roomDepartureText() : null,
     turnSound, renderEpoch: ++renderEpoch, cardTiming: id => tableMotion.timing(id),
   };
 }
@@ -447,6 +450,7 @@ function bindCommon() {
   decorateHand(); scoreBubbles.mount(app);
   $('#rules').onclick = () => setRulesOpen(true);
   if (rulesOpen) bindRulesModal();
+  if (lobbyReturnOpen) bindLobbyReturnModal();
 }
 function bindRulesModal() {
   const close = $('#close-rules'); if (!close) return;
@@ -655,7 +659,7 @@ function leaveRoom(message = '', announce = true, keep = true) {
   if (!keep) { clearRoomSession(sessionStore); if (!practice) removeRoomRecovery(localStore,room,token); }
   game = state = undefined; room = me = ''; identities = {};
   isHost = practice = spectating = networkReady = busy = false;
-  scoresOpen = menuOpen = rulesOpen = settingsOpen = false; scoreSource = null;
+  scoresOpen = menuOpen = rulesOpen = lobbyReturnOpen = settingsOpen = false; scoreSource = null;
   selectedCard = null; pendingPlay=null;pendingSettlement=null;seenEventSeq = null;
   practiceSaved = readPractice(localStore); handExpanded = false;handCollapsed=false;
   history.replaceState(null, '', location.pathname);
@@ -680,12 +684,39 @@ document.addEventListener('click', event => {
   if (!control) return;
   event.preventDefault();
   if (control.disabled || busy && !state) return;
-  if (state) {
-    if (!confirm(`返回游戏大厅？${roomDepartureText()}`)) return;
-    persistRoom(); leaveRoom();
-  }
+  if (state) return setLobbyReturnOpen(true);
   location.assign(gameLobbyURL());
 });
+
+function bindLobbyReturnModal() {
+  const close = $('#close-lobby-return'); if (!close) return;
+  close.onclick = $('#cancel-lobby-return').onclick = () => setLobbyReturnOpen(false);
+  $('#confirm-lobby-return').onclick = () => {
+    if (!lobbyReturnOpen) return;
+    lobbyReturnOpen = false;
+    if (state) { persistRoom(); leaveRoom(); }
+    location.assign(gameLobbyURL());
+  };
+  close.closest('.modal-backdrop').onclick = event => { if (event.target === event.currentTarget) setLobbyReturnOpen(false); };
+  close.closest('.modal').onkeydown = event => {
+    if (event.key === 'Escape') { event.preventDefault(); setLobbyReturnOpen(false); return; }
+    if (event.key !== 'Tab') return;
+    const controls = [...event.currentTarget.querySelectorAll('button')];
+    const edge = event.shiftKey ? controls[0] : controls.at(-1);
+    if (document.activeElement === edge) { event.preventDefault(); (event.shiftKey ? controls.at(-1) : controls[0]).focus(); }
+  };
+}
+function setLobbyReturnOpen(open) {
+  if (open && lobbyReturnOpen) return;
+  if (open) {
+    floatingLayers.closeOthers(null);
+    rulesOpen = false;
+  }
+  lobbyReturnOpen = open;
+  updateUIDraft({rulesOpen, lobbyReturnText: open && state ? roomDepartureText() : null});
+  if (open) { bindLobbyReturnModal(); $('#cancel-lobby-return')?.focus(); }
+  else $('[data-lobby-navigation]')?.focus({preventScroll:true});
+}
 
 function roomControl(type, extra = {}) {
   if (!practice) { if (!networkReady) return notify('连接恢复中，请稍候。'); return transport?.send({type,...extra}); }
@@ -938,7 +969,7 @@ const floatingLayers = new FloatingLayers([
     close:({restoreFocus}) => social.closeRename(restoreFocus),
   },
 ], {
-  blocked:() => rulesOpen || !!state?.lifecycle?.continuationVote || !!document.querySelector('dialog[open]'),
+  blocked:() => rulesOpen || lobbyReturnOpen || !!state?.lifecycle?.continuationVote || !!document.querySelector('dialog[open]'),
   ignoreClick:() => !!selectionPointer?.dragged,
 });
 floatingLayers.listen(document);

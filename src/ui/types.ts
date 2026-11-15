@@ -38,7 +38,7 @@ export interface UIModel {
   lobbyPanel: string; preferredBotDifficulty: string; status: string;
   selectedCard: string | null; hoveredCard: string | null; handExpanded: boolean; handCollapsed: boolean;
   handSort: HandSort; foresightSort: HandSort | null; pendingPlay: boolean; pendingSettlement: boolean;
-  scoresOpen: boolean; menuOpen: boolean; scoreSource: string | null; settingsOpen: boolean; rulesOpen: boolean;
+  scoresOpen: boolean; menuOpen: boolean; scoreSource: string | null; settingsOpen: boolean; rulesOpen: boolean; lobbyReturnText?: string | null;
   turnSound: boolean; renderEpoch: number;
   cardTiming: (id?: string) => {enterMs: number; collectMs: number | null};
 }
