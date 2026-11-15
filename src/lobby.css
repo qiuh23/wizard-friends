@@ -48,7 +48,7 @@ body[data-screen="lobby"] .room-heading .lifecycle-banner { position:static; ins
 .lobby-table .seat b { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:16px; color:#e0d6be; }
 .lobby-table .seat small { display:block; margin-top:5px; color:#becabb; font-size:12px; line-height:1.4; }
 .lobby-table .seat .text-button { display:flex; align-items:center; justify-content:center; flex:0 0 44px; min-width:44px; width:44px; min-height:44px; height:44px; padding:0; margin:0 -4px 0 0; color:#b4a786; font-size:24px; border-radius:6px; }
-.lobby-table .seat .text-button:hover:not(:disabled) { background:#c4a66e19; color:#f4d39a; transform:none; }
+.lobby-table .seat .text-button:hover:not(:disabled) { background:#c4a66e19; color:#f4d39a; }
 .lobby-table .seat.empty { min-width:0; background:#122019b3; border:1px dashed #9d957530; color:#b9c2b4; box-shadow:none; }
 .lobby-table .empty .avatar { border-style:dashed; background:transparent; color:#94866b; }
 .lobby-table .empty b { color:#b9c2b4; font-weight:400; }
@@ -58,7 +58,7 @@ body[data-screen="lobby"] .room-heading .lifecycle-banner { position:static; ins
 .lobby-content .bot-controls :is(select,button) { box-sizing:border-box; width:100%; min-width:0; height:46px; min-height:46px; margin:0; padding:0 12px; border:1px solid #b7a27666; border-radius:6px; background:#172a21; color:#e7d8b4; font-family:inherit; font-size:14px; font-weight:500; line-height:1.3; cursor:pointer; touch-action:manipulation; transition:background .15s,border-color .15s; }
 .lobby-content .bot-controls select { -webkit-appearance:none; appearance:none; padding-right:30px; color-scheme:dark; background-image:linear-gradient(45deg,transparent 50%,#cbb889 50%),linear-gradient(135deg,#cbb889 50%,transparent 50%); background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%; background-size:5px 5px; background-repeat:no-repeat; }
 .lobby-content .bot-controls #addbot { padding:0 12px; min-height:46px; font-size:14px; font-weight:500; background:#263c2c; }
-.lobby-content .bot-controls :is(select,button):hover:not(:disabled) { background-color:#304733; border-color:#ccb67b99; transform:none; }
+.lobby-content .bot-controls :is(select,button):hover:not(:disabled) { background-color:#304733; border-color:#ccb67b99; }
 .lobby-content .bot-controls :is(select,button):active:not(:disabled) { background-color:#3a513a; }
 .lobby-content .bot-controls :is(select,button):focus-visible { outline:2px solid var(--gold); outline-offset:3px; }
 .lobby-controls { position:static; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:16px 0 0; margin:0; border-top:1px solid #b79b5b40; }
@@ -67,7 +67,6 @@ body[data-screen="lobby"] .room-heading .lifecycle-banner { position:static; ins
 .lobby-start .primary:disabled { opacity:1; background:#41483e; color:#c0c5b9; border-color:#69725f; box-shadow:none; }
 .start-hint { color:#d7c797; font-size:14px; }
 .room-mode { color:#d7dfd2; font-size:14px; }
-body[data-screen="lobby"] .topbar #chat-toggle { margin-left:auto; min-height:44px; height:44px; min-width:72px; width:auto; padding:8px 14px; border:1px solid #c4a66e88; border-radius:9px; background:#10291ff5; color:#f3ead6; font-size:14px; }
 body[data-screen="lobby"] #quick-settings > summary { min-height:44px; }
 body[data-screen="lobby"] .settings-content { max-height:calc(100dvh - 110px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
 @media(max-width:850px) {
@@ -103,7 +102,7 @@ body[data-screen="lobby"] .settings-content { max-height:calc(100dvh - 110px - e
 body[data-screen="lobby"] .room-tabs { order:4; flex:1 0 100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
 body[data-screen="lobby"] .room-tabs button { min-height:44px; padding:10px 12px; border:1px solid #b7a27644; border-radius:7px; background:#14251d; color:#bfccb9; font-family:inherit; font-size:15px; }
 body[data-screen="lobby"] .room-tabs button[aria-selected="true"] { background:#354730; border-color:#c4a66e99; color:#f3ddb1; }
-body[data-screen="lobby"] .room-tabs button:hover { background:#2a3d2c; transform:none; }
+body[data-screen="lobby"] .room-tabs button:hover { background:#2a3d2c; }
 body[data-screen="lobby"] .room-tabs button span { margin-left:6px; font-size:12px; color:#c4cbb8; }
 .lobby-panel { display:flex; flex-direction:column; min-width:0; gap:20px; }
 .lobby-panel[hidden] { display:none; }
