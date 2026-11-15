@@ -30,6 +30,9 @@ export function HomeScreen({ model }: { model: UIModel }) {
         </> : <input id="nickname" maxLength={16} placeholder="请输入昵称" required autoComplete="nickname" defaultValue={nickname} />}
       </div>
       <nav className="menu-options" aria-label="开始游戏">
+        {returnRooms.map((recovery, index) => <button key={`${recovery.room}:${index}`} id={index === 0 ? 'resume-room' : undefined} data-return-room={index} className="menu-choice">
+          返回 {recovery.room} · {recovery.role === 'host' ? '房主' : recovery.role === 'spectator' ? '观战' : '玩家'}
+        </button>)}
         <button id="create" className="menu-choice menu-primary" disabled={busy}>{busy ? '正在连接…' : '创建房间'}<span className="menu-choice-icon"><Icon name="cards" /></span></button>
         <button id="join-menu" className="menu-choice" aria-expanded={joinOpen} aria-controls="join-form" disabled={busy}>加入房间<span className="menu-choice-icon"><Icon name="enter" /></span></button>
         <form id="join-form" className="menu-join" hidden={!joinOpen}>
@@ -37,15 +40,10 @@ export function HomeScreen({ model }: { model: UIModel }) {
           <input id="room-input" placeholder="输入房间码" maxLength={24} autoComplete="off" defaultValue={joinDraft ?? roomInput} />
           <button id="join" type="submit" disabled={busy}>加入</button>
         </form>
+        {practiceSaved && <button id="resume-practice" className="menu-choice">恢复练习<span>↗</span></button>}
         <button id="practice" className="menu-choice" disabled={busy}>单人练习<span className="menu-choice-icon"><Icon name="target" /></span></button>
         {busy && <button id="cancel-connect" className="text-button">取消连接</button>}
       </nav>
-      {(returnRooms.length > 0 || practiceSaved) && <nav className="menu-options home-recovery" aria-label="恢复牌局">
-        {returnRooms.map((recovery, index) => <button key={`${recovery.room}:${index}`} id={index === 0 ? 'resume-room' : undefined} data-return-room={index} className="menu-choice">
-          返回 {recovery.room} · {recovery.role === 'host' ? '房主' : recovery.role === 'spectator' ? '观战' : '玩家'}
-        </button>)}
-        {practiceSaved && <button id="resume-practice" className="menu-choice">恢复练习<span>↗</span></button>}
-      </nav>}
       <div className="home-presence">
         <span id="online-count" role="status" title="当前网站已连接的浏览器数（含牌局中玩家），同一浏览器多个标签页合并。断网或手机后台挂起时，离线检测可能延迟。" />
       </div>
@@ -60,13 +58,12 @@ export function RoomHeading({ model, children }: { model: RoomModel; children?: 
   return <div className="room-heading">
     <div className="room-identity">
       <span>{practice ? '练习牌桌' : spectating ? '观战房间' : '房间'}</span>
-      {!practice && <button type="button" id="copy-room-code" className="text-button room-code" aria-label="复制房间码" title="复制房间码">{publicCode}</button>}
+      <span className="room-code">{practice ? '' : publicCode}</span>
       <span className="seat-count">{state.players.length} / 6{!practice && ` · ${state.spectatorCount || 0} 人观战`}</span>
       <a className="room-lobby-link visual-icon-button" href={lobbyURL} data-lobby-navigation="" aria-label="返回游戏大厅" title="返回游戏大厅"><Icon name="back" /></a>
     </div>
     <div className="room-buttons">
-      {!practice && <button id="invite" className="visual-icon-button room-entry-action" aria-label="邀请朋友" title="邀请朋友"><Icon name="invite" />邀请朋友</button>}
-      <button id="leave" className="text-button visual-icon-button room-entry-action" aria-label="退出房间" title="退出房间"><Icon name="back" />退出房间</button>
+      {!practice && <button id="invite" className="visual-icon-button" aria-label={spectating ? '复制观战邀请' : '复制邀请链接'} title={spectating ? '复制观战邀请' : '复制邀请链接'}><Icon name="invite" /></button>}
     </div>
     <nav className="room-tabs" role="tablist" aria-label="房间设置">
       <button type="button" id="room-players-tab" role="tab" data-lobby-panel="players" aria-controls="room-players-panel" aria-selected={lobbyPanel === 'players'} tabIndex={lobbyPanel === 'players' ? 0 : -1}>玩家入座 <span>{state.players.length} / 6</span></button>
@@ -136,6 +133,6 @@ export function LobbyStart({ model }: { model: RoomModel }) {
   const { state, isHost } = model;
   const startHint = state.players.length < 3 ? `还差 ${3 - state.players.length} 人` : state.players.some(player => !player.online) ? '等待玩家重连' : state.options.deckMode === 'mono' && state.players.length > 4 ? '单色限 3–4 人，请选择标准牌库' : '';
   return <div className="lobby-controls"><div className="lobby-start">
-    {isHost ? <>{startHint && <span className="start-hint">{startHint}</span>}<button id="start" className="primary" disabled={!!startHint}>开始游戏</button></> : <span className="start-hint">等待 {state.players[0]?.name} 开始游戏</span>}
+    {isHost ? <>{startHint && <span className="start-hint">{startHint}</span>}<button id="start" className="primary" disabled={!!startHint}>开始游戏 →</button></> : <span className="start-hint">等待 {state.players[0]?.name} 开始游戏</span>}
   </div></div>;
 }

@@ -22,15 +22,14 @@ body[data-screen="lobby"] .room-heading {
 .room-identity { display:flex; flex:1 1 340px; flex-wrap:wrap; align-items:center; gap:8px 12px; min-width:0; color:var(--ui-text); font-size:var(--font-size-14); }
 .room-identity .room-code { margin:0; color:var(--gold); font-size:var(--font-size-20); font-weight:700; letter-spacing:.12em; }
 .room-code:empty { display:none; }
-.room-identity button.room-code { min-height:44px; padding:0; }
 .seat-count { padding-left:12px; border-left:1px solid var(--ui-border); color:var(--ui-text); font-size:var(--font-size-13); white-space:nowrap; }
-body[data-screen="lobby"] .room-buttons { display:flex; gap:8px; margin:0 0 0 auto; }
+body[data-screen="lobby"] .room-buttons { display:flex; gap:8px; margin:0; }
 body[data-screen="lobby"] .room-buttons:empty { display:none; }
 body[data-screen="lobby"] .room-buttons button { min-height:44px; padding:10px 14px; border-color:var(--ui-control-border); background:var(--ui-control); color:var(--ui-text); font-size:var(--font-size-14); }
 body[data-screen="lobby"] #invite { background:var(--gold); color:var(--gold-ink); border-color:var(--gold); font-weight:600; }
-body[data-screen="lobby"] .room-heading .room-operations { position:static; display:flex; flex-wrap:wrap; gap:8px; margin-left:auto; flex-basis:100%; justify-content:flex-end; }
+body[data-screen="lobby"] .room-heading .room-operations { position:static; display:flex; flex-wrap:wrap; gap:8px; margin-left:auto; }
 body[data-screen="lobby"] .room-heading .room-operations button { min-height:44px; padding:9px 13px; font-size:var(--font-size-14); }
-body[data-screen="lobby"] .room-buttons #leave { background:transparent; border-color:var(--ui-border); }
+body[data-screen="lobby"] .room-heading .room-operations #leave { background:transparent; border-color:var(--ui-border); }
 body[data-screen="lobby"] .room-heading .room-operations .danger { margin-left:4px; color:var(--score-minus); background:var(--ui-negative-surface); border-color:var(--score-minus); }
 body[data-screen="lobby"] .room-heading .lifecycle-banner { position:static; inset:auto; transform:none; flex-basis:100%; max-width:none; width:100%; text-align:left; margin:0; }
 .lobby-table { position:relative; grid-row:2; isolation:isolate; min-height:0; overflow:auto; overscroll-behavior-y:contain; scroll-padding-block:16px; padding-bottom:20px; }
