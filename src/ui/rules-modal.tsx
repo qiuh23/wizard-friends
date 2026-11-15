@@ -1,5 +1,5 @@
 export function RulesModal() {
-  return (<div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true" aria-labelledby="rule-title"><button className="close" id="close-rules" aria-label="关闭规则">×</button><h2 id="rule-title">玩法规则</h2>
+  return (<div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true" aria-labelledby="rule-title"><button className="close" id="close-rules" aria-label="关闭规则">×</button><h2 id="rule-title">游戏规则</h2>
     <p>3–6 人，共 60 张牌：四种花色各 1–13，以及 4 张巫师、4 张小丑。标准牌库第 N 轮每人发 N 张牌。</p>
     <ol><li><b>确定主牌。</b>翻开的数字牌花色是本轮主牌；翻到巫师由庄家选色，小丑或牌库用尽则无主牌。</li><li><b>预估墩数。</b>公开预估从庄家左手开始。每人出一张牌，组成一墩。</li><li><b>依次出牌。</b>庄家左手边先出首墩，按座次依次出牌。手中有首攻花色的数字牌时必须跟色，不能改出其他颜色或主牌；W 和 J 随时能出。后出的 W 不解除跟色要求。巫师起手可任意出牌，小丑起手看第一张非小丑牌。</li><li><b>判定赢家。</b>最先出的巫师 ＞ 最大主牌 ＞ 首攻花色最大牌。全是小丑则第一张赢。赢家下一墩先出。</li><li><b>计分。</b>猜中得 20 + 10 × 赢墩数；猜错每差一墩扣 10 分。最高总分胜，同分共享胜利。</li></ol>
     <h3>开局前，房主选择整局玩法</h3><p>牌库、局长、预估方式、加减预估和先见之明都在大厅由房主选定，整个游戏沿用。其他玩家可以查看选项。每轮结算后直接发下一轮的牌；整局结束后可返回大厅调整玩法。</p>
