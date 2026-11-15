@@ -4,12 +4,12 @@
   visibility:visible;position:absolute;left:3px;top:3px;z-index:3;
   display:flex;flex-direction:column;align-items:flex-start;gap:1px;
   padding:0;background:none;color:#fff0cb;
-  font:700 23px/1 Georgia,serif;text-align:left;white-space:nowrap;
+  font:700 23px/1 var(--font-card);text-align:left;white-space:nowrap;
 }
 .card > .corner .card-value,
 .card > .corner small { padding:0 1px;border-radius:2px;background:#0b1518f5; }
 .card > .corner .card-value { font:inherit;line-height:.9; }
-.card > .corner small { color:var(--card-color);font:700 10px/.9 sans-serif;margin:0; }
+.card > .corner small { color:var(--card-color);font:700 10px/.9 var(--ui-font);margin:0; }
 body[data-screen="game"] .hand .card > .corner:not(.bottom) { min-width:0;padding:0;background:none; }
 .card:after { content:'';position:absolute;inset:0;z-index:2;border:2px solid var(--card-color);border-radius:inherit;pointer-events:none; }
 .trump-card-face { margin:0;border:0;box-shadow:none; }

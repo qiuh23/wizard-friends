@@ -1,0 +1,34 @@
+{
+  "repository": "https://github.com/google/fonts",
+  "commit": "cc39c4c2c304bc368c9b7c311ea2bcc6013299fe",
+  "source": "https://raw.githubusercontent.com/google/fonts/cc39c4c2c304bc368c9b7c311ea2bcc6013299fe/ofl/notoserifsc/NotoSerifSC%5Bwght%5D.ttf",
+  "upstream_sha256": "050080d9255a86808f2945bffac582b31ef32bc36411ce29563b4961670c66f9",
+  "requested_characters": 714,
+  "covered_characters": 708,
+  "unsupported_characters": [
+    "☾",
+    "♜",
+    "✦",
+    "✧",
+    "❄",
+    "❧"
+  ],
+  "fonts": [
+    {
+      "file": "noto-serif-sc-display-600.woff",
+      "weight": 600,
+      "bytes": 152584,
+      "sha256": "105fc8ba3329e305b89f267f432e066bc0588e52458888fb6c24661ed1fadb68",
+      "mapped_characters": 709,
+      "style": "SemiBold"
+    },
+    {
+      "file": "noto-serif-sc-display-800.woff",
+      "weight": 800,
+      "bytes": 154608,
+      "sha256": "2d913e2b92410055ce91a6d43e41c97e872f779ba2dae538656f50d51f5c3418",
+      "mapped_characters": 709,
+      "style": "ExtraBold"
+    }
+  ]
+}

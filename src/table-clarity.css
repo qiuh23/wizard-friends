@@ -24,7 +24,7 @@ body[data-screen="game"] .table .player .lead-badge,body[data-screen="game"] .ow
 body[data-screen="game"] .table .player .prediction { display:flex;justify-content:center;gap:8px;grid-column:auto;min-width:0;white-space:nowrap;line-height:1.2; }
 body[data-screen="game"] .table .player .prediction > span { display:flex;flex-direction:row!important;align-items:baseline;gap:3px;min-width:0; }
 body[data-screen="game"] .table .player .prediction small { margin:0;font-size:10px;color:#d2ddd1; }
-body[data-screen="game"] .table .player .prediction b { font:600 16px/1.1 Georgia,serif;color:#fff0cf; }
+body[data-screen="game"] .table .player .prediction b { font:600 16px/1.1 var(--ui-font);color:#fff0cf; }
 body[data-screen="game"] .table .player .prediction .target-secret b { font-size:12px; }
 body[data-screen="game"] .table .player .turn-label { display:block;position:static;grid-column:1 / -1;max-width:100%;font-size:11px;line-height:14px;text-align:center;color:#c5fbff; }
 body[data-screen="game"] .roundbar { top:max(10px,env(safe-area-inset-top));left:max(14px,env(safe-area-inset-left));right:auto;min-height:0;padding:0;max-width:calc(100% - 174px);background:none;box-shadow:none; }
@@ -112,7 +112,7 @@ body[data-screen="game"] #hand-expand { border:0;background:none;min-width:44px;
 body[data-screen="game"] #notice { top:auto;bottom:58px;max-width:80vw;padding:4px 8px;background:#10251ee0;border:0;box-shadow:none;font-size:12px;pointer-events:none; }
 body[data-screen="game"] .chat-dock { left:245px;bottom:12px;top:auto; }
 body[data-screen="game"] #chat-toggle { width:44px;min-width:44px;min-height:44px;height:44px;line-height:1.2;padding:4px 8px;border:0;border-radius:50%;background:#10251eb3;font-size:12px; }
-.suit-mark { position:absolute;right:4px;top:4px;z-index:3;display:grid;place-items:center;width:18%;aspect-ratio:1;border-radius:50%;background:var(--card-color);color:#0b1518;font:700 13px/1 sans-serif; }
+.suit-mark { position:absolute;right:4px;top:4px;z-index:3;display:grid;place-items:center;width:18%;aspect-ratio:1;border-radius:50%;background:var(--card-color);color:#0b1518;font:700 13px/1 var(--ui-font); }
 @media(hover:hover) and (pointer:fine) {
   body[data-screen="game"] .hand.desktop-fan .card,body[data-screen="game"] .hand.desktop-fan.large-hand .card { transition:left .24s cubic-bezier(.2,.8,.2,1),top .24s cubic-bezier(.2,.8,.2,1),transform .24s cubic-bezier(.2,.8,.2,1),translate .24s cubic-bezier(.2,.8,.2,1),box-shadow .2s; }
   body[data-screen="game"]:has(.hand.desktop-fan) .hover-preview,body[data-screen="game"]:has(.hand.desktop-fan) .selected-preview { display:none; }

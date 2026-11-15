@@ -3,7 +3,7 @@
   position:fixed;z-index:12;width:max-content;max-width:calc(100vw - 24px);
   padding:8px 10px;border:1px solid #bfa46a80;border-radius:10px;
   background:#162b25;color:#eee4cc;box-shadow:0 3px 12px #0003;
-  font:12px/1.4 system-ui,sans-serif;
+  font:12px/1.4 var(--ui-font);
 }
 .graphics-quality-hint > div { display:flex;gap:6px;align-items:center;margin-top:5px; }
 .graphics-quality-hint button {
