@@ -1,20 +1,20 @@
 /* One glyph per avatar; badges live outside the fixed-size glyph box. */
 .avatar { flex-shrink:0; }
 .avatar-glyph { display:block;max-width:100%;overflow:hidden;white-space:nowrap;line-height:1.25; }
-.bid-state-mark { position:absolute;left:-5px;top:-5px;display:grid;place-items:center;min-width:15px;height:15px;padding:0 2px;border-radius:9px;background:#eee3bc;color:#253c33;font:700 11px/1 var(--ui-font);box-shadow:0 1px 3px #06130f40; }
-body[data-screen="game"] .avatar[data-bid-state="waiting"] { border-color:#f0d6a0;outline:1px solid #f0d6a0;outline-offset:2px;animation:bid-breathe 2.8s ease-in-out infinite; }
-body[data-screen="game"] .avatar[data-bid-state="held"] { outline:1px dashed #ead5a3;outline-offset:2px; }
-body[data-screen="game"] .avatar[data-bid-state="submitted"] .bid-state-mark { background:#d5e7d9;color:#1b4535; }
-@keyframes bid-breathe { 0%,100%{box-shadow:0 0 0 2px #e8d2a52b,0 0 8px #e8ca8920} 50%{box-shadow:0 0 0 3px #e8d2a56b,0 0 18px #e8ca8940} }
+.bid-state-mark { position:absolute;left:-5px;top:-5px;display:grid;place-items:center;min-width:15px;height:15px;padding:0 2px;border-radius:var(--radius-sm);background:var(--gold);color:var(--gold-ink);font:700 var(--font-size-11)/1 var(--ui-font);box-shadow:var(--effect-table-polish-bid-state-mark-42); }
+body[data-screen="game"] .avatar[data-bid-state="waiting"] { border-color:var(--gold);outline:1px solid var(--gold);outline-offset:2px;animation:bid-breathe 2.8s ease-in-out infinite; }
+body[data-screen="game"] .avatar[data-bid-state="held"] { outline:1px dashed var(--gold);outline-offset:2px; }
+body[data-screen="game"] .avatar[data-bid-state="submitted"] .bid-state-mark { background:var(--score-plus);color:var(--gold-ink); }
+@keyframes bid-breathe { 0%,100%{box-shadow:var(--effect-table-polish-effect-43)} 50%{box-shadow:var(--effect-table-polish-effect-44)} }
 
 /* Two rows where useful; short landscape keeps one scrollable row. */
-body[data-screen="game"][data-phase="bid"] .action-panel.bid-phase-bid:has(.bid-options) { left:50%;right:auto;top:auto;bottom:calc(var(--hand-bottom) + var(--hand-height) + 10px);transform:translateX(-50%);width:fit-content;max-width:min(466px,calc(100% - 28px - env(safe-area-inset-left) - env(safe-area-inset-right)));padding:7px 8px;gap:7px;border:1px solid transparent;border-radius:16px;overflow:visible; }
-body[data-screen="game"] .action-panel.bid-attention { border-color:#e8d2a570;background:#10271fe0;animation:bid-breathe 2.8s ease-in-out infinite; }
+body[data-screen="game"][data-phase="bid"] .action-panel.bid-phase-bid:has(.bid-options) { left:50%;right:auto;top:auto;bottom:calc(var(--hand-bottom) + var(--hand-height) + 10px);transform:translateX(-50%);width:fit-content;max-width:min(466px,calc(100% - 28px - env(safe-area-inset-left) - env(safe-area-inset-right)));padding:7px 8px;gap:7px;border:1px solid transparent;border-radius:var(--radius-lg);overflow:visible; }
+body[data-screen="game"] .action-panel.bid-attention { border-color:var(--ui-control-border);background:var(--ui-control);animation:bid-breathe 2.8s ease-in-out infinite; }
 body[data-screen="game"] .bid-options { display:grid;grid-auto-flow:row;grid-template-columns:repeat(var(--bid-columns,7),44px);grid-auto-rows:44px;justify-content:start;gap:6px;width:max-content;max-width:100%;min-width:0;padding:4px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;scroll-padding:5px;overscroll-behavior-x:contain;touch-action:pan-x; }
 body[data-screen="game"] .bid-options::-webkit-scrollbar { display:none;width:0;height:0; }
-body[data-screen="game"] .bid-options .bid { width:44px;height:44px;margin:0;min-width:44px;min-height:44px;padding:0;border:1px solid #8cae9b70;border-radius:10px;background:#17382f;color:#fff0cf;box-shadow:0 2px 4px #0003;font-variant-numeric:tabular-nums;outline-offset:-3px; }
+body[data-screen="game"] .bid-options .bid { width:44px;height:44px;margin:0;min-width:44px;min-height:44px;padding:0;border:1px solid var(--ui-control-border);border-radius:var(--radius-md);background:var(--ui-control);color:var(--ui-text);box-shadow:var(--shadow-1);font-variant-numeric:tabular-nums;outline-offset:-3px; }
 body[data-screen="game"] .bid-options .bid:first-child,body[data-screen="game"] .bid-options .bid:last-child { margin:0; }
-body[data-screen="game"] .bid-options .bid:focus-visible { outline:3px solid #fff2c8;background:#5c5132;color:#fff8df; }
+body[data-screen="game"] .bid-options .bid:focus-visible { outline:2px solid var(--ui-focus);background:var(--ui-control-hover);color:var(--ui-text); }
 body[data-screen="game"] .bid-options[data-after="true"] { mask-image:linear-gradient(to right,#000 calc(100% - 13px),transparent); }
 body[data-screen="game"] .bid-options[data-before="true"] { mask-image:linear-gradient(to right,transparent,#000 13px); }
 body[data-screen="game"] .bid-options[data-before="true"][data-after="true"] { mask-image:linear-gradient(to right,transparent,#000 13px,#000 calc(100% - 13px),transparent); }
@@ -23,19 +23,19 @@ body[data-screen="game"][data-table-layout="strip"][data-phase="bid"] .action-pa
 /* Position comes from the real button, never a second screen-corner anchor. */
 
 /* The WebGL card meshes use DOM contact shadows too: no raised caster. */
-body[data-screen="game"] .played .card { box-shadow:1px 2px 2px #0c191c20,0 3px 7px #07171124!important; }
-body[data-screen="game"][data-table-layout].has-webgl .table .played-cards .played .card-contact-shadow { position:absolute;left:50%;top:calc(var(--played-width,56px) * .75 * (var(--leader-scale) - 1) + 22px);width:var(--played-width,56px);height:calc(var(--played-width,56px) * 1.5);margin-left:calc(var(--played-width,56px) / -2);border-radius:5px;box-shadow:1px 2px 3px #07171124,0 3px 8px #07171120;pointer-events:none;z-index:-1; }
-@media(prefers-reduced-motion:reduce) { body[data-screen="game"] .avatar[data-bid-state="waiting"],body[data-screen="game"] .action-panel.bid-attention { animation:none;box-shadow:0 0 0 2px #e8d2a54d,0 0 10px #e8ca892b; } }
+body[data-screen="game"] .played .card { box-shadow:var(--effect-table-polish-played-card-45)!important; }
+body[data-screen="game"][data-table-layout].has-webgl .table .played-cards .played .card-contact-shadow { position:absolute;left:50%;top:calc(var(--played-width,56px) * .75 * (var(--leader-scale) - 1) + 22px);width:var(--played-width,56px);height:calc(var(--played-width,56px) * 1.5);margin-left:calc(var(--played-width,56px) / -2);border-radius:5px;box-shadow:var(--effect-table-polish-played-cards-played-card-contact-shadow-46);pointer-events:none;z-index:-1; }
+@media(prefers-reduced-motion:reduce) { body[data-screen="game"] .avatar[data-bid-state="waiting"],body[data-screen="game"] .action-panel.bid-attention { animation:none;box-shadow:var(--effect-table-polish-avatar-action-panel-bid-attention-47); } }
 
 /* Foresight retains its side dock, leaving the disclosed hands readable. */
 body[data-screen="game"][data-foresight="true"][data-table-layout="strip"][data-phase="bid"] .action-panel.bid-phase-bid:has(.bid-options) { left:auto;right:max(10px,env(safe-area-inset-right));top:var(--foresight-dock-top);bottom:calc(var(--hand-bottom) + var(--hand-height) + 8px);transform:none;width:min(280px,34vw);max-height:calc(100dvh - var(--foresight-dock-top) - 100px);overflow:auto;scrollbar-width:none; }
 
 .card-contact-shadow { display:none; }
 body[data-screen="game"].has-webgl .card-contact-shadow { display:block; }
-body[data-screen="game"] .bid-options .bid:active { background:var(--gold);color:#211c11; }
+body[data-screen="game"] .bid-options .bid:active { background:var(--gold);color:var(--gold-ink); }
 
 /* Keep the decision group compact even when only 0 and 1 are available. */
 body[data-screen="game"] .action-panel:has(.bid-options) .action-title { gap:0; }
 body[data-screen="game"] .action-panel:has(.bid-options) .action-title .win-reason:empty { display:none; }
-body[data-screen="game"] .bid-options .bid:hover:not(:disabled) { background:#315b4b;color:#fff8e8; }
-body[data-screen="game"] .bid-options .bid:disabled { background:#16251f;color:#91a49b;border-style:dashed;opacity:.45;box-shadow:none; }
+body[data-screen="game"] .bid-options .bid:hover:not(:disabled) { background:var(--ui-control-hover);color:var(--ui-text); }
+body[data-screen="game"] .bid-options .bid:disabled { background:var(--ui-control);color:var(--ui-text-muted);border-style:dashed;opacity:.45;box-shadow:none; }

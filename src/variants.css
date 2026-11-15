@@ -1,1 +1,1 @@
-.current-rules { font-size: 13px; line-height: 1.8; color: #d8c7a7; }
+.current-rules { font-size: var(--font-size-13); line-height: 1.8; color: var(--ui-text); }

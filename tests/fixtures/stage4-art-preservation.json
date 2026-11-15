@@ -1,0 +1,1442 @@
+[
+  {
+    "file": "src/card-face.css",
+    "context": ".card,.card.red,.card.green,.card.yellow,.card.wizard,.card.jester",
+    "property": "background-color",
+    "nth": 0,
+    "value": "#e8deca",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/card-face.css",
+    "context": ".card > .corner:not(.bottom)",
+    "property": "background",
+    "nth": 0,
+    "value": "none",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/card-face.css",
+    "context": ".card > .corner:not(.bottom)",
+    "property": "color",
+    "nth": 0,
+    "value": "#fff0cb",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/card-face.css",
+    "context": ".card > .corner .card-value,\n.card > .corner small",
+    "property": "background",
+    "nth": 0,
+    "value": "#0b1518f5",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/card-face.css",
+    "context": ".card > .corner small",
+    "property": "color",
+    "nth": 0,
+    "value": "var(--card-color)",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/card-face.css",
+    "context": "body[data-screen=\"game\"] .hand .card > .corner:not(.bottom)",
+    "property": "background",
+    "nth": 0,
+    "value": "none",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/card-face.css",
+    "context": ".card:after",
+    "property": "border",
+    "nth": 0,
+    "value": "2px solid var(--card-color)",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": "body",
+    "property": "background",
+    "nth": 0,
+    "value": "radial-gradient(ellipse at 12% 25%,#4d352637,transparent 55%),radial-gradient(ellipse at 95% 30%,#27434b29,transparent 45%),#121014",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": "body:before",
+    "property": "background",
+    "nth": 0,
+    "value": "repeating-linear-gradient(0deg,transparent 0,transparent 3px,#ffffff01 4px)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".brand-icon",
+    "property": "text-shadow",
+    "nth": 0,
+    "value": "0 0 25px #e1a74888",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".panel",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(145deg,#28241ff5,#191b1bf5)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".primary",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(145deg,#dfc28c,#b79457)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".primary:hover:not(:disabled)",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(145deg,#f2d6a0,#d9b877)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".modal",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(120deg,#292821,#1a1c1d)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".hero:after",
+    "property": "color",
+    "nth": 0,
+    "value": "#b6a37a80",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".scene-host canvas",
+    "property": "outline",
+    "nth": 0,
+    "value": "none",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".hero .scene-host",
+    "property": "mask-image",
+    "nth": 0,
+    "value": "linear-gradient(to bottom,transparent 0,#000 14%,#000 80%,transparent 100%)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".lobby-settings:after",
+    "property": "color",
+    "nth": 0,
+    "value": "#bca16b0a",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".avatar",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(150deg,#4a4836,#202c2a)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".avatar",
+    "property": "border-color",
+    "nth": 0,
+    "value": "#a18b565e",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".avatar",
+    "property": "color",
+    "nth": 0,
+    "value": "#e1c58c",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".table",
+    "property": "background",
+    "nth": 0,
+    "value": "radial-gradient(ellipse at 50% 65%,#283a31,#171b1b)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".table",
+    "property": "border",
+    "nth": 0,
+    "value": "1px solid #957a453a",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".table",
+    "property": "border-top",
+    "nth": 0,
+    "value": "0",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".table",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "inset 0 0 70px #0009,0 15px 60px #0004",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".has-webgl .table",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(#141215,#181619)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".has-webgl .table",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 20px 50px #0005",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".table .scene-host:after",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(to bottom,#14121580,transparent 32%,transparent 80%,#14121566)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".player",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(#181b1ad9,#181b1a70)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".player.active",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(#484131ec,#292a21b0)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".table-empty>span",
+    "property": "color",
+    "nth": 0,
+    "value": "#d4b77b55",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".played .card",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "3px 4px 0 #443c2c,8px 15px 16px #0007",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".played.winner .card",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 0 0 2px #f1c46c,0 0 40px #f9ba6055",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".action-panel",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(90deg,#27251c88,#1b1d1b55)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".suit-chip.blue",
+    "property": "color",
+    "nth": 0,
+    "value": "#78c5fa",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".suit-chip.red",
+    "property": "color",
+    "nth": 0,
+    "value": "#f68d85",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".suit-chip.green",
+    "property": "color",
+    "nth": 0,
+    "value": "#82d7a0",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".suit-chip.yellow",
+    "property": "color",
+    "nth": 0,
+    "value": "#f2d071",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".hand-section",
+    "property": "background",
+    "nth": 0,
+    "value": "radial-gradient(ellipse at bottom,#8166371c,transparent 70%)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".card,.card.red,.card.green,.card.yellow,.card.wizard,.card.jester",
+    "property": "background-color",
+    "nth": 0,
+    "value": "#262922",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".card,.card.red,.card.green,.card.yellow,.card.wizard,.card.jester",
+    "property": "border",
+    "nth": 0,
+    "value": "0",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".card,.card.red,.card.green,.card.yellow,.card.wizard,.card.jester",
+    "property": "color",
+    "nth": 0,
+    "value": "#e0c992",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".card,.card.red,.card.green,.card.yellow,.card.wizard,.card.jester",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "1px 2px 0 #8d7854,2px 4px 0 #514830,3px 6px 0 #332d24,6px 15px 20px #0009",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".card:before",
+    "property": "border",
+    "nth": 0,
+    "value": "0",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".card:before",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(125deg,#fff5c11a,transparent 35%,transparent 60%,#0002)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".card:disabled",
+    "property": "filter",
+    "nth": 0,
+    "value": "none",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".hero-cards .card:disabled,.played .card:disabled",
+    "property": "filter",
+    "nth": 0,
+    "value": "none",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".hand .card.playable",
+    "property": "filter",
+    "nth": 0,
+    "value": "none",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".hand .card.playable",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 0 0 1px #ddbd7b,1px 3px 0 #897451,3px 6px 0 #3c3324,4px 14px 25px #0008,0 0 16px #e6ba5c1a",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".hand .card:hover,\n.hand .card:focus-visible",
+    "property": "filter",
+    "nth": 0,
+    "value": "brightness(1.2)",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".hand .card:hover,\n.hand .card:focus-visible",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 0 0 1px #f4d890,2px 5px 0 #695332,9px 25px 35px #000b,0 0 26px #e6ba5c33",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".hand .card.playable:hover",
+    "property": "background-color",
+    "nth": 0,
+    "value": "#262922",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".hand .card:disabled:hover",
+    "property": "filter",
+    "nth": 0,
+    "value": "none",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": ".scoreboard,.journal",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(140deg,#25251ff0,#181c1df5)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/cinematic.css",
+    "context": "@media (max-width:580px) | .hero .scene-host",
+    "property": "mask-image",
+    "nth": 0,
+    "value": "linear-gradient(transparent,#000 15%,#000 80%,transparent)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/clarity.css",
+    "context": "body[data-screen=\"game\"] .hand .card > .corner:not(.bottom)",
+    "property": "color",
+    "nth": 0,
+    "value": "#fff0cb",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/clarity.css",
+    "context": "body[data-screen=\"game\"] .hand .card > .corner:not(.bottom)",
+    "property": "background",
+    "nth": 0,
+    "value": "#0b1518e8",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/clarity.css",
+    "context": "body[data-screen=\"game\"] .hand .card:disabled,\nbody[data-screen=\"game\"] .hand .card:disabled:hover",
+    "property": "filter",
+    "nth": 0,
+    "value": "none",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/clarity.css",
+    "context": "body[data-screen=\"game\"] .hand .card.playable",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 0 0 2px #f5d58c, 0 0 18px #e4ba6f55",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/clarity.css",
+    "context": ".played.winner .card",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 0 0 3px #fff0af, 0 0 0 6px #d29b27, 0 0 32px #ffd35b88",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/foresight.css",
+    "context": ".foresight-heading",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(90deg,#103a2ce8,#103a2c99)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/foresight.css",
+    "context": "body[data-screen=\"game\"] .foresight-cards .card",
+    "property": "filter",
+    "nth": 0,
+    "value": "none",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/fullscreen.css",
+    "context": "body[data-screen=\"game\"] .table",
+    "property": "border",
+    "nth": 0,
+    "value": "0",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/fullscreen.css",
+    "context": "body[data-screen=\"game\"] .table",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "none",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/fullscreen.css",
+    "context": "body[data-screen=\"game\"] .table",
+    "property": "background",
+    "nth": 0,
+    "value": "radial-gradient(ellipse at center, #283831, #141719 85%)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/fullscreen.css",
+    "context": "body[data-screen=\"game\"] .table .scene-host:after",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(#0b0e1066, transparent 20%, transparent 62%, #0b0e10b0)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/home-menu.css",
+    "context": "body[data-screen=\"home\"]",
+    "property": "background",
+    "nth": 0,
+    "value": "#101516",
+    "reason": "backdrop"
+  },
+  {
+    "file": "src/home-menu.css",
+    "context": ".home-screen .home-scene",
+    "property": "background",
+    "nth": 0,
+    "value": "#141c1b",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/home-menu.css",
+    "context": ".home-screen .home-scene:after",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(90deg, #101516f5 0%, #101516e8 23%, #10151635 52%, transparent 80%),\n    linear-gradient(0deg, #101516, transparent 28%, transparent 85%, #10151666)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/home-menu.css",
+    "context": ".home-title h1",
+    "property": "text-shadow",
+    "nth": 0,
+    "value": "0 4px 24px #0006",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/home-menu.css",
+    "context": "@media (max-width: 700px) and (orientation: portrait) | .home-screen .home-scene:after",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(90deg, #101516 0%, #101516e8 45%, #10151622 80%), linear-gradient(0deg, #101516, transparent 45%)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/lobby.css",
+    "context": "body[data-screen=\"lobby\"]",
+    "property": "background",
+    "nth": 0,
+    "value": "#101715",
+    "reason": "backdrop"
+  },
+  {
+    "file": "src/lobby.css",
+    "context": ".lobby-table .lobby-scene",
+    "property": "background",
+    "nth": 0,
+    "value": "radial-gradient(ellipse at 50% 30%,#2d3a2b,#101715 80%)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/lobby.css",
+    "context": ".lobby-table .lobby-scene:after",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(#10171599,transparent 30%,#101715b3)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/lobby.css",
+    "context": ".lobby-felt",
+    "property": "border",
+    "nth": 0,
+    "value": "10px solid #493a29",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/lobby.css",
+    "context": ".lobby-felt",
+    "property": "background",
+    "nth": 0,
+    "value": "radial-gradient(ellipse,#354637,#1b3028)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/lobby.css",
+    "context": ".lobby-felt",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 0 0 2px #8b7046,inset 0 0 60px #0009",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/lobby.css",
+    "context": ".lobby-table .seat .avatar",
+    "property": "border",
+    "nth": 0,
+    "value": "1px solid #b7a27655",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/lobby.css",
+    "context": ".lobby-table .seat .avatar",
+    "property": "background",
+    "nth": 0,
+    "value": "#23392e",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/lobby.css",
+    "context": ".lobby-table .seat .avatar",
+    "property": "color",
+    "nth": 0,
+    "value": "#dfd4b7",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/lobby.css",
+    "context": ".lobby-table .bot-seat .avatar",
+    "property": "color",
+    "nth": 0,
+    "value": "#d0be8d",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/lobby.css",
+    "context": ".lobby-table .bot-seat .avatar",
+    "property": "background",
+    "nth": 0,
+    "value": "#26352b",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/lobby.css",
+    "context": ".lobby-table .empty .avatar",
+    "property": "background",
+    "nth": 0,
+    "value": "transparent",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/lobby.css",
+    "context": ".lobby-table .empty .avatar",
+    "property": "color",
+    "nth": 0,
+    "value": "#94866b",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/lobby.css",
+    "context": ".lobby-content .bot-controls select",
+    "property": "background-image",
+    "nth": 0,
+    "value": "linear-gradient(45deg,transparent 50%,#cbb889 50%),linear-gradient(135deg,#cbb889 50%,transparent 50%)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-book",
+    "property": "border",
+    "nth": 0,
+    "value": "3px solid #7f573e",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-book",
+    "property": "border-left",
+    "nth": 0,
+    "value": "8px solid #402127",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-book",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(100deg,#622c37,#291c27)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-book",
+    "property": "color",
+    "nth": 0,
+    "value": "#c4a66e",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-book",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "3px 5px 7px #0007",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-orb",
+    "property": "background",
+    "nth": 0,
+    "value": "radial-gradient(circle at 30% 25%,#b5e7df,#54838b 45%,#203b4c 80%)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-orb",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 11px 0 -3px #997c45,0 0 14px #7ad1cf44",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-deck",
+    "property": "border",
+    "nth": 0,
+    "value": "3px double #b49c62",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-deck",
+    "property": "background",
+    "nth": 0,
+    "value": "repeating-linear-gradient(45deg,#213c3b 0 6px,#294a47 6px 12px)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-deck",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "2px 2px 0 #d0c09a,4px 4px 0 #29413b,5px 6px 0 #c1ae88",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-coins",
+    "property": "border",
+    "nth": 0,
+    "value": "2px solid #d3b96a",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-coins",
+    "property": "background",
+    "nth": 0,
+    "value": "#987437",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-coins",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "-7px 4px 0 #b28a48,-2px 8px 0 #73572d",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-candle",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(90deg,#8a7552,#ead9a9,#a2926f)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-candle",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 7px 0 3px #9a7a40",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-candle:before",
+    "property": "background",
+    "nth": 0,
+    "value": "#ffdda1",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/round-summary.css",
+    "context": "@media (max-width:850px) | .prop-candle:before",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 0 15px 8px #e9a45a30",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/social.css",
+    "context": "body[data-screen=\"game\"] .table-ring",
+    "property": "border-color",
+    "nth": 0,
+    "value": "var(--trump-color)",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/social.css",
+    "context": "body[data-screen=\"game\"] .table-ring",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 0 24px color-mix(in srgb, var(--trump-color) 20%, transparent)",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/spectator.css",
+    "context": ".room-directory",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(145deg, #27312bfd, #101b18fd)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/style.css",
+    "context": "body",
+    "property": "background",
+    "nth": 0,
+    "value": "radial-gradient(ellipse at 20% 35%,#203a3d66,transparent 55%),var(--night)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".brand-icon",
+    "property": "color",
+    "nth": 0,
+    "value": "var(--gold)",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".hero-cards .card",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 12px 30px #0008",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".panel",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(130deg,#203139,#1a2b32)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".avatar",
+    "property": "border",
+    "nth": 0,
+    "value": "1px solid #73958955",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".avatar",
+    "property": "background",
+    "nth": 0,
+    "value": "#2c4949",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".avatar",
+    "property": "color",
+    "nth": 0,
+    "value": "#d7c394",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".empty .avatar",
+    "property": "background",
+    "nth": 0,
+    "value": "none",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".empty .avatar",
+    "property": "color",
+    "nth": 0,
+    "value": "#638083",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".table",
+    "property": "border",
+    "nth": 0,
+    "value": "1px solid #507d6d55",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".table",
+    "property": "background",
+    "nth": 0,
+    "value": "radial-gradient(ellipse,#254d49,#183933 80%)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".table-ring",
+    "property": "border",
+    "nth": 0,
+    "value": "1px solid #9cba8740",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".player.active .avatar",
+    "property": "border-color",
+    "nth": 0,
+    "value": "var(--gold)",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".played.winner .card",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 0 0 2px var(--gold),0 0 25px #d7be6244",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".table-empty>span",
+    "property": "color",
+    "nth": 0,
+    "value": "#b5b97544",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".card",
+    "property": "background",
+    "nth": 0,
+    "value": "#ede7d7",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".card",
+    "property": "border",
+    "nth": 0,
+    "value": "3px solid #dcd4bc",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".card",
+    "property": "color",
+    "nth": 0,
+    "value": "#3b6c86",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".card",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 5px 12px #0004",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".card:before",
+    "property": "border",
+    "nth": 0,
+    "value": "1px solid currentColor",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".card.playable",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 0 0 1px #e6c780,0 5px 15px #0004",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/style.css",
+    "context": ".card.playable:hover",
+    "property": "background",
+    "nth": 0,
+    "value": "#fff8df",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-clarity.css",
+    "context": "body[data-screen=\"game\"] .table .player .avatar,body[data-screen=\"game\"] .own-status .avatar",
+    "property": "border",
+    "nth": 0,
+    "value": "1.5px solid var(--avatar-color)",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-clarity.css",
+    "context": "body[data-screen=\"game\"] .table .player .avatar,body[data-screen=\"game\"] .own-status .avatar",
+    "property": "background",
+    "nth": 0,
+    "value": "radial-gradient(circle at 35% 25%,#365248,#10251f)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/table-clarity.css",
+    "context": "body[data-screen=\"game\"] .table .player .avatar,body[data-screen=\"game\"] .own-status .avatar",
+    "property": "color",
+    "nth": 0,
+    "value": "var(--avatar-color)",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-clarity.css",
+    "context": ".suit-mark",
+    "property": "background",
+    "nth": 0,
+    "value": "var(--card-color)",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-clarity.css",
+    "context": ".suit-mark",
+    "property": "color",
+    "nth": 0,
+    "value": "#0b1518",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-dock.css",
+    "context": "@media (max-width:850px) | body[data-screen=\"game\"] .table .scene-host:after",
+    "property": "background",
+    "nth": 0,
+    "value": "none",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-play.css",
+    "context": "body[data-screen=\"game\"][data-table-layout] .table .played-cards .played .card",
+    "property": "border",
+    "nth": 0,
+    "value": "0",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-play.css",
+    "context": "body[data-screen=\"game\"][data-table-layout] .table .played-cards .played .card",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 1px 0 1px #d1be91,1px 3px 3px #020d0960",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-play.css",
+    "context": "body[data-screen=\"game\"][data-table-layout] .table .played-cards .played.winner .card",
+    "property": "outline",
+    "nth": 0,
+    "value": "2px solid #8eeeff",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-polish.css",
+    "context": "body[data-screen=\"game\"] .bid-options[data-after=\"true\"]",
+    "property": "mask-image",
+    "nth": 0,
+    "value": "linear-gradient(to right,#000 calc(100% - 13px),transparent)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/table-polish.css",
+    "context": "body[data-screen=\"game\"] .bid-options[data-before=\"true\"]",
+    "property": "mask-image",
+    "nth": 0,
+    "value": "linear-gradient(to right,transparent,#000 13px)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/table-polish.css",
+    "context": "body[data-screen=\"game\"] .bid-options[data-before=\"true\"][data-after=\"true\"]",
+    "property": "mask-image",
+    "nth": 0,
+    "value": "linear-gradient(to right,transparent,#000 13px,#000 calc(100% - 13px),transparent)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/table-polish.css",
+    "context": "body[data-screen=\"game\"] .played .card",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "1px 2px 2px #0c191c20,0 3px 7px #07171124",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-polish.css",
+    "context": "body[data-screen=\"game\"][data-table-layout].has-webgl .table .played-cards .played .card-contact-shadow",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "1px 2px 3px #07171124,0 3px 8px #07171120",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"]",
+    "property": "background",
+    "nth": 0,
+    "value": "#071d18",
+    "reason": "backdrop"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"] .table",
+    "property": "background",
+    "nth": 0,
+    "value": "radial-gradient(ellipse at 50% 40%,#183d32,#08231c 78%)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"] .player .avatar",
+    "property": "border",
+    "nth": 0,
+    "value": "1px solid #a9986e",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"] .player .avatar",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(135deg,#344a3c,#182a27)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"] .played .card,body[data-screen=\"game\"].has-webgl .played .card",
+    "property": "filter",
+    "nth": 0,
+    "value": "none",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": ".own-status .avatar",
+    "property": "background",
+    "nth": 0,
+    "value": "#33493a",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": ".own-status .avatar",
+    "property": "border",
+    "nth": 0,
+    "value": "2px solid #b8a178",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": ".own-status .avatar",
+    "property": "color",
+    "nth": 0,
+    "value": "#ffe7b5",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"] .hand-section",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(#10291ff5,#071c17fc)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"] .hand .card,\nbody[data-screen=\"game\"] .hand.large-hand .card",
+    "property": "filter",
+    "nth": 0,
+    "value": "none",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"] .hand .card,\nbody[data-screen=\"game\"] .hand.large-hand .card",
+    "property": "border",
+    "nth": 0,
+    "value": "2px solid #d7d0b5",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"] .hand .card:hover",
+    "property": "background-color",
+    "nth": 0,
+    "value": "#eee3c4",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"] .hand .card.playable",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "inset 0 0 0 1px var(--gold),0 0 0 1px var(--gold)",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"] .hand .card.selected",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 0 0 3px #8ce1ed,0 0 16px #85deee77",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": ".selected-preview .card",
+    "property": "filter",
+    "nth": 0,
+    "value": "none",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": ".selected-preview .card",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 0 0 2px #98e4ed,0 8px 30px #0008",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"] .table .scene-host:after",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(#08251c66,transparent 35%,#08251c33)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"] .table",
+    "property": "background",
+    "nth": 1,
+    "value": "radial-gradient(ellipse at center,#173f32,#09261c)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"] .table .scene-host canvas",
+    "property": "filter",
+    "nth": 0,
+    "value": "none",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"] .table",
+    "property": "background",
+    "nth": 2,
+    "value": "radial-gradient(ellipse at center,#173d30,var(--table-felt))",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": ".own-status:before",
+    "property": "border",
+    "nth": 0,
+    "value": "1px solid #c4a66e44",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "#confirm-play:after",
+    "property": "border",
+    "nth": 0,
+    "value": "1px solid #fff1c466",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "body[data-screen=\"game\"] .hand .card.selected",
+    "property": "box-shadow",
+    "nth": 1,
+    "value": "0 0 0 3px var(--table-selection),0 0 16px #85deee55",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "@media (min-width:851px) and (min-height:541px) and (hover:hover) and (pointer:fine) | body[data-screen=\"game\"] .hand.desktop-fan .card.hovered",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 0 0 2px #f0e6ca,0 8px 20px #0008",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": "@media (min-width:851px) and (min-height:541px) and (hover:hover) and (pointer:fine) | body[data-screen=\"game\"] .hand.desktop-fan .card.selected",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 0 0 3px var(--table-selection),0 0 18px #8ce1ed55",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": ".hover-preview .card",
+    "property": "filter",
+    "nth": 0,
+    "value": "none",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": ".hover-preview .card",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 0 0 1px var(--table-parchment),0 8px 30px #0008",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/table-ui.css",
+    "context": ".roundbar",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(90deg,#28241feb,#1b2020eb)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/trump-display.css",
+    "context": ".trump-reveal .trump-card-face,.trump-reveal-back",
+    "property": "box-shadow",
+    "nth": 0,
+    "value": "0 6px 20px #00130d66",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/trump-display.css",
+    "context": ".trump-reveal-back",
+    "property": "border",
+    "nth": 0,
+    "value": "4px double #c7b27c",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/trump-display.css",
+    "context": ".trump-reveal-back",
+    "property": "background",
+    "nth": 0,
+    "value": "repeating-linear-gradient(45deg,#213c3b 0 7px,#294a47 7px 14px)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/trump-display.css",
+    "context": ".trump-reveal-back",
+    "property": "color",
+    "nth": 0,
+    "value": "#e3cc92",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/trump-display.css",
+    "context": ".trump-reveal-back",
+    "property": "text-shadow",
+    "nth": 0,
+    "value": "0 1px 6px #00150e",
+    "reason": "card/prop/scene/game-color"
+  },
+  {
+    "file": "src/trump-display.css",
+    "context": ".trump-reveal-sheen",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(110deg,transparent 35%,#fff1b9 50%,transparent 65%) 100% 0 / 300% 100%",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/trump-display.css",
+    "context": ".trump-reveal-sheen",
+    "property": "mask",
+    "nth": 0,
+    "value": "linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0)",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/ui/theme.css",
+    "context": "@font-face ",
+    "property": "src",
+    "nth": 0,
+    "value": "url(\"/fonts/noto-serif-sc-display-600.woff\") format(\"woff\")",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/ui/theme.css",
+    "context": "@font-face ",
+    "property": "src",
+    "nth": 1,
+    "value": "url(\"/fonts/noto-serif-sc-display-800.woff\") format(\"woff\")",
+    "reason": "gradient/image"
+  },
+  {
+    "file": "src/ui/theme.css",
+    "context": ":root",
+    "property": "--table-felt",
+    "nth": 0,
+    "value": "#08231c",
+    "reason": "felt-base"
+  },
+  {
+    "file": "src/visual-first.css",
+    "context": "@media (max-width:700px) and (orientation:portrait) | .home-screen .home-scene:after",
+    "property": "background",
+    "nth": 0,
+    "value": "linear-gradient(90deg,#101516 0%,#101516cc 27%,transparent 80%),linear-gradient(0deg,#101516,transparent 40%)",
+    "reason": "gradient/image"
+  }
+]

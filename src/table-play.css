@@ -9,7 +9,7 @@ body[data-screen="game"][data-table-layout] .table .played-cards .played .card {
   transform-origin:50% 50%;
   transform:perspective(900px) rotateX(32deg) rotateZ(var(--table-angle,0deg));
   border:0;
-  box-shadow:0 1px 0 1px #d1be91,1px 3px 3px #020d0960!important;
+  box-shadow:var(--effect-table-play-played-cards-played-card-40)!important;
 }
 body[data-screen="game"][data-table-layout] .table .played-cards .played.winner .card {
   outline:2px solid #8eeeff;outline-offset:1px;
@@ -18,17 +18,17 @@ body[data-screen="game"][data-table-layout] .table .played-cards .played.winner:
 body[data-screen="game"][data-table-layout] .table .played-cards .played > small {
   bottom:3px;height:20px;min-height:20px;
   background:none;border:0;border-radius:0;box-shadow:none;padding:0;
-  color:var(--player-color);text-shadow:0 1px 3px #000;gap:4px;
+  color:var(--player-color);text-shadow:0 1px 3px var(--ui-text-shadow-color);gap:4px;
 }
 body[data-screen="game"][data-table-layout] .table .played-cards .played-name,
 body[data-screen="game"][data-table-layout] .table .played-cards .played.winner .played-name {
-  color:var(--player-color);font-size:12px;font-weight:500;
+  color:var(--player-color);font-size:var(--font-size-12);font-weight:500;
 }
 body[data-screen="game"][data-table-layout] .table .played-cards .played.winner .played-state {
   display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;gap:3px;
-  color:#e8fcff;background:#092c48;border:1px solid #8eeeff;border-radius:5px;
-  padding:1px 4px;white-space:nowrap;font-size:10px;font-weight:700;line-height:16px;
-  text-shadow:none;box-shadow:0 0 0 1px #031421,0 2px 4px #0009;
+  color:var(--ui-text);background:var(--ui-surface);border:1px solid var(--table-selection);border-radius:var(--radius-sm);
+  padding:1px 4px;white-space:nowrap;font-size:var(--font-size-11);font-weight:700;line-height:16px;
+  text-shadow:none;box-shadow:var(--effect-table-play-played-winner-played-state-41);
 }
 body[data-screen="game"][data-table-layout] .table .played-cards .played-state::after { display:none; }
 body[data-screen="game"][data-table-layout].has-webgl .table .played-cards .played .card-contact-shadow { display:none; }
@@ -36,5 +36,5 @@ body[data-screen="game"][data-table-layout].has-webgl .table .played-cards .play
 /* Status sits below the face, leaving its upper edge free for special-card figures. */
 body[data-screen="game"][data-table-layout] .table .played-cards .played.winner > small { bottom:1px;overflow:visible;width:100%; }
 body[data-screen="game"][data-table-layout] .table .played-cards .played.winner .played-name { position:absolute;left:0;right:0;bottom:20px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:13px; }
-body[data-screen="game"][data-table-layout] .table .played-cards .played.winner .played-state::before { content:'◆';color:#8eeeff;font-size:9px; }
+body[data-screen="game"][data-table-layout] .table .played-cards .played.winner .played-state::before { content:'◆';color:var(--ui-text);font-size:var(--font-size-11); }
 body[data-screen="game"][data-table-layout]:is([data-phase="trickEnd"],[data-phase="roundEnd"],[data-phase="finished"]) .table .played-cards .played.winner .played-state::before { content:'✓'; }

@@ -24,7 +24,7 @@ body[data-screen="game"] .own-status.active {
   box-shadow: none;
   min-height: 0;
   animation: none;
-  text-shadow: 0 1px 3px #000,0 0 6px #000;
+  text-shadow: 0 1px 3px var(--ui-text-shadow-color),0 0 6px var(--ui-text-shadow-color);
 }
 body.turn-arrival[data-screen="game"] .own-status.active {
   animation: none;
@@ -37,7 +37,7 @@ body[data-screen="game"] .own-metrics {
   gap: 24px;
 }
 body[data-screen="game"] .own-metrics b {
-  font-size: 25px;
+  font-size: var(--font-size-24);
 }
 body[data-screen="game"] .action-panel,
 body[data-screen="game"] .action-panel.your-action {
@@ -48,14 +48,14 @@ body[data-screen="game"] .action-panel.your-action {
   padding: 5px 10px;
 }
 body[data-screen="game"] .action-title h3 {
-  font-size: 15px;
+  font-size: var(--font-size-16);
 }
 body[data-screen="game"] .action-panel:not(.your-action) .win-reason {
   display: none;
 }
 body[data-screen="game"] #confirm-play {
   min-width: 120px;
-  font-size: 16px;
+  font-size: var(--font-size-16);
 }
 /* The cards sit on the felt. Only the optional expanded grid needs a panel. */
 body[data-screen="game"] .hand-section:not(.expanded) {
@@ -117,7 +117,7 @@ body[data-screen="game"] .hand-section:not(.expanded) .hand-heading {
     gap: 5px;
   }
   body[data-screen="game"] .player .prediction b {
-    font-size: 17px;
+    font-size: var(--font-size-18);
   }
   body[data-screen="game"] .own-status,
   body[data-screen="game"]:has(.own-action) .own-status,
@@ -130,20 +130,20 @@ body[data-screen="game"] .hand-section:not(.expanded) .hand-heading {
   body[data-screen="game"] .own-status .avatar {
     width: 24px;
     height: 24px;
-    font-size: 14px;
+    font-size: var(--font-size-14);
   }
   body[data-screen="game"] .own-status > strong {
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
   body[data-screen="game"] .own-metrics {
     gap: 14px;
     justify-content: space-between;
   }
   body[data-screen="game"] .own-metrics > span {
-    font-size: 11px;
+    font-size: var(--font-size-11);
   }
   body[data-screen="game"] .own-metrics b {
-    font-size: 23px;
+    font-size: var(--font-size-24);
   }
   body[data-screen="game"] .own-action {
     border: 0;
@@ -152,17 +152,17 @@ body[data-screen="game"] .hand-section:not(.expanded) .hand-heading {
     gap: 5px;
   }
   body[data-screen="game"] .own-action b {
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
   body[data-screen="game"] .own-action small {
-    font-size: 11px;
+    font-size: var(--font-size-11);
     overflow: hidden;
     text-overflow: ellipsis;
   }
   body[data-screen="game"] .own-action #turn-countdown {
-    font-size: 13px;
+    font-size: var(--font-size-13);
     padding: 2px 6px;
-    background: #18382bbb;
+    background: var(--ui-surface);
   }
   body[data-screen="game"] .table .scene-host:after {
     background: none;
@@ -220,7 +220,7 @@ body[data-screen="game"] .hand-section:not(.expanded) .hand-heading {
   }
   body[data-screen="game"] .room-operations button {
     padding: 5px 9px;
-    border-radius: 7px;
+    border-radius: var(--radius-sm);
   }
   body[data-screen="game"] .game-toolbar {
     left: 8px;
@@ -228,7 +228,7 @@ body[data-screen="game"] .hand-section:not(.expanded) .hand-heading {
     top: max(5px,env(safe-area-inset-top))!important;
   }
   body[data-screen="game"] .compact-trump {
-    font-size: 11px;
+    font-size: var(--font-size-11);
   }
   body[data-screen="game"] .own-status,
   body[data-screen="game"]:has(.own-action) .own-status,
@@ -259,7 +259,7 @@ body[data-screen="game"] .hand-section:not(.expanded) .hand-heading {
   body[data-screen="game"] .own-action b,
   body[data-screen="game"] .own-action small {
     display: block;
-    font-size: 11px;
+    font-size: var(--font-size-11);
     line-height: 1.4;
   }
   body[data-screen="game"] .action-panel,
@@ -284,7 +284,7 @@ body[data-screen="game"] .hand-section:not(.expanded) .hand-heading {
     display: none;
   }
   body[data-screen="game"][data-phase="trickEnd"] .action-title h3 {
-    font-size: 12px;
+    font-size: var(--font-size-12);
   }
   body[data-screen="game"] .hand-heading {
     left: auto;
