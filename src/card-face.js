@@ -1,6 +1,6 @@
 import { deck, SUIT_NAMES } from './game.js';
 import { cardImage, loadCardImage, loadedCardImage } from './card-art.js';
-import { TRUMP_COLORS } from './trump-style.js';
+import { TRUMP_COLORS, SPECIAL_CARD_COLORS } from './trump-style.js';
 
 const symbols = { blue: '❄', red: '♜', green: '❧', yellow: '✧', wizard: '✦', jester: '☾' };
 
@@ -11,7 +11,7 @@ export function cardMark(card) {
     value: number ? String(card.rank) : card.kind === 'wizard' ? 'W' : 'J',
     name: number ? SUIT_NAMES[card.suit].split(' · ')[0] : card.kind === 'wizard' ? '巫师' : '小丑',
     symbol: symbols[number ? card.suit : card.kind],
-    color: number ? TRUMP_COLORS[card.suit] : card.kind === 'wizard' ? '#f3cf66' : '#d9b5f0',
+    color: number ? TRUMP_COLORS[card.suit] : SPECIAL_CARD_COLORS[card.kind],
   };
 }
 

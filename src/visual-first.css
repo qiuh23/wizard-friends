@@ -9,7 +9,7 @@
 #quick-settings > summary::-webkit-details-marker { display:none; }
 #quick-settings > summary:after { display:none; }
 .settings-content .settings-close, body[data-screen="lobby"] .settings-content .settings-close { align-self:flex-end; width:44px; padding:10px; margin-left:auto; }
-.visual-icon-button:focus-visible, #quick-settings > summary:focus-visible { outline:3px solid #ffe0a1; outline-offset:3px; }
+.visual-icon-button:focus-visible, #quick-settings > summary:focus-visible { outline:3px solid var(--cream); outline-offset:3px; }
 body[data-screen="home"] .home-menu { width:min(390px,calc(100% - 48px)); }
 body[data-screen="home"] .home-title { margin-bottom:24px; }
 body[data-screen="home"] .home-title h1 { margin-bottom:0; }
@@ -49,7 +49,7 @@ body[data-screen="lobby"] .lobby-current { display:flex; align-items:center; gap
 .rules-setup .rule-choices { display:flex; flex-wrap:wrap; gap:6px; }
 .rules-setup .rule-choices label { flex:1 1 auto; min-width:0; min-height:44px; padding:10px; }
 .rules-setup .rule-choices label span { font-size:14px; }
-.rules-setup .rule-choices input:focus-visible + span { outline:3px solid #ffe0a1; outline-offset:2px; }
+.rules-setup .rule-choices input:focus-visible + span { outline:3px solid var(--cream); outline-offset:2px; }
 .modal .close { min-width:44px; min-height:44px; }
 /* Status text has no controls and must never consume a start/play touch. */
 .notice { pointer-events:none; }

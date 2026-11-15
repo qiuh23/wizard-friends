@@ -1,8 +1,7 @@
 /* One visual hierarchy: readable text, generous targets, and one primary action. */
-:root { --muted: #c4c9c3; }
 button, input, summary { touch-action: manipulation; }
 button:focus-visible, summary:focus-visible, input:focus-visible {
-  outline: 3px solid #ffe0a1; outline-offset: 3px;
+  outline: 3px solid var(--cream); outline-offset: 3px;
 }
 .muted, .fine { color: #bec5be; }
 body[data-screen="lobby"] .top-actions button { min-height: 44px; font-size: 14px; color: #f4e8d1; }

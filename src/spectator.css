@@ -35,7 +35,7 @@
 .directory-phase { color: #f1d494; }
 .room-directory-watch {
   min-height: 46px; padding: 11px 17px; border: 1px solid #f4d79f; border-radius: 6px;
-  color: #241c11; background: #e6c486; font-size: 15px; font-weight: 600; white-space: nowrap;
+  color: #241c11; background: var(--gold); font-size: 15px; font-weight: 600; white-space: nowrap;
 }
 .room-directory-watch:hover:not(:disabled) { color: #241c11; background: #f6daa6; }
 .room-directory button:focus-visible { outline: 3px solid #ffe5ab; outline-offset: 3px; }

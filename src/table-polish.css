@@ -37,7 +37,7 @@ body[data-screen="game"][data-foresight="true"][data-table-layout="strip"][data-
 
 .card-contact-shadow { display:none; }
 body[data-screen="game"].has-webgl .card-contact-shadow { display:block; }
-body[data-screen="game"] .bid-options .bid:active { background:#e6c486;color:#211c11; }
+body[data-screen="game"] .bid-options .bid:active { background:var(--gold);color:#211c11; }
 
 #room-social .chat-notices { --chat-safe-left:env(safe-area-inset-left,0px);--chat-safe-right:env(safe-area-inset-right,0px);--chat-safe-top:env(safe-area-inset-top,0px);--chat-safe-bottom:env(safe-area-inset-bottom,0px); }
 
