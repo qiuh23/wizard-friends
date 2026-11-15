@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { HomeScreen, RoomHeading, LobbyScreen, LobbyStart } from './entry';
+import { HomeScreen, JoinRoomModal, RoomHeading, LobbyScreen, LobbyStart } from './entry';
 import { TableScreen, HandTools } from './table';
 import { RulesModal } from './rules-modal';
 import { QuickSettings, RulesButton, LobbyOperations, GameToolbar, GameMenu, Lifecycle, LobbyNavigation, LobbyReturnModal } from './chrome';
@@ -33,6 +33,7 @@ function Interface() {
       {model.spectating && <div className="spectator-banner">观战中 · 仅公开信息 · {model.state?.spectatorCount || 0} 人观战</div>}
     </div>
     <div id="notice" className="notice" role="status" aria-live="polite">{model.status}</div>
+    {!model.state && model.joinOpen && !model.rulesOpen && <JoinRoomModal model={model}/>}
     {model.rulesOpen && <RulesModal/>}
     {model.lobbyReturnText && <LobbyReturnModal message={model.lobbyReturnText}/>}
   </>;

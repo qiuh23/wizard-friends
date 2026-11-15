@@ -13,10 +13,12 @@ if (await page.locator('.facts, .intro, .how, footer').count()) throw new Error(
 if (await page.locator('#join-form').isVisible()) throw new Error('Join form must start collapsed');
 await page.locator('#join-menu').click();
 await page.locator('#room-input').fill('ABCD2345');
+await page.locator('#close-join').click();
 await page.locator('#rules').click();
 await page.locator('#close-rules').click();
-if (await page.locator('#room-input').inputValue() !== 'ABCD2345') throw new Error('Menu lost room draft');
 await page.locator('#join-menu').click();
+if (await page.locator('#room-input').inputValue() !== 'ABCD2345') throw new Error('Menu lost room draft');
+await page.locator('#close-join').click();
 if (await page.evaluate(() => document.documentElement.scrollHeight > innerHeight)) throw new Error('Desktop menu exceeds viewport');
 await page.screenshot({ path: '.local/smoke-desktop.png', fullPage: true });
 await page.locator('#nickname').fill('测试巫师');

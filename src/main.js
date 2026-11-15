@@ -220,6 +220,7 @@ const storedRoom = savedSession?.room || '';
 function notify(message) {
   clearTimeout(noticeTimer);
   status = message; const el = $('#notice'); if (el) el.textContent = message;
+  const joinStatus = $('#join-status'); if (joinStatus) joinStatus.textContent = message;
   // Recoverability is shown by the permanent room controls; this acknowledgement
   // must not sit over a seat for the rest of a round.
   if (message && /^(已恢复|已回到|已加入|房间已准备|邀请链接已复制)/.test(message)) noticeTimer=setTimeout(()=>{
@@ -256,6 +257,8 @@ function uiModel(returnRooms = []) {
   };
 }
 function render() {
+  // Entry dialogs must not reappear when a completed room later returns home.
+  if (state) joinOpen = false;
   qualityHint.refresh();
   const previousForesight = $('.foresight-hands');
   const foresightScroll = previousForesight?.scrollTop || 0;
@@ -295,17 +298,11 @@ function render() {
       const recovery=returnRooms[Number(button.dataset.returnRoom)];if(!recovery)return;
       token=recovery.token;sessionStore.setItem(tokenKey,token);restoreRoom(recovery);
     }));
-    $('#join-form').onsubmit = e => { e.preventDefault(); launch(false); };
-    $('#room-input').oninput = e => { joinDraft = e.target.value; };
-    $('#join-menu').onclick = () => {
-      joinOpen = !joinOpen;
-      $('#join-form').hidden = !joinOpen;
-      $('#join-menu').setAttribute('aria-expanded', String(joinOpen));
-      if (joinOpen) $('#room-input').focus();
-    };
+    $('#join-menu').onclick = () => setJoinOpen(true);
+    if (joinOpen) bindJoinModal();
     $('#practice').onclick = startPractice;
     $('#resume-practice')?.addEventListener('click', () => restoreRoom(readPractice(localStore)));
-    $('#cancel-connect')?.addEventListener('click', () => leaveRoom());
+    if (!joinOpen) $('#cancel-connect')?.addEventListener('click', () => leaveRoom());
     if (domestic) $('#random-nickname').onclick = () => { selectedNicknameId = randomNicknameId(); nickname = nicknameFromId(selectedNicknameId); persistName(); render(); };
     else $('#nickname').oninput = e => { nickname = e.target.value; automaticName = false; persistName(); };
     return;
@@ -452,6 +449,43 @@ function bindCommon() {
   if (rulesOpen) bindRulesModal();
   if (lobbyReturnOpen) bindLobbyReturnModal();
 }
+function bindJoinModal() {
+  const close = $('#close-join'); if (!close) return;
+  const panel = close.closest('.modal'), input = $('#room-input');
+  close.onclick = () => setJoinOpen(false);
+  close.closest('.modal-backdrop').onclick = event => { if (event.target === event.currentTarget) setJoinOpen(false); };
+  input.oninput = event => { joinDraft = event.target.value; };
+  $('#join-form').onsubmit = event => {
+    event.preventDefault();
+    if (busy) return;
+    if (!saveName()) { setJoinOpen(false); $('#nickname')?.focus(); return; }
+    launch(false);
+  };
+  const cancel = $('#cancel-connect'); if (cancel) cancel.onclick = () => leaveRoom();
+  panel.onkeydown = event => {
+    if (event.key === 'Escape') { event.preventDefault(); setJoinOpen(false); return; }
+    if (event.key !== 'Tab') return;
+    const controls = [...panel.querySelectorAll('button:not(:disabled),input:not(:disabled)')];
+    const edge = event.shiftKey ? controls[0] : controls.at(-1);
+    if (document.activeElement === edge) { event.preventDefault(); (event.shiftKey ? controls.at(-1) : controls[0]).focus(); }
+  };
+  if (!panel.contains(document.activeElement)) (busy ? close : input).focus({preventScroll:true});
+}
+function setJoinOpen(open, restoreFocus = true) {
+  if (open && (state || busy)) return;
+  if (!open) joinDraft = $('#room-input')?.value ?? joinDraft;
+  if (open) {
+    floatingLayers.closeOthers(null);
+    rulesOpen = false;
+  }
+  joinOpen = open;
+  updateUIDraft({joinOpen, joinDraft, rulesOpen, settingsOpen});
+  if (open) bindJoinModal();
+  else {
+    const cancel = $('#cancel-connect'); if (cancel) cancel.onclick = () => leaveRoom();
+    if (restoreFocus) (busy ? cancel : $('#join-menu'))?.focus({preventScroll:true});
+  }
+}
 function bindRulesModal() {
   const close = $('#close-rules'); if (!close) return;
   close.onclick = () => setRulesOpen(false);
@@ -464,6 +498,7 @@ function bindRulesModal() {
   };
 }
 function setRulesOpen(open) {
+  if (open && !state && joinOpen) setJoinOpen(false, false);
   if (open) floatingLayers.closeOthers(null);
   rulesOpen = open; updateUIDraft({rulesOpen});
   if (open) { bindRulesModal(); $('#close-rules').focus(); }
@@ -969,7 +1004,7 @@ const floatingLayers = new FloatingLayers([
     close:({restoreFocus}) => social.closeRename(restoreFocus),
   },
 ], {
-  blocked:() => rulesOpen || lobbyReturnOpen || !!state?.lifecycle?.continuationVote || !!document.querySelector('dialog[open]'),
+  blocked:() => rulesOpen || (!state && joinOpen) || lobbyReturnOpen || !!state?.lifecycle?.continuationVote || !!document.querySelector('dialog[open]'),
   ignoreClick:() => !!selectionPointer?.dragged,
 });
 floatingLayers.listen(document);

@@ -198,6 +198,6 @@ test('home primary has a physical gold edge and secondaries use the shared contr
   assert.equal(primary.background, 'var(--gold)'); assert.equal(primary.color, 'var(--gold-ink)');
   assert.equal(tokens['--gold-edge'], '#8a6d3b');
   assert.equal(tokens['--effect-home-menu-menu-options-menu-primary-19'], '0 3px 0 var(--gold-edge)');
-  assert.equal(declarations('src/home-menu.css', '.menu-options .menu-choice').background, 'var(--ui-control)');
+  assert.equal(declarations('src/home-menu.css', '.menu-options .menu-tile').background, 'var(--ui-control)');
   assert.equal(declarations('src/home-menu.css', '.menu-options .menu-primary:disabled')['box-shadow'], 'none');
 });

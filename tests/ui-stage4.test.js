@@ -60,8 +60,8 @@ test('semantic UI roles have one canonical definition, independent of raw color 
             if (/^--(?:ui-text|ui-text-muted|ui-surface|ui-control|ui-border|ui-control-border|gold|gold-ink|ui-focus)$/.test(d.prop))
                 assert.equal(file + ' ' + d.parent.selector, 'src/ui/theme.css :root');
         });
-    assert.equal(read('src/home-menu.css', '.menu-options .menu-choice:hover:not(:disabled)', 'background'), 'var(--ui-control-hover)');
-    assert.equal(read('src/home-menu.css', '.menu-options .menu-choice:disabled', 'color'), 'var(--ui-text-muted)');
+    assert.equal(read('src/home-menu.css', '.menu-options .menu-tile:hover:not(:disabled)', 'background'), 'var(--ui-control-hover)');
+    assert.equal(read('src/home-menu.css', '.menu-options .menu-tile:disabled', 'color'), 'var(--ui-text-muted)');
 });
 test('real text uses approved nine steps and ordinary weights; drawing glyphs are not text', () => {
     const drawing = /(?:\.sigil\b|\.brand-icon\b|\.table-empty\s*>\s*span\b|\.lobby-settings:after)/;
