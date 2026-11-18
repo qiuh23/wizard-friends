@@ -5,7 +5,8 @@ export const TABLE_CAMERA_ANGLE = 58;
 
 /** Keep the model's proportions fixed. Portrait crops the side rails, not the
  * central inlay; wide screens frame the physical timber rim. */
-export function frameTableCamera(camera, width, height, {compact=false,portrait=height>width}={}) {
+export function frameTableCamera(camera, width, height, {compact=false}={}) {
+  const portrait=height>width;
   camera.aspect=width/height;camera.fov=compact?32:43;
   const angle=THREE.MathUtils.degToRad(TABLE_CAMERA_ANGLE);
   const halfFov=Math.tan(THREE.MathUtils.degToRad(camera.fov/2));

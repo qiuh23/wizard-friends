@@ -257,46 +257,68 @@ test('actual GLB flames remain in mobile portrait/landscape viewport with player
   assets.dispose();
 });
 
-test('portrait home reuses real game props and lighting without a table DOM ancestor',async t=>{
-  const original=globalThis.matchMedia,originalStyle=globalThis.getComputedStyle;
-  globalThis.matchMedia=()=>({matches:false});globalThis.getComputedStyle=node=>{assert.ok(node,'never style a missing .table');return {};};
-  t.after(()=>{if(original)globalThis.matchMedia=original;else delete globalThis.matchMedia;if(originalStyle)globalThis.getComputedStyle=originalStyle;else delete globalThis.getComputedStyle;});
+test('portrait home fits actual props around the original three cards with no camera change',async t=>{
+  const original=globalThis.matchMedia,originalDocument=globalThis.document,originalStyle=globalThis.getComputedStyle;
+  globalThis.matchMedia=()=>({matches:false});globalThis.getComputedStyle=()=>{throw Error('home props need no game table DOM')};
+  const noop=()=>{};const context={fillRect:noop,beginPath:noop,moveTo:noop,bezierCurveTo:noop,stroke:noop,roundRect:noop,fill:noop,createRadialGradient:()=>({addColorStop:noop})};
+  globalThis.document={createElement:()=>({getContext:()=>context})};
+  t.after(()=>{for(const [key,value] of [['matchMedia',original],['document',originalDocument],['getComputedStyle',originalStyle]])if(value)globalThis[key]=value;else delete globalThis[key];});
   const {TableScene}=await import('../src/table-scene.js');
-  const table=fakeTable();Object.assign(table,{mode:'hero',homePortrait:true,host:{closest:()=>null},coins:new THREE.Group(),deck:new THREE.Group()});
-  table.tableProps=[table.book,table.orbStand,table.coins,table.deck,...table.candles]
-    .map(group=>({group,position:group.position.clone(),scale:group.scale.clone()}));
+  const {homePropBounds}=await import('../src/rendering/home-table-props.mjs');
+  const table={scene:new THREE.Scene(),mode:'hero',homePortrait:true,host:{closest:()=>null},candles:[],flames:[],legacyLights:[],cards:new Map(),
+    renderer:{toneMappingExposure:1.4,shadowMap:{enabled:false}},face:()=>null,resize(){},requestDraw(){}};
+  for(const key of ['material','mesh','candle','updateAssetLighting'])table[key]=TableScene.prototype[key];
+  TableScene.prototype.buildTable.call(table);TableScene.prototype.buildTrump.call(table);
+  for(const [width,height] of [[320,280],[320,368],[390,644]]) {
+    table.width=width;table.height=height;table.camera=new THREE.PerspectiveCamera(43,width/height,.1,80);
+    table.camera.position.set(0,7.3,10.2);table.camera.lookAt(0,0,0);table.camera.updateMatrixWorld();
+    TableScene.prototype.layoutDecorations.call(table,width,height);
+    for(const {group} of table.tableProps) {
+      const b=homePropBounds(group,table.camera,width,height);
+      assert.ok(b.worldBottom>=.355&&b.left>=7&&b.right<=width-7&&b.top>=54&&b.bottom<=height-12,'procedural fallback remains visible above felt');
+    }
+  }
+  table.homePortrait=false;TableScene.prototype.layoutDecorations.call(table,1440,900);table.homePortrait=true;
   table.assets=new WizardTableAssets(table,{loader:clonedLoader()});await table.assets.load();
+  TableScene.prototype.updateCards.call(table,[{player:0,card:{id:'sample-blue',kind:'number',suit:'blue',rank:13}},{player:1,card:{id:'sample-red',kind:'number',suit:'red',rank:7}}]);
+  for(const card of table.cards.values()){card.position.copy(card.userData.target);card.rotation.y=card.userData.rotation;}
+  table.trump.position.set(0,1.9,0);table.trump.scale.setScalar(1.5);
+  const separated=(a,b,gap=3)=>a.right+gap<=b.left||b.right+gap<=a.left||a.bottom+gap<=b.top||b.bottom+gap<=a.top;
   for(const [width,height] of [[320,280],[320,368],[360,440],[390,368],[390,644],[430,732],[600,500]]) {
     table.width=width;table.height=height;table.camera=new THREE.PerspectiveCamera(43,width/height,.1,80);
-    frameTableCamera(table.camera,width,height,{portrait:true});
+    table.camera.position.set(0,7.3,10.2);table.camera.lookAt(0,0,0);table.camera.updateMatrixWorld();
+    const matrix=table.camera.matrixWorld.toArray();
     for(const low of [false,true,false]) {
-      table.low=low;TableScene.prototype.layoutDecorations.call(table,width,height);
-      const summary=TableScene.prototype.updateAssetLighting.call(table);
-      assert.equal(summary.profile,'portrait');assert.equal(summary.pointLights,low?2:6);assert.equal(summary.exposure,1.25);
-      assert.equal(table.trumpRingMaterial.opacity,.34);
-      for(const {group} of table.tableProps)assert.ok(Math.abs(group.position.x)<=6&&Math.abs(group.position.z)<=3.9);
-      for(const root of [...table.candles,table.orbStand]) {
-        root.updateWorldMatrix(true,true);
-        root.traverseVisible(mesh=>{
-          if(!mesh.isMesh||mesh.isSprite)return;mesh.geometry.computeBoundingBox();const box=mesh.geometry.boundingBox;
-          for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z]) {
-            const point=new THREE.Vector3(x,y,z).applyMatrix4(mesh.matrixWorld).project(table.camera),px=(point.x+1)*width/2,py=(1-point.y)*height/2;
-            assert.ok(px>=7&&px<=width-7,`${width}×${height} prop x=${px}`);
-            assert.ok(py>=55&&py<=height-11,`${width}×${height} prop y=${py}`);
-          }
-        });
-      }
-      if(height>width) {
-        const transforms=table.tableProps.map(({group})=>[...group.position.toArray(),...group.scale.toArray()]);
-        table.mode='game';table.homePortrait=false;table.host={closest:()=>({dataset:{layoutMode:'ring'}})};
-        TableScene.prototype.layoutDecorations.call(table,width,height);
-        table.tableProps.forEach(({group},i)=>[...group.position.toArray(),...group.scale.toArray()].forEach((v,j)=>assert.ok(Math.abs(v-transforms[i][j])<1e-10,'same portrait prop placement as live game')));
-        table.mode='hero';table.homePortrait=true;table.host={closest:()=>null};
+      table.low=low;let lightingPasses=0;
+      table.updateAssetLighting=function(){lightingPasses++;return TableScene.prototype.updateAssetLighting.call(this)};
+      TableScene.prototype.layoutDecorations.call(table,width,height);
+      assert.ok(lightingPasses<=7,'one lighting update per fitting pass, not per prop');
+      const summary=table.updateAssetLighting();
+      assert.equal(summary.profile,'hero');assert.equal(summary.pointLights,low?2:6);assert.equal(summary.exposure,1.20);
+      assert.deepEqual(table.camera.matrixWorld.toArray(),matrix);assert.equal(table.trumpRingMaterial.opacity,.35);
+      for(const time of [0,1000,2500]) {
+        table.animationTime=time;table.updateAssetLighting();
+        const props=table.tableProps.map(({group},i)=>({i,...homePropBounds(group,table.camera,width,height)}));
+        for(const p of props) {
+          assert.ok(p.worldBottom>=.355,`${width}×${height} prop ${p.i} buried under felt: ${p.worldBottom}`);
+          assert.ok(p.left>=7&&p.right<=width-7&&p.top>=54&&p.bottom<=height-12,`${width}×${height} prop ${p.i} outside visible home: ${JSON.stringify(p)}`);
+          for(const q of props)if(q.i>p.i)assert.ok(separated(p,q),`${width}×${height} props ${p.i}/${q.i} overlap: ${JSON.stringify([p,q])}`);
+        }
+        for(const {group} of table.tableProps) {
+          const physical=new THREE.Box3();group.updateWorldMatrix(true,true);
+          group.traverseVisible(mesh=>{if(mesh.isMesh&&!mesh.isSprite){mesh.geometry.computeBoundingBox();physical.union(mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld))}});
+          assert.ok(physical.min.x>=-6.5&&physical.max.x<=6.5&&physical.min.z>=-4.4&&physical.max.z<=4.4,`${width}×${height} prop stays on the physical timber: ${JSON.stringify(physical)}`);
+        }
+        const cardBounds=[...table.cards.values()].map(card=>homePropBounds(card,table.camera,width,height));
+        for(let step=0;step<64;step++)for(const bob of [-.07,.07]) {
+          table.trumpCard.rotation.y=step*Math.PI/32;table.trump.position.y=1.9+bob;
+          for(const card of [...cardBounds,homePropBounds(table.trump,table.camera,width,height)])for(const p of props)
+            assert.ok(separated(p,card),`${width}×${height} prop ${p.i} covers a card: ${JSON.stringify([p,card])}`);
+        }
       }
     }
   }
   table.homePortrait=false;TableScene.prototype.layoutDecorations.call(table,1440,900);
-  for(const {group,position,scale} of table.tableProps) {assert.deepEqual(group.position.toArray(),position.toArray());assert.deepEqual(group.scale.toArray(),scale.toArray());}
-  assert.equal(TableScene.prototype.updateAssetLighting.call(table).profile,'hero');
+  for(const {group,position,scale} of table.tableProps){assert.deepEqual(group.position.toArray(),position.toArray());assert.deepEqual(group.scale.toArray(),scale.toArray());}
   table.assets.dispose();
 });
