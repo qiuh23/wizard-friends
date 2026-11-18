@@ -16,7 +16,7 @@ function sceneFor(width,height,{lobby=false,game=false,compact=false}={}) {
   return {mode:game?'game':'hero',lobby,foresight:false,camera:new THREE.PerspectiveCamera(43,1,.1,80),
     host:{getBoundingClientRect:()=>({width,height}),closest:()=>game?{dataset:{layoutMode:compact?'strip':'ring'}}:null},
     trump:new THREE.Object3D(),tableSurface:[new THREE.Object3D()],tableInlay:new THREE.Object3D(),
-    surround:new THREE.Object3D(),trumpRingMaterial:{},layoutDecorations(){}};
+    surround:Object.assign(new THREE.Object3D(),{visible:game}),trumpRingMaterial:{},layoutDecorations(){}};
 }
 function centered(camera,width,height) {
   for(const y of [0,.36,.43])assert.ok(Math.abs(new THREE.Vector3(0,y,0).project(camera).x)<1e-10,`${width}×${height}: table center shifted`);
@@ -34,15 +34,15 @@ test('desktop and landscape home retain their centered camera and three-card tra
   }
 });
 
-test('phone home uses the exact game portrait camera, even on short portrait canvases',()=>{
+test('phone home restores the exact original oblique hero camera without zoom or offset',()=>{
   for(const [width,viewportHeight] of [[320,480],[320,568],[360,640],[390,568],[390,844],[430,932],[600,700],[700,701]]) {
     viewport=[width,viewportHeight];const height=viewportHeight-200,scene=sceneFor(width,height),expected=new THREE.PerspectiveCamera(43,1,.1,80);
-    resize.call(scene);frameTableCamera(expected,width,height,{portrait:true});centered(scene.camera,width,height);
-    assert.equal(scene.homePortrait,true);assert.equal(scene.surround.visible,true);
+    resize.call(scene);expected.aspect=width/height;expected.position.set(0,7.3,10.2);expected.lookAt(0,0,0);expected.updateProjectionMatrix();expected.updateMatrixWorld();centered(scene.camera,width,height);
+    assert.equal(scene.homePortrait,true);assert.equal(scene.surround.visible,false);
     assert.deepEqual(scene.camera.position.toArray(),expected.position.toArray());
     assert.deepEqual(scene.camera.quaternion.toArray(),expected.quaternion.toArray());
     assert.deepEqual(scene.camera.projectionMatrix.elements,expected.projectionMatrix.elements);
-    assert.equal(scene.mode,'hero');assert.equal(scene.trump.userData.baseHeight,1.5);
+    assert.equal(scene.mode,'hero');assert.equal(scene.trump.userData.baseHeight,1.9);assert.equal(scene.trump.scale.x,1.5);assert.deepEqual(scene.trump.position.toArray(),[0,1.9,0]);
   }
 });
 
@@ -64,10 +64,10 @@ test('orientation changes reset home presentation and invalidate even an unchang
   viewport=[844,390];resize.call(scene);assert.notEqual(scene.layoutKey,portraitKey);
   assert.equal(scene.homePortrait,false);assert.equal(scene.surround.visible,false);
   assert.deepEqual(scene.camera.position.toArray(),[0,7.3,10.2]);assert.deepEqual(scene.trump.position.toArray(),[0,1.9,0]);
-  viewport=[390,568];resize.call(scene);assert.equal(scene.layoutKey,portraitKey);assert.equal(scene.trump.scale.x,1.2);
+  viewport=[390,568];resize.call(scene);assert.equal(scene.layoutKey,portraitKey);assert.equal(scene.trump.scale.x,1.5);
 });
 
-test('all three home card meshes fit between header and controls throughout a full turn and bob',async()=>{
+test('all three original home card meshes remain in canvas throughout a full turn and bob',async()=>{
   const original=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:false});
   const {TableScene}=await import('../src/table-scene.js');
   if(original)globalThis.matchMedia=original;else delete globalThis.matchMedia;
@@ -88,7 +88,7 @@ test('all three home card meshes fit between header and controls throughout a fu
         for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z]) {
           const p=new THREE.Vector3(x,y,z).applyMatrix4(mesh.matrixWorld).project(scene.camera),px=(p.x+1)*width/2,py=(1-p.y)*height/2;
           assert.ok(px>=8&&px<=width-8,`${width}×${viewportHeight}: card side clipped at ${px}`);
-          assert.ok(py>=64+8&&py<=height-12,`${width}×${viewportHeight}: header/menu collision at ${py}`);
+          assert.ok(py>=0&&py<=height-12,`${width}×${viewportHeight}: canvas/menu collision at ${py}`);
         }
       });
     };
@@ -100,7 +100,7 @@ test('all three home card meshes fit between header and controls throughout a fu
   }
 });
 
-test('same-size home reattachment keeps the shared portrait surround and inlay',async()=>{
+test('same-size home reattachment retains original hero camera and atmosphere',async()=>{
   const original=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:false});
   const {TableScene}=await import('../src/table-scene.js');
   if(original)globalThis.matchMedia=original;else delete globalThis.matchMedia;
@@ -110,7 +110,7 @@ test('same-size home reattachment keeps the shared portrait surround and inlay',
   resize.call(scene);const key=scene.layoutKey;
   for(let i=0;i<4;i++) {
     TableScene.prototype.attach.call(scene,scene.host,null);
-    assert.equal(scene.layoutKey,key);assert.equal(scene.surround.visible,true);assert.equal(scene.trumpRingMaterial.opacity,.34);
+    assert.equal(scene.layoutKey,key);assert.equal(scene.surround.visible,false);assert.equal(scene.trumpRingMaterial.opacity,.35);assert.deepEqual(scene.camera.position.toArray(),[0,7.3,10.2]);
   }
 });
 
@@ -119,12 +119,12 @@ test('portrait home keeps one rotating wizard and honors reduced motion',()=>{
   const animate=runInNewContext(`({${source.slice(source.indexOf('  animate(time) {'),source.lastIndexOf('\n}'))}}).animate`,{THREE,motionMedia,document:{hidden:false}});
   const scene={mode:'hero',homePortrait:true,host:{isConnected:true},trumpMotion:true,assetLighting:{},dust:new THREE.Object3D(),orb:new THREE.Object3D(),
     trump:new THREE.Object3D(),trumpCard:new THREE.Object3D(),cards:new Map(),updateAssetLighting(){},renderer:{render(){}}};
-  scene.trump.userData.baseHeight=1.5;
+  scene.trump.userData.baseHeight=1.9;
   for(const time of [1000,3000,8000,16000]) {
     scene.frame=time;scene.animationTime=time;animate.call(scene,time);
     assert.equal(scene.trumpCard.rotation.y,-.25+time*.001*Math.PI/8);
-    assert.equal(scene.dust.visible,false);assert.ok(Math.abs(scene.trump.position.y-1.5)<=.07);
+    assert.equal(scene.dust.visible,true);assert.ok(Math.abs(scene.trump.position.y-1.9)<=.07);
   }
   motionMedia.matches=true;assert.equal(animate.call(scene,17000),null);
-  assert.equal(scene.trumpCard.rotation.y,-.25);assert.equal(scene.trump.position.y,1.5);
+  assert.equal(scene.trumpCard.rotation.y,-.25);assert.equal(scene.trump.position.y,1.9);
 });

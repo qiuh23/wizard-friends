@@ -11,8 +11,8 @@ export const LIGHT_PROFILES = Object.freeze({
   portrait:{ hemisphere:.42, fill:.30, rim:.10, candle:7, range:5, count:4, exposure:1.25 },
   compact: { hemisphere:.48, fill:.34, rim:.10, candle:9, range:5, count:4, exposure:1.25 },
 });
-export function chooseProfile({mode='game',width=1000,height=700,compact=false,portrait=height>width}={}) {
-  return mode==='hero' ? 'hero' : compact ? 'compact' : portrait ? 'portrait' : 'desktop';
+export function chooseProfile({mode='game',width=1000,height=700,compact=false}={}) {
+  return mode==='hero' ? 'hero' : compact ? 'compact' : height>width ? 'portrait' : 'desktop';
 }
 export function createWizardLighting({THREE,scene,renderer,candles,orb=null,lantern=null,camera=null,legacyLights=[],shadows=false}) {
   if(!Array.isArray(candles)||candles.length!==4) throw new Error('Expected four candle records in original source order');
@@ -51,9 +51,9 @@ export function createWizardLighting({THREE,scene,renderer,candles,orb=null,lant
   const previousShadow=renderer.shadowMap.enabled;
   let disposed=false;const wobbleState=[0,0,0,0];
   const effectivelyVisible=o=>{for(let n=o;n;n=n.parent){if(n.visible===false)return false;if(n===scene)return true;}return false;};
-  function update({mode='game',width=1000,height=700,compact=false,portrait=height>width,lowPower=false,reducedMotion=false,paused=false,time=0}={}) {
+  function update({mode='game',width=1000,height=700,compact=false,lowPower=false,reducedMotion=false,paused=false,time=0}={}) {
     if(disposed)return;
-    const profile=chooseProfile({mode,width,height,compact,portrait}),config=LIGHT_PROFILES[profile];
+    const profile=chooseProfile({mode,width,height,compact}),config=LIGHT_PROFILES[profile];
     const small=lowPower;
     hemisphere.intensity=config.hemisphere;fill.intensity=config.fill*110;rim.intensity=small?0:config.rim;rim.visible=rim.intensity>0;
     hemisphere.visible=hemisphere.intensity>0;fill.visible=fill.intensity>0;
