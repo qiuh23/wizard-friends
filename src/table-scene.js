@@ -342,12 +342,19 @@ export class TableScene {
     const {width,height}=this.host.getBoundingClientRect();
     if(!width||!height)return;
     const compact = this.host.closest('.table')?.dataset.layoutMode === 'strip';
-    const layoutKey = [width,height,compact,this.mode,this.foresight,this.lobby,this.low].join(':');
+    // The home canvas is 200px shorter than the viewport. A short portrait
+    // phone must still use the portrait table, even when that canvas is wide.
+    this.homePortrait = this.mode === 'hero' && !this.lobby
+      && matchMedia('(max-width:700px) and (orientation:portrait)').matches;
+    const layoutKey = [width,height,compact,this.mode,this.foresight,this.lobby,this.low,this.homePortrait].join(':');
     const changed = layoutKey !== this.layoutKey;
     this.layoutKey = layoutKey;
     updateDrawingBuffer(this.renderer,{width,height,devicePixelRatio:globalThis.devicePixelRatio,
       low:this.low,phone:this.phoneQuality,maxDimension:this.maxDrawingBufferDimension});
     this.width = width; this.height = height;
+    // attach() can run again at the same size when the home directory updates.
+    this.surround.visible = this.mode === 'game' || this.homePortrait;
+    if (this.homePortrait) this.trumpRingMaterial.opacity = .34;
     if (changed) {
     this.qualityAdviser?.reset(performance.now());
     this.camera.aspect=width/height;
@@ -372,13 +379,17 @@ export class TableScene {
     } else {
       this.camera.fov = 43;
       for (const surface of this.tableSurface) surface.scale.set(1,1,1);
-      this.camera.position.set(0,7.3,10.2);
+      if (this.homePortrait) frameTableCamera(this.camera,width,height,{portrait:true});
+      else this.camera.position.set(0,7.3,10.2);
       if (this.lobby && width < 700) this.camera.position.multiplyScalar(1.4);
-      this.trump.scale.setScalar(1.5);
-      this.trump.position.set(0, 1.9, 0);
+      this.trumpRingMaterial.opacity = .35;
+      // The steeper, closer portrait camera needs a lower screen placement:
+      // keep the full turning face below the header and its base above felt.
+      this.trump.scale.setScalar(this.homePortrait ? 1.2 : 1.5);
+      this.trump.position.set(0, this.homePortrait ? 1.5 : 1.9, this.homePortrait ? 1.6 : 0);
     }
     this.trump.userData.baseHeight = this.trump.position.y;
-    if (this.mode !== 'game') this.camera.lookAt(0,0,0);
+    if (this.mode !== 'game' && !this.homePortrait) this.camera.lookAt(0,0,0);
     this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld();
     this.layoutDecorations(width, height);
     }
@@ -390,7 +401,8 @@ export class TableScene {
   requestDraw() { if (!this.drawing) this.drawFrame?.request(); }
   requestResize() { this.resizePending = true; this.requestDraw(); }
   updateAssetLighting() {
-    return this.assets?.update({ mode: this.mode, width: this.width, height: this.height,
+    return this.assets?.update({ mode: this.homePortrait ? 'game' : this.mode, width: this.width, height: this.height,
+      portrait: this.homePortrait || this.height > this.width,
       compact: this.host?.closest('.table')?.dataset.layoutMode === 'strip',
       lowPower: this.low, reducedMotion: motionMedia.matches, paused: this.paused,
       time: this.animationTime || 0 });
@@ -427,7 +439,7 @@ export class TableScene {
   feltScreenBounds(width=this.width,height=this.height,compact=false) { return tableFrameBounds(width,height,{compact}); }
   layoutDecorations(width, height) {
     for (const { group, position, scale } of this.tableProps) { group.position.copy(position); group.scale.copy(scale); group.visible = true; }
-    if (this.mode !== 'game') return;
+    if (this.mode !== 'game' && !this.homePortrait) return;
     const compact = this.host.closest('.table')?.dataset.layoutMode === 'strip';
     // A single circular inlay follows the table plane; the camera supplies its
     // ellipse. Do not squash it again for short landscape or stretch portrait.
@@ -436,9 +448,9 @@ export class TableScene {
       for (const { group } of this.tableProps) group.scale.multiplyScalar(this.candles.includes(group) ? .55 : .68);
       return;
     }
-    const portrait = height > width;
+    const portrait = this.homePortrait || height > width;
     const table = this.host.closest('.table');
-    const safe = decorationViewport(width, height, typeof getComputedStyle === 'function' ? getComputedStyle(table) : {});
+    const safe = decorationViewport(width, height, table && typeof getComputedStyle === 'function' ? getComputedStyle(table) : {});
     const plane = new THREE.Plane(new THREE.Vector3(0,1,0),-.36), ray = new THREE.Raycaster();
     const place = (group, x, y, pixels, size) => {
       ray.setFromCamera(new THREE.Vector2(safe.x(x)*2-1,1-safe.y(y)*2),this.camera);
@@ -466,7 +478,7 @@ export class TableScene {
     // Elevated flames lean outward in perspective, especially in short landscape.
     // Fit candle/lantern and crystal mesh bounds, not just ground pivots, after grounding
     // imported assets. Keep the upper HUD and lower hand-control band unobscured.
-    this.assets?.update({ mode:this.mode, width, height, compact, lowPower:this.low,
+    this.assets?.update({ mode:this.homePortrait ? 'game' : this.mode, width, height, compact, portrait, lowPower:this.low,
       reducedMotion:motionMedia.matches, paused:this.paused, time:this.animationTime || 0 });
     const limits={left:safe.x(0)*width+8,right:safe.x(1)*width-8,
       top:safe.y(0)*height+56,bottom:safe.y(1)*height-(compact?100:12)};
@@ -625,8 +637,8 @@ export class TableScene {
     if (!this.paused) this.animationTime = (this.animationTime || 0) + elapsed;
     const sceneTime = this.animationTime || 0;
     const t=motionMedia.matches?0:sceneTime*.001;
-    if (!this.assetLighting) for(const {flame,point,offset} of this.flames){flame.scale.y=1.7+Math.sin(t*1.7+offset)*.06;point.intensity=(this.mode==='game' ? 6 : 12)+Math.sin(t*1.4+offset)*.12;}
-    this.dust.visible=!this.low && this.mode !== 'game';
+    if (!this.assetLighting) for(const {flame,point,offset} of this.flames){flame.scale.y=1.7+Math.sin(t*1.7+offset)*.06;point.intensity=(this.mode==='game' || this.homePortrait ? 6 : 12)+Math.sin(t*1.4+offset)*.12;}
+    this.dust.visible=!this.low && this.mode !== 'game' && !this.homePortrait;
     this.dust.rotation.y=t*.014;
     this.orb.rotation.y=t*.2;
     if (this.trump.visible) {

@@ -84,7 +84,7 @@ test('actual scene resize preserves camera/model projection and avoids buffer ch
     const scene={host:{getBoundingClientRect:()=>({width,height}),closest:()=>({dataset:{layoutMode:compact?'strip':'ring'}})},
       mode:'game',low:false,phoneQuality:true,maxDrawingBufferDimension:8192,
       renderer:{setDrawingBufferSize(...args){calls.push(args);}},camera:new THREE.PerspectiveCamera(43,1,.1,80),
-      tableSurface:[table],tableInlay:new THREE.Group(),trump,layoutDecorations(){},
+      tableSurface:[table],tableInlay:new THREE.Group(),surround:new THREE.Object3D(),trumpRingMaterial:{},trump,layoutDecorations(){},
       updateAssetLighting(){},alignCardSeats(){},alignTrump(){},requestDraw(){}};
     globalThis.devicePixelRatio=3;TableScene.prototype.resize.call(scene);
     const projection=scene.camera.projectionMatrix.toArray(),world=scene.camera.matrixWorld.toArray();
