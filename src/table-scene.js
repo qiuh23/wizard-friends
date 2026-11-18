@@ -373,8 +373,7 @@ export class TableScene {
       this.camera.fov = 43;
       for (const surface of this.tableSurface) surface.scale.set(1,1,1);
       this.camera.position.set(0,7.3,10.2);
-      if (!this.lobby) this.camera.setViewOffset(width, height, -width * (width > 700 ? .18 : .28), 0, width, height);
-      else if (width < 700) this.camera.position.multiplyScalar(1.4);
+      if (this.lobby && width < 700) this.camera.position.multiplyScalar(1.4);
       this.trump.scale.setScalar(1.5);
       this.trump.position.set(0, 1.9, 0);
     }
