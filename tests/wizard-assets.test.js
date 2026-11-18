@@ -256,3 +256,47 @@ test('actual GLB flames remain in mobile portrait/landscape viewport with player
   }
   assets.dispose();
 });
+
+test('portrait home reuses real game props and lighting without a table DOM ancestor',async t=>{
+  const original=globalThis.matchMedia,originalStyle=globalThis.getComputedStyle;
+  globalThis.matchMedia=()=>({matches:false});globalThis.getComputedStyle=node=>{assert.ok(node,'never style a missing .table');return {};};
+  t.after(()=>{if(original)globalThis.matchMedia=original;else delete globalThis.matchMedia;if(originalStyle)globalThis.getComputedStyle=originalStyle;else delete globalThis.getComputedStyle;});
+  const {TableScene}=await import('../src/table-scene.js');
+  const table=fakeTable();Object.assign(table,{mode:'hero',homePortrait:true,host:{closest:()=>null},coins:new THREE.Group(),deck:new THREE.Group()});
+  table.tableProps=[table.book,table.orbStand,table.coins,table.deck,...table.candles]
+    .map(group=>({group,position:group.position.clone(),scale:group.scale.clone()}));
+  table.assets=new WizardTableAssets(table,{loader:clonedLoader()});await table.assets.load();
+  for(const [width,height] of [[320,280],[320,368],[360,440],[390,368],[390,644],[430,732],[600,500]]) {
+    table.width=width;table.height=height;table.camera=new THREE.PerspectiveCamera(43,width/height,.1,80);
+    frameTableCamera(table.camera,width,height,{portrait:true});
+    for(const low of [false,true,false]) {
+      table.low=low;TableScene.prototype.layoutDecorations.call(table,width,height);
+      const summary=TableScene.prototype.updateAssetLighting.call(table);
+      assert.equal(summary.profile,'portrait');assert.equal(summary.pointLights,low?2:6);assert.equal(summary.exposure,1.25);
+      assert.equal(table.trumpRingMaterial.opacity,.34);
+      for(const {group} of table.tableProps)assert.ok(Math.abs(group.position.x)<=6&&Math.abs(group.position.z)<=3.9);
+      for(const root of [...table.candles,table.orbStand]) {
+        root.updateWorldMatrix(true,true);
+        root.traverseVisible(mesh=>{
+          if(!mesh.isMesh||mesh.isSprite)return;mesh.geometry.computeBoundingBox();const box=mesh.geometry.boundingBox;
+          for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z]) {
+            const point=new THREE.Vector3(x,y,z).applyMatrix4(mesh.matrixWorld).project(table.camera),px=(point.x+1)*width/2,py=(1-point.y)*height/2;
+            assert.ok(px>=7&&px<=width-7,`${width}×${height} prop x=${px}`);
+            assert.ok(py>=55&&py<=height-11,`${width}×${height} prop y=${py}`);
+          }
+        });
+      }
+      if(height>width) {
+        const transforms=table.tableProps.map(({group})=>[...group.position.toArray(),...group.scale.toArray()]);
+        table.mode='game';table.homePortrait=false;table.host={closest:()=>({dataset:{layoutMode:'ring'}})};
+        TableScene.prototype.layoutDecorations.call(table,width,height);
+        table.tableProps.forEach(({group},i)=>[...group.position.toArray(),...group.scale.toArray()].forEach((v,j)=>assert.ok(Math.abs(v-transforms[i][j])<1e-10,'same portrait prop placement as live game')));
+        table.mode='hero';table.homePortrait=true;table.host={closest:()=>null};
+      }
+    }
+  }
+  table.homePortrait=false;TableScene.prototype.layoutDecorations.call(table,1440,900);
+  for(const {group,position,scale} of table.tableProps) {assert.deepEqual(group.position.toArray(),position.toArray());assert.deepEqual(group.scale.toArray(),scale.toArray());}
+  assert.equal(TableScene.prototype.updateAssetLighting.call(table).profile,'hero');
+  table.assets.dispose();
+});
